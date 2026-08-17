@@ -129,12 +129,12 @@ const nextConfig: NextConfig = {
             key: 'Content-Security-Policy',
             value: [
               "default-src 'self'",
-              "script-src 'self' 'unsafe-eval' 'unsafe-inline' https://clerk.com https://*.clerk.accounts.dev https://*.usenuva.com",
+              "script-src 'self' 'unsafe-eval' 'unsafe-inline' https://clerk.com https://*.clerk.accounts.dev",
               "style-src 'self' 'unsafe-inline'",
               "img-src 'self' data: blob: https: http://localhost:8000",
               "font-src 'self' data:",
-              "connect-src 'self' https://clerk.com https://*.clerk.accounts.dev https://clerk.accounts.dev http://localhost:8000 https://*.vercel.app https://*.usenuva.com https://*.railway.app",
-              "frame-src 'self' https://clerk.com https://*.clerk.accounts.dev https://*.usenuva.com",
+              "connect-src 'self' https://clerk.com https://*.clerk.accounts.dev https://clerk.accounts.dev http://localhost:8000 https://*.vercel.app https://*.railway.app",
+              "frame-src 'self' https://clerk.com https://*.clerk.accounts.dev",
               "worker-src 'self' blob:",
             ].join('; ')
           },

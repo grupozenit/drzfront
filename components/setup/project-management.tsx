@@ -5,9 +5,8 @@ import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Dialog } from "@/components/ui/dialog"
 import { useToast, ToastContainer } from "@/components/ui/toast"
-import { Loader2, AlertCircle, Upload, X, PenLine } from "lucide-react"
+import { Loader2, Upload, X, PenLine } from "lucide-react"
 import { BaselineSetup } from "./baseline-setup"
 import { TheoreticalCurveSetup } from "./theoretical-curve-setup"
 import { useProjects } from "@/lib/hooks"
@@ -24,7 +23,6 @@ export function ProjectManagement() {
   const [orgMembers, setOrgMembers] = useState<OrganizationMember[]>([])
   const [showMemberDropdown, setShowMemberDropdown] = useState(false)
   const [showEditMemberDropdown, setShowEditMemberDropdown] = useState(false)
-  const [showPricingConfirmation, setShowPricingConfirmation] = useState(false)
   const [signatureImageFile, setSignatureImageFile] = useState<File | null>(null)
   const [signatureImagePreview, setSignatureImagePreview] = useState<string | null>(null)
   const [isUploadingSignature, setIsUploadingSignature] = useState(false)
@@ -58,15 +56,6 @@ export function ProjectManagement() {
     }
   }
 
-  const handleRequestCreateProject = () => {
-    if (!newProject.name?.trim()) {
-      showError("Error", "El nombre del proyecto es requerido")
-      return
-    }
-    // Mostrar modal de confirmación con información de precios
-    setShowPricingConfirmation(true)
-  }
-
   const handleAddProject = async () => {
     if (!newProject.name?.trim()) {
       showError("Error", "El nombre del proyecto es requerido")
@@ -82,10 +71,7 @@ export function ProjectManagement() {
       })
       addProject(project)
       resetForm()
-      success(
-        "Proyecto creado exitosamente", 
-        "Se añadirá a tu facturación el proporcional hasta tu próximo ciclo. Si esto fue un error, contacta a soporte: tbianco@grupozenit.com"
-      )
+      success("Proyecto creado exitosamente")
     } catch (err) {
       showError("Error", "No se pudo crear el proyecto")
     } finally {
@@ -283,43 +269,6 @@ export function ProjectManagement() {
     <>
       <ToastContainer toasts={toasts} onClose={removeToast} />
       
-      {/* Modal de Confirmación de Costos */}
-      <Dialog
-        isOpen={showPricingConfirmation}
-        onClose={() => setShowPricingConfirmation(false)}
-        onConfirm={handleAddProject}
-        title="⚠️ Confirmar Creación de Proyecto"
-        confirmText="Sí, crear proyecto"
-        cancelText="Cancelar"
-        type="confirm"
-      >
-        <div className="p-6 space-y-4">
-          <div className="flex items-start gap-3 p-4 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-lg">
-            <AlertCircle className="w-5 h-5 text-amber-600 dark:text-amber-500 shrink-0 mt-0.5" />
-            <div className="space-y-2 text-sm">
-              <p className="font-semibold text-foreground">
-                Crear un proyecto tiene un costo asociado
-              </p>
-              <p className="text-muted-foreground">
-                <strong className="text-foreground">Precio:</strong> $210.000 CLP + IVA por mes, durante los meses que el proyecto esté activo.
-              </p>
-            </div>
-          </div>
-          
-          <div className="space-y-2 text-sm">
-            <p className="text-muted-foreground">
-              <strong className="text-foreground">💳 Facturación:</strong> El primer cargo se ajustará proporcionalmente según los días restantes hasta tu próxima facturación.
-            </p>
-          </div>
-          
-          <div className="pt-2 border-t border-border">
-            <p className="text-xs text-muted-foreground italic">
-              Al confirmar, aceptas que se añadirá el cargo prorrateado a tu próxima facturación.
-            </p>
-          </div>
-        </div>
-      </Dialog>
-      
       <div className="container px-4 md:px-6 py-8">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-8">
           <div className="hidden md:block">
@@ -463,7 +412,7 @@ export function ProjectManagement() {
 
               <div className="flex gap-3 pt-4 border-t border-border">
                 <Button
-                  onClick={handleRequestCreateProject}
+                  onClick={handleAddProject}
                   className="bg-primary hover:bg-primary/90 text-primary-foreground text-sm"
                   disabled={isSaving}
                 >
@@ -723,18 +672,6 @@ export function ProjectManagement() {
                   </div>
                   <p className="text-[10px] text-muted-foreground">JPG, PNG, HEIC o WebP. Máximo 5 MB.</p>
                 </div>
-              </div>
-
-              <div className="mt-6 p-4 bg-muted/50 border border-border rounded-lg">
-                <p className="text-xs text-muted-foreground">
-                  <strong className="text-foreground">¿Creaste este proyecto por error?</strong> Para revertir esta acción, contacta a soporte en{" "}
-                  <a
-                    href="mailto:tbianco@grupozenit.com"
-                    className="text-primary hover:underline font-medium"
-                  >
-                    tbianco@grupozenit.com
-                  </a>
-                </p>
               </div>
 
               <div className="flex gap-3 pt-4 border-t border-border">
