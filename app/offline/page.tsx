@@ -12,7 +12,7 @@ export default function OfflinePage() {
         <div className="flex justify-center">
           <Image
             src="/icons/icon-192x192-any.png"
-            alt="Nuva"
+            alt="Grupo Zenit"
             width={80}
             height={80}
             priority

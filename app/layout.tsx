@@ -25,7 +25,7 @@ const geistMono = Geist_Mono({
 })
 
 export const metadata: Metadata = {
-  title: 'Nuva - Gestión de Proyectos',
+  title: 'Grupo Zenit - Gestión de Proyectos',
   description: 'Gestión de reportes diarios para proyectos de instalación solar',
   icons: {
     icon: [
@@ -38,7 +38,7 @@ export const metadata: Metadata = {
   },
   appleWebApp: {
     capable: true,
-    title: 'Nuva',
+    title: 'Grupo Zenit',
     statusBarStyle: 'black-translucent',
     startupImage: '/icons/apple-touch-icon.png',
   },
@@ -47,7 +47,7 @@ export const metadata: Metadata = {
 export const viewport = {
   themeColor: [
     { media: '(prefers-color-scheme: light)', color: '#f8f9fc' },
-    { media: '(prefers-color-scheme: dark)', color: '#191b24' },
+    { media: '(prefers-color-scheme: dark)', color: '#1a1f24' },
   ],
 }
 
@@ -117,9 +117,9 @@ export default async function RootLayout({
                     const vh = window.innerHeight;
                     document.documentElement.style.setProperty('--viewport-height', vh + 'px');
                   }
-                  
+
                   setViewportHeight();
-                  
+
                   // Actualizar cuando cambie el tamaño (cuando aparece/desaparece barra del navegador)
                   let resizeTimer;
                   window.addEventListener('resize', function() {

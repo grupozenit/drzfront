@@ -55,7 +55,6 @@ interface AppState {
 interface AppContextValue extends AppState {
   // Acciones de Empresa
   loadCompany: () => Promise<void>;
-  updateCompany: (data: Partial<Company>) => Promise<void>;
 
   // Acciones de Proyectos
   loadProjects: () => Promise<void>;
@@ -165,15 +164,6 @@ export function AppProvider({ children, initialData }: AppProviderProps) {
       setState(prev => ({ ...prev, company: null, isLoadingCompany: false }));
     }
   }, []);
-
-  const updateCompanyState = useCallback(async (data: Partial<Company>) => {
-    if (state.company) {
-      setState(prev => ({
-        ...prev,
-        company: prev.company ? { ...prev.company, ...data } : null,
-      }));
-    }
-  }, [state.company]);
 
   // ============================================
   // PROYECTOS
@@ -450,7 +440,6 @@ export function AppProvider({ children, initialData }: AppProviderProps) {
   const value: AppContextValue = {
     ...state,
     loadCompany,
-    updateCompany: updateCompanyState,
     loadProjects,
     addProject,
     updateProject: updateProjectState,
@@ -504,8 +493,8 @@ export function useProjects() {
 }
 
 export function useCompany() {
-  const { company, isLoadingCompany, loadCompany, updateCompany } = useApp();
-  return { company, isLoading: isLoadingCompany, loadCompany, updateCompany };
+  const { company, isLoadingCompany, loadCompany } = useApp();
+  return { company, isLoading: isLoadingCompany, loadCompany };
 }
 
 export function useTeam() {

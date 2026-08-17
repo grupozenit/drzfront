@@ -26,11 +26,6 @@ export interface CreateCompanyDTO {
   logo?: string;
 }
 
-export interface UpdateCompanyDTO {
-  name?: string;
-  logo?: string;
-}
-
 // ============================================
 // USUARIO / EQUIPO
 // ============================================

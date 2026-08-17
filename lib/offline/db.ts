@@ -22,7 +22,7 @@ class OfflineDatabase extends Dexie {
   pendingReports!: Table<OfflinePendingReport, string>;
 
   constructor() {
-    super('NuvaOfflineDB');
+    super('ZenitOfflineDB');
     this.version(1).stores({
       pendingReports: 'id, status, createdAt',
     });

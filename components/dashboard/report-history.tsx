@@ -92,7 +92,7 @@ export function ReportHistory() {
   const statusColors: Record<string, string> = {
     enviado: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300",
     borrador: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300",
-    archivado: "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300",
+    archivado: "bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200",
   }
 
   // Handlers para acciones
@@ -214,7 +214,7 @@ export function ReportHistory() {
       message += `\n`
     }
     
-    message += `_Reporte generado automáticamente por Nuva_`
+    message += `_Reporte generado automáticamente por Grupo Zenit_`
     
     shareWhatsApp(report.id, message)
   }

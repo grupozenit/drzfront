@@ -11,7 +11,6 @@ export default function ConfiguracionLayout({
   const pathname = usePathname()
 
   const tabs = [
-    { id: "empresa", label: "Empresa", href: "/configuracion/empresa" },
     { id: "proyectos", label: "Proyectos", href: "/configuracion/proyectos" },
     { id: "equipo", label: "Equipo", href: "/configuracion/equipo" },
   ]

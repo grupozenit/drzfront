@@ -14,16 +14,15 @@ const viewTitles: Record<string, string> = {
   "/reporte-semanal": "Reportes Semanales",
   "/maquinaria": "Maquinaria",
   "/configuracion": "Configuración",
-  "/configuracion/empresa": "Configuración - Empresa",
   "/configuracion/proyectos": "Configuración - Proyectos",
   "/configuracion/equipo": "Configuración - Equipo",
 }
 
 export function Header({ onMenuClick }: HeaderProps) {
   const pathname = usePathname()
-  
+
   const getTitle = () => {
-    return viewTitles[pathname || "/tablero"] || "Nuva - Gestión de Proyectos"
+    return viewTitles[pathname || "/tablero"] || "Grupo Zenit - Gestión de Proyectos"
   }
 
   return (

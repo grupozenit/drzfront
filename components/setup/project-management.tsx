@@ -84,7 +84,7 @@ export function ProjectManagement() {
       resetForm()
       success(
         "Proyecto creado exitosamente", 
-        "Se añadirá a tu facturación el proporcional hasta tu próximo ciclo. Si esto fue un error, contacta a soporte: tbianco@usenuva.com"
+        "Se añadirá a tu facturación el proporcional hasta tu próximo ciclo. Si esto fue un error, contacta a soporte: tbianco@grupozenit.com"
       )
     } catch (err) {
       showError("Error", "No se pudo crear el proyecto")
@@ -729,10 +729,10 @@ export function ProjectManagement() {
                 <p className="text-xs text-muted-foreground">
                   <strong className="text-foreground">¿Creaste este proyecto por error?</strong> Para revertir esta acción, contacta a soporte en{" "}
                   <a
-                    href="mailto:tbianco@usenuva.com"
+                    href="mailto:tbianco@grupozenit.com"
                     className="text-primary hover:underline font-medium"
                   >
-                    tbianco@usenuva.com
+                    tbianco@grupozenit.com
                   </a>
                 </p>
               </div>
