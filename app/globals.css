@@ -1,0 +1,327 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "react-day-picker/src/style.css";
+
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  /* Light mode colors */
+  --background: oklch(0.98 0.001 220);
+  --foreground: oklch(0.15 0.01 220);
+  --card: oklch(1 0 220);
+  --card-foreground: oklch(0.15 0.01 220);
+  --popover: oklch(1 0 220);
+  --popover-foreground: oklch(0.15 0.01 220);
+  --primary: oklch(0.45 0.22 255);
+  --primary-foreground: oklch(1 0 220);
+  --secondary: oklch(0.52 0.28 265);
+  --secondary-foreground: oklch(1 0 220);
+  --muted: oklch(0.93 0.002 220);
+  --muted-foreground: oklch(0.55 0.01 220);
+  --accent: oklch(0.55 0.24 250);
+  --accent-foreground: oklch(1 0 220);
+  --destructive: oklch(0.577 0.245 27.325);
+  --destructive-foreground: oklch(0.97 0.01 220);
+  --border: oklch(0.9 0.002 220);
+  --input: oklch(0.95 0.001 220);
+  --ring: oklch(0.45 0.22 255);
+  --chart-1: oklch(0.45 0.22 255);
+  --chart-2: oklch(0.55 0.24 250);
+  --chart-3: oklch(0.35 0.18 270);
+  --chart-4: oklch(0.65 0.15 280);
+  --chart-5: oklch(0.52 0.22 245);
+  --radius: 0;
+  --sidebar: oklch(0.98 0.001 220);
+  --sidebar-foreground: oklch(0.15 0.01 220);
+  --sidebar-primary: oklch(0.45 0.22 255);
+  --sidebar-primary-foreground: oklch(1 0 220);
+  --sidebar-accent: oklch(0.55 0.24 250);
+  --sidebar-accent-foreground: oklch(1 0 220);
+  --sidebar-border: oklch(0.9 0.002 220);
+  --sidebar-ring: oklch(0.45 0.22 255);
+}
+
+.dark {
+  /* Dark mode with improved contrast colors */
+  --background: oklch(0.14 0.008 235);
+  --foreground: oklch(0.95 0.008 220);
+  --card: oklch(0.18 0.008 235);
+  --card-foreground: oklch(0.95 0.008 220);
+  --popover: oklch(0.18 0.008 235);
+  --popover-foreground: oklch(0.95 0.008 220);
+  --primary: oklch(0.58 0.26 248);
+  --primary-foreground: oklch(0.14 0.008 235);
+  --secondary: oklch(0.56 0.25 255);
+  --secondary-foreground: oklch(0.14 0.008 235);
+  --muted: oklch(0.22 0.008 235);
+  --muted-foreground: oklch(0.7 0.008 220);
+  --accent: oklch(0.65 0.27 248);
+  --accent-foreground: oklch(0.14 0.008 235);
+  --destructive: oklch(0.396 0.141 25.723);
+  --destructive-foreground: oklch(0.937 0.15 40.24);
+  --border: oklch(0.24 0.008 235);
+  --input: oklch(0.18 0.008 235);
+  --ring: oklch(0.58 0.26 248);
+  --chart-1: oklch(0.58 0.26 248);
+  --chart-2: oklch(0.65 0.27 248);
+  --chart-3: oklch(0.48 0.21 258);
+  --chart-4: oklch(0.62 0.24 268);
+  --chart-5: oklch(0.6 0.25 248);
+  --sidebar: oklch(0.18 0.008 235);
+  --sidebar-foreground: oklch(0.95 0.008 220);
+  --sidebar-primary: oklch(0.58 0.26 248);
+  --sidebar-primary-foreground: oklch(0.18 0.008 235);
+  --sidebar-accent: oklch(0.65 0.27 248);
+  --sidebar-accent-foreground: oklch(0.18 0.008 235);
+  --sidebar-border: oklch(0.24 0.008 235);
+  --sidebar-ring: oklch(0.58 0.26 248);
+}
+
+@theme inline {
+  --font-sans: "Geist", "Geist Fallback";
+  --font-mono: "Geist Mono", "Geist Mono Fallback";
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --radius-sm: 0;
+  --radius-md: 0;
+  --radius-lg: 0;
+  --radius-xl: 0;
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-size: 13px;
+    /* Evitar el pull-to-refresh del browser en la PWA. El modo offline
+       se maneja con el OfflineIndicator, no con el gesto nativo. */
+    overscroll-behavior-y: contain;
+  }
+  h1 {
+    font-size: 1.5rem;
+  }
+  h2 {
+    font-size: 1.25rem;
+  }
+  h3 {
+    font-size: 1rem;
+  }
+  p,
+  label,
+  input,
+  select,
+  textarea {
+    font-size: 0.8125rem;
+  }
+}
+
+/* Estilos personalizados para calendarios y selects */
+@layer components {
+  /* Iconos de calendario */
+  input[type="date"]::-webkit-calendar-picker-indicator {
+    cursor: pointer;
+    filter: invert(0);
+    opacity: 1;
+  }
+  
+  .dark input[type="date"]::-webkit-calendar-picker-indicator {
+    filter: invert(1);
+  }
+  
+  input[type="date"] {
+    box-shadow: none;
+    border-radius: 0.5rem;
+  }
+  
+  input[type="date"]:focus {
+    box-shadow: 0 0 0 2px var(--ring);
+    outline: none;
+  }
+  
+  /* Ocultar flechas de input number */
+  input[type="number"].no-arrows::-webkit-inner-spin-button,
+  input[type="number"].no-arrows::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+  
+  input[type="number"].no-arrows {
+    -moz-appearance: textfield;
+    appearance: textfield;
+  }
+
+  /* Estilos del calendario nativo */
+  input[type="date"]::-webkit-datetime-edit {
+    padding: 0;
+  }
+
+  input[type="date"]::-webkit-datetime-edit-fields-wrapper {
+    padding: 0;
+  }
+
+  input[type="date"]::-webkit-calendar-picker-indicator {
+    margin-left: 0.5rem;
+  }
+
+  /* Hover states mejorados */
+  .dark button:not(.bg-primary):hover {
+    color: var(--primary);
+  }
+
+  .dark a:hover {
+    color: var(--primary);
+  }
+
+  /* Estilos personalizados para react-day-picker v9 */
+  .rdp-root {
+    /* Variables base usando el tema de la app */
+    --rdp-accent-color: var(--primary);
+    --rdp-accent-background-color: color-mix(in srgb, var(--primary) 20%, transparent);
+    --rdp-day_button-color: var(--foreground);
+    --rdp-selected-color: var(--primary-foreground);
+    
+    margin: 0;
+  }
+
+  /* Ajustes específicos para Dark Mode para asegurar contraste y visibilidad */
+  .dark .rdp-root {
+    --rdp-accent-background-color: color-mix(in srgb, var(--primary) 15%, transparent);
+    --rdp-day_button-color: var(--foreground);
+  }
+
+  /* Estilos para el texto del mes y año */
+  .rdp-caption_label {
+    color: var(--foreground);
+    font-weight: 600;
+  }
+
+  /* Estilos para los botones de navegación (flechas) */
+  .rdp-nav_button {
+    color: var(--foreground);
+    width: 2rem;
+    height: 2rem;
+    border-radius: 0.375rem;
+  }
+
+  .rdp-nav_button:hover {
+    background-color: var(--muted);
+  }
+
+  /* Estilos para los días de la semana (Lun, Mar, etc) */
+  .rdp-weekday {
+    color: var(--muted-foreground);
+    font-weight: 500;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    text-align: center;
+    padding-bottom: 0.5rem;
+  }
+
+  /* Estilos base para los botones de los días */
+  .rdp-day_button {
+    width: 2.25rem;
+    height: 2.25rem;
+    border-radius: 0.375rem;
+    font-size: 0.875rem;
+    font-weight: 400;
+    color: var(--foreground);
+    background-color: transparent;
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto; /* Centrar en la celda */
+  }
+
+  /* Hover en días normales */
+  .rdp-day_button:hover:not([disabled]):not(.rdp-selected) {
+    background-color: var(--muted);
+    color: var(--foreground);
+  }
+
+  /* DÍAS SELECCIONADOS (Inicio y Fin de rango, o selección única) */
+  .rdp-selected > .rdp-day_button,
+  .rdp-range_start > .rdp-day_button,
+  .rdp-range_end > .rdp-day_button {
+    background-color: var(--primary) !important;
+    color: var(--primary-foreground) !important;
+    font-weight: 600;
+  }
+
+  /* RANGO MEDIO */
+  /* Fondo suave en la celda contenedora */
+  .rdp-range_middle {
+    background-color: var(--rdp-accent-background-color) !important;
+  }
+
+  /* Botón transparente en el medio del rango para ver el número */
+  .rdp-range_middle > .rdp-day_button {
+    background-color: transparent !important;
+    color: var(--foreground) !important;
+    border-radius: 0;
+    width: 100%;
+  }
+
+  /* Extremos del rango visualmente unidos */
+  .rdp-range_start {
+    border-top-left-radius: 0.375rem;
+    border-bottom-left-radius: 0.375rem;
+    /* El fondo lo da el botón, no la celda en los extremos para evitar doble capa */
+    background-color: transparent; 
+  }
+
+  .rdp-range_end {
+    border-top-right-radius: 0.375rem;
+    border-bottom-right-radius: 0.375rem;
+    background-color: transparent;
+  }
+
+  /* Día de hoy */
+  .rdp-today > .rdp-day_button {
+    color: var(--primary);
+    font-weight: 600;
+  }
+
+  /* Si hoy está seleccionado, gana el color de selección */
+  .rdp-selected.rdp-today > .rdp-day_button {
+    color: var(--primary-foreground);
+  }
+
+  /* Días deshabilitados */
+  .rdp-button:disabled {
+    opacity: 0.5;
+    color: var(--muted-foreground);
+  }
+}

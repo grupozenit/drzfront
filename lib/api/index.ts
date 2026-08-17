@@ -1,0 +1,17 @@
+// Cliente HTTP base
+export { apiClient, setTokenGetter, getAuthToken, isApiError, getErrorMessage } from './client';
+
+// Servicios
+export { projectsService } from './projects';
+export { baselinesService } from './baselines';
+export { reportsService } from './reports';
+export { machineryService } from './machinery';
+export { equipmentService } from './equipment';
+export { companyService } from './company';
+export { teamService } from './team';
+export { dashboardService } from './dashboard';
+export { organizationService } from './organization';
+export type { OrganizationMember, InviteUserDTO } from './organization';
+export { weeklyReportsService } from './weekly-reports';
+export { theoreticalCurvesService } from './theoretical-curves';
+
