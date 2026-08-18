@@ -7,7 +7,7 @@ export default function ConfiguracionPage() {
   const router = useRouter()
 
   useEffect(() => {
-    router.push("/configuracion/empresa")
+    router.replace("/configuracion/proyectos")
   }, [router])
 
   return null

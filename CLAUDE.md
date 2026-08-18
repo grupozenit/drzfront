@@ -30,7 +30,7 @@ Server-side requests also read `API_URL` (internal network URL) with fallback to
 
 ## Architecture
 
-**Nuva** is a Next.js 16 PWA for managing daily reports on solar photovoltaic installation projects. The app is Spanish-language throughout (UI, variable names, comments).
+**Grupo Zenit** is a Next.js 16 PWA for managing daily reports on solar photovoltaic installation projects. The app is Spanish-language throughout (UI, variable names, comments).
 
 ### Auth & Multi-tenancy
 
@@ -78,7 +78,7 @@ The `(dashboard)/layout.tsx` redirects unauthenticated users and those without a
 
 - `@ducanh2912/next-pwa` with Workbox. PWA is **disabled in development**.
 - **Build must use `--webpack`** (`pnpm build`). The PWA plugin is incompatible with Turbopack.
-- `lib/offline/db.ts`: Dexie (IndexedDB) database `NuvaOfflineDB` stores pending reports in a `pendingReports` table.
+- `lib/offline/db.ts`: Dexie (IndexedDB) database `ZenitOfflineDB` stores pending reports in a `pendingReports` table.
 - `lib/offline/sync.ts`: syncs pending reports to the API when back online.
 - `lib/hooks/useOfflineReports.ts`: wraps `useReports` with offline-aware `createReport` — queues locally when offline, syncs on reconnect.
 - `lib/hooks/useOfflineStatus.ts`: tracks `navigator.onLine` and pending report count.
@@ -159,7 +159,7 @@ Source of truth for valid categories in the form UI: `hincas | trackers | modulo
 ## Offline Infrastructure
 
 These files **must exist** or the app fails to compile:
-- `lib/offline/db.ts` — Dexie DB (`NuvaOfflineDB`), `OfflinePendingReport` type, helpers `generateOfflineId`, `filesToOfflineImages`, `offlineImagesToFiles`
+- `lib/offline/db.ts` — Dexie DB (`ZenitOfflineDB`), `OfflinePendingReport` type, helpers `generateOfflineId`, `filesToOfflineImages`, `offlineImagesToFiles`
 - `lib/offline/sync.ts` — exports `syncPendingReports()` and `getPendingCount()`; called by `useOfflineStatus` and `OfflineIndicator`
 - `components/offline/OfflineIndicator.tsx` — imported in `app/(dashboard)/layout.tsx`; shows offline banner and auto-syncs after 3 s delay on reconnect (delay lets Clerk renew the auth token before making authenticated API calls)
 

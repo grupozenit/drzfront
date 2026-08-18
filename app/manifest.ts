@@ -2,8 +2,8 @@ import { MetadataRoute } from 'next'
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: 'Nuva - Gestión de Proyectos',
-    short_name: 'Nuva',
+    name: 'Grupo Zenit - Gestión de Proyectos',
+    short_name: 'Grupo Zenit',
     description: 'Gestión de reportes diarios para proyectos de instalación solar',
     start_url: '/tablero',
     display: 'standalone',

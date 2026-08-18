@@ -76,20 +76,25 @@ export function Sidebar({ isOpen, onToggle }: SidebarProps) {
           <div className="p-3 md:p-4 border-b border-sidebar-border flex-shrink-0">
             <div className={`flex items-center ${isOpen ? "justify-start" : "justify-center"}`}>
               {isOpen ? (
-                <div className="relative w-full h-[36px] md:h-[40px]">
-                  <Image
-                    src="/logo/nuva-logo-horizontal.png"
-                    alt="Nuva Logo"
-                    fill
-                    className="object-contain object-left"
-                    priority
-                  />
+                <div className="flex items-center gap-2.5 w-full min-w-0">
+                  <div className="relative w-[32px] h-[32px] md:w-[36px] md:h-[36px] flex-shrink-0">
+                    <Image
+                      src="/logo/zenit-logo-square.png"
+                      alt="Grupo Zenit"
+                      fill
+                      className="object-contain"
+                      priority
+                    />
+                  </div>
+                  <span className="text-base md:text-lg font-semibold tracking-tight text-sidebar-foreground truncate leading-none">
+                    Grupo Zenit
+                  </span>
                 </div>
               ) : (
                 <div className="relative w-[36px] h-[36px] md:w-[40px] md:h-[40px]">
                   <Image
-                    src="/logo/nuva-logo-square.png"
-                    alt="Nuva Logo"
+                    src="/logo/zenit-logo-square.png"
+                    alt="Grupo Zenit"
                     fill
                     className="object-contain"
                     priority

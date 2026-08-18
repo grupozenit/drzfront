@@ -1,14 +1,14 @@
 import { apiClient } from './client';
-import type {
-  Company,
-  CreateCompanyDTO,
-  UpdateCompanyDTO,
-} from '@/lib/types';
+import type { Company, CreateCompanyDTO } from '@/lib/types';
 
 const ENDPOINT = '/company';
 
 /**
- * Servicio de Empresa
+ * Servicio de Empresa (solo lectura).
+ *
+ * La app está personalizada para una única empresa (Grupo Zenit): el nombre y
+ * el logo no se configuran desde la UI, por eso no se exponen operaciones de
+ * actualización ni de subida de logo.
  */
 export const companyService = {
   /**
@@ -20,31 +20,10 @@ export const companyService = {
   },
 
   /**
-   * Crea una nueva empresa (usado en onboarding)
+   * Crea la empresa de la organización (usado en onboarding)
    */
   async create(data: CreateCompanyDTO): Promise<Company> {
     return apiClient.post<Company>(ENDPOINT, data);
-  },
-
-  /**
-   * Actualiza los datos de la empresa
-   */
-  async update(data: UpdateCompanyDTO): Promise<Company> {
-    return apiClient.put<Company>(ENDPOINT, data);
-  },
-
-  /**
-   * Sube el logo de la empresa
-   */
-  async uploadLogo(file: File): Promise<Company> {
-    return apiClient.uploadFile<Company>(`${ENDPOINT}/logo`, file, 'logo');
-  },
-
-  /**
-   * Elimina el logo de la empresa
-   */
-  async deleteLogo(): Promise<Company> {
-    return apiClient.delete<Company>(`${ENDPOINT}/logo`);
   },
 
   /**
@@ -59,4 +38,3 @@ export const companyService = {
     }
   },
 };
-

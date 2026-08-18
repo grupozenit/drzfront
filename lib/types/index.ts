@@ -26,11 +26,6 @@ export interface CreateCompanyDTO {
   logo?: string;
 }
 
-export interface UpdateCompanyDTO {
-  name?: string;
-  logo?: string;
-}
-
 // ============================================
 // USUARIO / EQUIPO
 // ============================================
@@ -424,6 +419,20 @@ export interface ProjectProgress {
   projectName: string;
   overallProgress: number;
   activities: ActivityProgress[];
+}
+
+export interface ManHoursEntry {
+  month: string; // YYYY-MM
+  monthLabel: string; // "Ago 2026"
+  manHours: number;
+  reportedDays: number;
+}
+
+export interface ProjectManHours {
+  projectId: string;
+  projectName: string;
+  totalManHours: number;
+  history: ManHoursEntry[];
 }
 
 export interface ProjectMachinery {
