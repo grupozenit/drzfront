@@ -8,6 +8,7 @@ import type {
   ProjectSuspendedHours,
   ProjectMachinery,
   ProjectMachineryHistory,
+  ProjectManHours,
   ProjectWorkProgress,
   ProjectActivityBreakdown,
   ProjectSCurve,
@@ -42,6 +43,7 @@ interface UseDashboardReturn {
   workProgress: ProjectWorkProgress | null;
   allWorkProgress: ProjectWorkProgress[];
   allMachineryHistory: ProjectMachineryHistory[];
+  allManHours: ProjectManHours[];
   activityBreakdowns: Record<string, ProjectActivityBreakdown>;
   sCurves: Record<string, ProjectSCurve>;
 
@@ -60,6 +62,7 @@ interface UseDashboardReturn {
   loadProjectMachinery: (projectId: string) => Promise<void>;
   loadAllProjectsMachinery: () => Promise<void>;
   loadAllMachineryHistory: (startDate?: string, endDate?: string) => Promise<void>;
+  loadAllManHours: (startDate?: string, endDate?: string) => Promise<void>;
   loadWorkProgress: (projectId: string, startDate?: string, endDate?: string, activity?: string) => Promise<void>;
   loadAllWorkProgress: (startDate?: string, endDate?: string, activity?: string) => Promise<void>;
   loadFullDashboard: (projectId?: string) => Promise<void>;
@@ -83,6 +86,7 @@ export function useDashboard(options: UseDashboardOptions = {}): UseDashboardRet
   const [workProgress, setWorkProgress] = useState<ProjectWorkProgress | null>(null);
   const [allWorkProgress, setAllWorkProgress] = useState<ProjectWorkProgress[]>([]);
   const [allMachineryHistory, setAllMachineryHistory] = useState<ProjectMachineryHistory[]>([]);
+  const [allManHours, setAllManHours] = useState<ProjectManHours[]>([]);
   const [activityBreakdowns, setActivityBreakdowns] = useState<Record<string, ProjectActivityBreakdown>>({});
   const [sCurves, setSCurves] = useState<Record<string, ProjectSCurve>>({});
 
@@ -224,6 +228,19 @@ export function useDashboard(options: UseDashboardOptions = {}): UseDashboardRet
     }
   }, []);
 
+  const loadAllManHours = useCallback(async (startDate?: string, endDate?: string) => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const data = await dashboardService.getAllManHours(startDate, endDate);
+      setAllManHours(data);
+    } catch (err) {
+      setError(getErrorMessage(err));
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
   const loadWorkProgress = useCallback(async (projectId: string, startDate?: string, endDate?: string, activity?: string) => {
     setIsLoading(true);
     setError(null);
@@ -318,6 +335,7 @@ export function useDashboard(options: UseDashboardOptions = {}): UseDashboardRet
     workProgress,
     allWorkProgress,
     allMachineryHistory,
+    allManHours,
     activityBreakdowns,
     sCurves,
     isLoading,
@@ -332,6 +350,7 @@ export function useDashboard(options: UseDashboardOptions = {}): UseDashboardRet
     loadProjectMachinery,
     loadAllProjectsMachinery,
     loadAllMachineryHistory,
+    loadAllManHours,
     loadWorkProgress,
     loadAllWorkProgress,
     loadFullDashboard,

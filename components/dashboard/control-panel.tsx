@@ -16,7 +16,7 @@ import {
   LineChart,
   Line,
 } from "recharts"
-import { Truck, Users, BarChart3, Clock, FolderKanban, Loader2, TrendingUp } from "lucide-react"
+import { Truck, Users, BarChart3, Clock, FolderKanban, Loader2, TrendingUp, HardHat } from "lucide-react"
 import { useProjects, useMachinery } from "@/lib/hooks"
 import { useDashboard } from "@/lib/hooks/useDashboard"
 import type {
@@ -25,6 +25,7 @@ import type {
   ProjectSuspendedHours,
   ProjectMachinery,
   ProjectMachineryHistory,
+  ProjectManHours,
   ProjectActivityBreakdown,
   ProjectSCurve,
 } from "@/lib/types"
@@ -42,6 +43,7 @@ export function ControlPanel() {
     allSuspendedHours,
     allProjectsMachinery,
     allMachineryHistory,
+    allManHours,
     activityBreakdowns,
     sCurves,
     isLoading: isLoadingDashboard,
@@ -51,6 +53,7 @@ export function ControlPanel() {
     loadAllSuspendedHours,
     loadAllProjectsMachinery,
     loadAllMachineryHistory,
+    loadAllManHours,
     loadActivityBreakdown,
     loadSCurve,
   } = useDashboard()
@@ -67,6 +70,7 @@ export function ControlPanel() {
         loadAllSuspendedHours(),
         loadAllProjectsMachinery(),
         loadAllMachineryHistory(),
+        loadAllManHours(),
       ])
     }
     loadData()
@@ -145,6 +149,13 @@ export function ControlPanel() {
     }
     return allMachineryHistory.filter((p) => p.projectId === selectedProject)
   }, [selectedProject, allMachineryHistory])
+
+  const filteredManHours = useMemo(() => {
+    if (selectedProject === "all") {
+      return allManHours
+    }
+    return allManHours.filter((p) => p.projectId === selectedProject)
+  }, [selectedProject, allManHours])
 
   const isLoading = isLoadingProjects || isLoadingMachinery || isLoadingDashboard
 
@@ -271,6 +282,7 @@ export function ControlPanel() {
             const projectMachineryHist = filteredMachineryHistory.find((p) => p.projectId === project.projectId)
             const projectProgress = filteredProgressData.find((p) => p.projectId === project.projectId)
             const projectSuspendedHours = filteredSuspendedHours.find((p) => p.projectId === project.projectId)
+            const projectManHours = filteredManHours.find((p) => p.projectId === project.projectId)
 
             return (
               <ProjectCard
@@ -280,6 +292,7 @@ export function ControlPanel() {
                 machineryData={projectMachinery}
                 machineryHistory={projectMachineryHist}
                 suspendedHoursData={projectSuspendedHours}
+                manHoursData={projectManHours}
                 activityBreakdown={activityBreakdowns[project.projectId]}
                 sCurveData={sCurves[project.projectId]}
               />
@@ -322,12 +335,20 @@ const CATEGORY_LABELS: Record<string, string> = {
   otras: "Otras",
 }
 
+// Formatea horas hombre con separador de miles y sin decimales innecesarios
+function formatManHours(value: number): string {
+  return new Intl.NumberFormat("es-AR", {
+    maximumFractionDigits: value % 1 === 0 ? 0 : 1,
+  }).format(value)
+}
+
 interface ProjectCardProps {
   personnelData: ProjectPersonnelHistory
   progressData?: ProjectProgress
   machineryData?: ProjectMachinery
   machineryHistory?: ProjectMachineryHistory
   suspendedHoursData?: ProjectSuspendedHours
+  manHoursData?: ProjectManHours
   activityBreakdown?: ProjectActivityBreakdown
   sCurveData?: ProjectSCurve
 }
@@ -338,6 +359,7 @@ function ProjectCard({
   machineryData,
   machineryHistory,
   suspendedHoursData,
+  manHoursData,
   activityBreakdown,
   sCurveData,
 }: ProjectCardProps) {
@@ -387,6 +409,76 @@ function ProjectCard({
           </div>
         </div>
       )}
+
+      {/* Horas Hombre Trabajadas (acumulado mensual) */}
+      {manHoursData && manHoursData.history.length > 0 && (() => {
+        const currentMonthKey = (() => {
+          const now = new Date()
+          return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`
+        })()
+        const currentMonth = manHoursData.history.find((m) => m.month === currentMonthKey)
+        const chartData = manHoursData.history.map((m) => ({
+          name: m.monthLabel,
+          horas: m.manHours,
+        }))
+
+        return (
+          <div className="mb-6 p-4 rounded-lg bg-primary/5 border border-primary/20">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-primary/10">
+                  <HardHat className="w-5 h-5 text-primary" />
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Horas Hombre Trabajadas</p>
+                  <p className="text-2xl font-bold text-primary">
+                    {formatManHours(manHoursData.totalManHours)} <span className="text-sm font-medium">hs</span>
+                  </p>
+                </div>
+              </div>
+              <div className="hidden md:flex flex-col items-end text-xs text-muted-foreground">
+                <span>Acumulado histórico del proyecto</span>
+                {currentMonth && (
+                  <span>
+                    Mes actual ({currentMonth.monthLabel}): {formatManHours(currentMonth.manHours)} hs
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {/* Acumulado por mes */}
+            <div className="mt-4 h-48 md:h-56">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={chartData} margin={{ top: 16, right: 10, left: -10, bottom: 0 }} barSize={28}>
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                  <XAxis dataKey="name" tick={{ fontSize: 9 }} className="text-muted-foreground" stroke="currentColor" />
+                  <YAxis tick={{ fontSize: 9 }} className="text-muted-foreground" stroke="currentColor" />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: "hsl(var(--card))",
+                      border: "1px solid hsl(var(--border))",
+                      borderRadius: "8px",
+                      fontSize: "12px",
+                    }}
+                    labelStyle={{ color: "hsl(var(--foreground))" }}
+                    formatter={(value: number) => [`${formatManHours(value)} hs`, "Horas hombre"]}
+                  />
+                  <Bar dataKey="horas" name="Horas hombre" fill="#F59E0B" radius={[0, 0, 0, 0]}>
+                    <LabelList
+                      dataKey="horas"
+                      position="top"
+                      fill="#B45309"
+                      fontSize={9}
+                      fontWeight={600}
+                      formatter={(value: number) => (value > 0 ? formatManHours(value) : "")}
+                    />
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        )
+      })()}
 
       {/* Histograma de Actividades Semanal (full width) */}
       {activityBreakdown && activityBreakdown.breakdown.length > 0 && (() => {

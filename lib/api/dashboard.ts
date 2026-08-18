@@ -6,6 +6,7 @@ import type {
   ProjectProgress,
   ProjectMachinery,
   ProjectMachineryHistory,
+  ProjectManHours,
   ProjectWorkProgress,
   ProjectActivityBreakdown,
   ProjectSCurve,
@@ -138,6 +139,37 @@ export const dashboardService = {
   ): Promise<ProjectMachineryHistory[]> {
     return apiClient.get<ProjectMachineryHistory[]>(
       `${ENDPOINT}/machinery-history`,
+      { startDate, endDate }
+    );
+  },
+
+  // ============================================
+  // HORAS HOMBRE TRABAJADAS
+  // ============================================
+
+  /**
+   * Obtiene las horas hombre mensuales de un proyecto
+   */
+  async getManHours(
+    projectId: string,
+    startDate?: string,
+    endDate?: string
+  ): Promise<ProjectManHours> {
+    return apiClient.get<ProjectManHours>(
+      `${ENDPOINT}/projects/${projectId}/man-hours`,
+      { startDate, endDate }
+    );
+  },
+
+  /**
+   * Obtiene las horas hombre mensuales de todos los proyectos
+   */
+  async getAllManHours(
+    startDate?: string,
+    endDate?: string
+  ): Promise<ProjectManHours[]> {
+    return apiClient.get<ProjectManHours[]>(
+      `${ENDPOINT}/man-hours`,
       { startDate, endDate }
     );
   },

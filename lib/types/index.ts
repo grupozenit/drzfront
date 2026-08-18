@@ -421,6 +421,20 @@ export interface ProjectProgress {
   activities: ActivityProgress[];
 }
 
+export interface ManHoursEntry {
+  month: string; // YYYY-MM
+  monthLabel: string; // "Ago 2026"
+  manHours: number;
+  reportedDays: number;
+}
+
+export interface ProjectManHours {
+  projectId: string;
+  projectName: string;
+  totalManHours: number;
+  history: ManHoursEntry[];
+}
+
 export interface ProjectMachinery {
   projectId: string;
   projectName: string;
