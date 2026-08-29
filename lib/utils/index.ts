@@ -32,4 +32,5 @@ export function formatDateLocal(
 
 // Re-exportar utilidades de cálculo
 export * from './calculations';
+export * from './cuit';
 

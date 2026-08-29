@@ -4,6 +4,9 @@ import type {
   CreateEquipmentDTO,
   UpdateEquipmentDTO,
   EventLogEntry,
+  AssetNote,
+  CreateNoteDTO,
+  UpdateNoteDTO,
 } from '@/lib/types';
 
 const ENDPOINT = '/equipment';
@@ -50,5 +53,33 @@ export const equipmentService = {
 
   async getActive(): Promise<Equipment[]> {
     return this.getAll({ status: 'activa' });
+  },
+
+  /**
+   * Obtiene la bitácora de un equipo
+   */
+  async getNotes(equipmentId: string, estado?: 'abierta' | 'resuelta' | 'all'): Promise<AssetNote[]> {
+    return apiClient.get<AssetNote[]>(`${ENDPOINT}/${equipmentId}/notes`, estado ? { estado } : undefined);
+  },
+
+  /**
+   * Crea una entrada de bitácora (incidencia raíz o seguimiento)
+   */
+  async createNote(equipmentId: string, data: CreateNoteDTO): Promise<AssetNote> {
+    return apiClient.post<AssetNote>(`${ENDPOINT}/${equipmentId}/notes`, data);
+  },
+
+  /**
+   * Actualiza una entrada de bitácora
+   */
+  async updateNote(equipmentId: string, noteId: string, data: UpdateNoteDTO): Promise<AssetNote> {
+    return apiClient.put<AssetNote>(`${ENDPOINT}/${equipmentId}/notes/${noteId}`, data);
+  },
+
+  /**
+   * Elimina una entrada de bitácora
+   */
+  async deleteNote(equipmentId: string, noteId: string): Promise<void> {
+    return apiClient.delete(`${ENDPOINT}/${equipmentId}/notes/${noteId}`);
   },
 };

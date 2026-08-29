@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
+import { DatePicker } from "@/components/ui/date-picker"
+import { ViewToggle } from "@/components/ui/view-toggle"
 import {
   Select,
   SelectContent,
@@ -15,6 +17,7 @@ import {
 } from "@/components/ui/select"
 import { Dialog } from "@/components/ui/dialog"
 import { useToast, ToastContainer } from "@/components/ui/toast"
+import { AssetNotesModal } from "@/components/fleet/asset-notes-modal"
 import {
   Wrench,
   MapPin,
@@ -26,10 +29,15 @@ import {
   ChevronDown,
   Loader2,
   Clock,
+  AlertTriangle,
+  NotebookPen,
+  Search,
 } from "lucide-react"
 import { useProjects, useEquipment } from "@/lib/hooks"
+import { useViewMode } from "@/lib/hooks/useViewMode"
 import { equipmentService } from "@/lib/api"
-import { EQUIPMENT_TYPES } from "@/lib/constants/activities"
+import { EQUIPMENT_TYPES, isPotEquipment } from "@/lib/constants/activities"
+import { formatDateLocal } from "@/lib/utils"
 import type { Equipment, CreateEquipmentDTO, UpdateEquipmentDTO, EquipmentOwnership, EventLogEntry } from "@/lib/types"
 
 // ─── Event labels & colors ────────────────────────────────────────────────────
@@ -40,6 +48,11 @@ const EVENT_LABELS: Record<EventLogEntry["eventType"], string> = {
   desasignacion: "Desasignación",
   baja: "Baja",
   reactivacion: "Reactivación",
+  service: "Service",
+  rto: "RTO/VTV actualizado",
+  mantencion: "Mantención",
+  incidencia: "Incidencia registrada",
+  resolucion: "Incidencia resuelta",
 }
 
 const EVENT_COLORS: Record<EventLogEntry["eventType"], string> = {
@@ -48,9 +61,14 @@ const EVENT_COLORS: Record<EventLogEntry["eventType"], string> = {
   desasignacion: "bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-200",
   baja: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400",
   reactivacion: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400",
+  service: "bg-cyan-100 text-cyan-800 dark:bg-cyan-900/30 dark:text-cyan-400",
+  rto: "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400",
+  mantencion: "bg-cyan-100 text-cyan-800 dark:bg-cyan-900/30 dark:text-cyan-400",
+  incidencia: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400",
+  resolucion: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400",
 }
 
-function formatDate(iso: string) {
+function formatDateTime(iso: string) {
   return new Date(iso).toLocaleString("es-AR", {
     day: "2-digit",
     month: "short",
@@ -63,44 +81,41 @@ function formatDate(iso: string) {
 // ─── History Modal ─────────────────────────────────────────────────────────────
 
 interface HistoryModalProps {
-  equipment: Equipment | null
+  item: Equipment | null
   onClose: () => void
 }
 
-function HistoryModal({ equipment, onClose }: HistoryModalProps) {
+function HistoryModal({ item, onClose }: HistoryModalProps) {
   const [events, setEvents] = useState<EventLogEntry[]>([])
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
-    if (!equipment) return
+    if (!item) return
     setLoading(true)
     equipmentService
-      .getHistory(equipment.id)
+      .getHistory(item.id)
       .then(setEvents)
       .catch(() => setEvents([]))
       .finally(() => setLoading(false))
-  }, [equipment])
+  }, [item])
 
-  if (!equipment) return null
+  if (!item) return null
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       <div className="fixed inset-0 bg-black/50" onClick={onClose} />
       <div className="relative bg-card border border-border rounded-xl shadow-xl w-full max-w-lg mx-4 max-h-[80vh] flex flex-col">
-        {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-border flex-shrink-0">
           <div>
             <h3 className="text-base font-semibold text-foreground">Historial de Eventos</h3>
             <p className="text-xs text-muted-foreground mt-0.5">
-              {equipment.tipo} — {equipment.marca} {equipment.modelo}
+              {item.tipo} — {item.marca} {item.modelo}
             </p>
           </div>
           <button onClick={onClose} className="p-1 hover:bg-muted rounded-lg transition-colors">
             <X className="w-5 h-5 text-muted-foreground" />
           </button>
         </div>
-
-        {/* Body */}
         <div className="overflow-y-auto flex-1 p-6">
           {loading ? (
             <div className="flex items-center justify-center py-8">
@@ -125,15 +140,13 @@ function HistoryModal({ equipment, onClose }: HistoryModalProps) {
                         {event.projectName}
                       </p>
                     )}
-                    <p className="text-xs text-muted-foreground">{formatDate(event.createdAt)}</p>
+                    <p className="text-xs text-muted-foreground">{formatDateTime(event.createdAt)}</p>
                   </div>
                 </div>
               ))}
             </div>
           )}
         </div>
-
-        {/* Footer */}
         <div className="p-4 border-t border-border flex-shrink-0">
           <Button onClick={onClose} variant="outline" className="w-full text-sm">
             Cerrar
@@ -144,7 +157,50 @@ function HistoryModal({ equipment, onClose }: HistoryModalProps) {
   )
 }
 
-// ─── Main Component ────────────────────────────────────────────────────────────
+// ─── Quick date edit ────────────────────────────────────────────────────────────
+
+interface QuickDateEditProps {
+  label: string
+  value: string | null | undefined
+  onSave: (value: string) => Promise<void>
+}
+
+function QuickDateEdit({ label, value, onSave }: QuickDateEditProps) {
+  const [editing, setEditing] = useState(false)
+  const [saving, setSaving] = useState(false)
+
+  if (editing) {
+    return (
+      <div className="flex items-center gap-2">
+        <span className="text-muted-foreground text-xs">{label}:</span>
+        <DatePicker
+          value={value || ""}
+          onChange={async (v) => {
+            setSaving(true)
+            try {
+              await onSave(v)
+            } finally {
+              setSaving(false)
+              setEditing(false)
+            }
+          }}
+          className="w-40"
+        />
+        {saving && <Loader2 className="w-3.5 h-3.5 animate-spin text-muted-foreground" />}
+        <button onClick={() => setEditing(false)} className="p-0.5 hover:bg-muted rounded">
+          <X className="w-3.5 h-3.5 text-muted-foreground" />
+        </button>
+      </div>
+    )
+  }
+
+  return (
+    <button type="button" onClick={() => setEditing(true)} className="flex items-center gap-1.5 text-xs group">
+      <span className="text-muted-foreground">{label}:</span>
+      <span className="font-medium text-foreground">{value ? formatDateLocal(value) : "Sin registrar"}</span>
+    </button>
+  )
+}
 
 export function EquipmentManagement() {
   const [showNewForm, setShowNewForm] = useState(false)
@@ -153,24 +209,35 @@ export function EquipmentManagement() {
   const [showDeactivateDialog, setShowDeactivateDialog] = useState(false)
   const [selectedItem, setSelectedItem] = useState<Equipment | null>(null)
   const [historyItem, setHistoryItem] = useState<Equipment | null>(null)
+  const [notesItem, setNotesItem] = useState<Equipment | null>(null)
   const [moveToProject, setMoveToProject] = useState<string>("")
   const [openMenuId, setOpenMenuId] = useState<string | null>(null)
   const [filterProject, setFilterProject] = useState<string>("all")
   const [filterStatus, setFilterStatus] = useState<string>("activa")
+  const [filterTipo, setFilterTipo] = useState<string>("all")
+  const [searchTerm, setSearchTerm] = useState<string>("")
   const [showProjectFilter, setShowProjectFilter] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
+  const [viewMode, setViewMode] = useViewMode("equipos-view")
 
-  const [newItem, setNewItem] = useState<Partial<CreateEquipmentDTO>>({
+  const emptyForm: Partial<CreateEquipmentDTO> = {
     tipo: "",
     marca: "",
     modelo: "",
+    codigoInterno: "",
     capacidad: "",
     propiedad: "propio",
     observaciones: "",
     proyectoId: null,
-  })
+    ultimaMantencion: "",
+    fechaCompra: "",
+    fechaUltimaCalibracion: "",
+  }
+
+  const [newItem, setNewItem] = useState<Partial<CreateEquipmentDTO>>(emptyForm)
 
   const { toasts, success, error: showError, removeToast } = useToast()
+
   const { projects, loadProjects } = useProjects()
   const { equipment, isLoading, loadEquipment, addEquipment, updateEquipment, removeEquipment } = useEquipment()
 
@@ -179,29 +246,37 @@ export function EquipmentManagement() {
     loadEquipment()
   }, [])
 
+  const esPotNuevo = isPotEquipment(newItem.tipo)
+  const esPotEditando = editingItem ? isPotEquipment(editingItem.tipo) : false
+
   const filteredItems = useMemo(() => {
+    const term = searchTerm.trim().toLowerCase()
     return equipment.filter((e) => {
       const matchesProject =
         filterProject === "all" ||
         e.proyectoId === filterProject ||
         (filterProject === "none" && !e.proyectoId)
       const matchesStatus = filterStatus === "all" || e.estado === filterStatus
-      return matchesProject && matchesStatus
+      const matchesTipo = filterTipo === "all" || e.tipo === filterTipo
+      const matchesSearch =
+        !term ||
+        [e.codigoInterno, e.marca, e.modelo]
+          .filter(Boolean)
+          .some((field) => field!.toLowerCase().includes(term))
+      return matchesProject && matchesStatus && matchesTipo && matchesSearch
     })
-  }, [equipment, filterProject, filterStatus])
+  }, [equipment, filterProject, filterStatus, filterTipo, searchTerm])
 
   const stats = useMemo(() => {
-    const active = equipment.filter((e) => e.estado === "activa")
-    const assigned = active.filter((e) => e.proyectoId)
-    const unassigned = active.filter((e) => !e.proyectoId)
-    return { active, assigned, unassigned }
+    const activeItems = equipment.filter((e) => e.estado === "activa")
+    const assignedItems = activeItems.filter((e) => e.proyectoId)
+    const unassignedItems = activeItems.filter((e) => !e.proyectoId)
+    return { activeItems, assignedItems, unassignedItems }
   }, [equipment])
 
-  // ─── Handlers ───────────────────────────────────────────────────────────────
-
-  const handleAdd = async () => {
-    if (!newItem.tipo || !newItem.marca || !newItem.modelo) {
-      showError("Error", "Completa los campos obligatorios (tipo, marca y modelo)")
+  const handleAddItem = async () => {
+    if (!newItem.tipo || !newItem.marca || !newItem.modelo || !newItem.codigoInterno) {
+      showError("Error", "Completa los campos obligatorios")
       return
     }
 
@@ -211,22 +286,26 @@ export function EquipmentManagement() {
         tipo: newItem.tipo || "",
         marca: newItem.marca || "",
         modelo: newItem.modelo || "",
+        codigoInterno: newItem.codigoInterno || "",
         capacidad: newItem.capacidad || "",
         propiedad: newItem.propiedad || "propio",
         observaciones: newItem.observaciones || "",
         proyectoId: newItem.proyectoId || null,
+        ultimaMantencion: newItem.ultimaMantencion || null,
+        fechaCompra: esPotNuevo ? newItem.fechaCompra || null : null,
+        fechaUltimaCalibracion: esPotNuevo ? newItem.fechaUltimaCalibracion || null : null,
       })
       addEquipment(item)
       resetForm()
       success("Equipo registrado", "El equipo se ha registrado correctamente")
-    } catch {
+    } catch (err) {
       showError("Error", "No se pudo registrar el equipo")
     } finally {
       setIsSaving(false)
     }
   }
 
-  const handleUpdate = async () => {
+  const handleUpdateItem = async () => {
     if (!editingItem) return
 
     setIsSaving(true)
@@ -235,21 +314,35 @@ export function EquipmentManagement() {
         tipo: editingItem.tipo,
         marca: editingItem.marca,
         modelo: editingItem.modelo,
+        codigoInterno: editingItem.codigoInterno,
         capacidad: editingItem.capacidad,
         propiedad: editingItem.propiedad,
         observaciones: editingItem.observaciones,
+        ultimaMantencion: editingItem.ultimaMantencion,
+        fechaCompra: esPotEditando ? editingItem.fechaCompra : null,
+        fechaUltimaCalibracion: esPotEditando ? editingItem.fechaUltimaCalibracion : null,
       })
       updateEquipment(editingItem.id, updated)
       setEditingItem(null)
       success("Equipo actualizado", "Los cambios se han guardado correctamente")
-    } catch {
+    } catch (err) {
       showError("Error", "No se pudo actualizar el equipo")
     } finally {
       setIsSaving(false)
     }
   }
 
-  const handleMove = async () => {
+  const handleQuickUpdateMantencion = async (item: Equipment, value: string) => {
+    try {
+      const updated = await equipmentService.update(item.id, { ultimaMantencion: value || null })
+      updateEquipment(item.id, updated)
+      success("Actualizado", "Fecha de última mantención guardada")
+    } catch {
+      showError("Error", "No se pudo guardar la fecha")
+    }
+  }
+
+  const handleMoveItem = async () => {
     if (!selectedItem || !moveToProject) return
 
     setIsSaving(true)
@@ -261,14 +354,14 @@ export function EquipmentManagement() {
       setSelectedItem(null)
       setMoveToProject("")
       success("Equipo movido", "El equipo se ha asignado correctamente")
-    } catch {
+    } catch (err) {
       showError("Error", "No se pudo mover el equipo")
     } finally {
       setIsSaving(false)
     }
   }
 
-  const handleDeactivate = async () => {
+  const handleDeactivateItem = async () => {
     if (!selectedItem) return
 
     setIsSaving(true)
@@ -278,20 +371,20 @@ export function EquipmentManagement() {
       setShowDeactivateDialog(false)
       setSelectedItem(null)
       success("Equipo dado de baja", "El equipo ha sido dado de baja")
-    } catch {
+    } catch (err) {
       showError("Error", "No se pudo dar de baja el equipo")
     } finally {
       setIsSaving(false)
     }
   }
 
-  const handleReactivate = async (item: Equipment) => {
+  const handleReactivateItem = async (item: Equipment) => {
     setIsSaving(true)
     try {
       const updated = await equipmentService.reactivate(item.id)
       updateEquipment(item.id, updated)
       success("Equipo reactivado", "El equipo está activo nuevamente")
-    } catch {
+    } catch (err) {
       showError("Error", "No se pudo reactivar el equipo")
     } finally {
       setIsSaving(false)
@@ -299,15 +392,7 @@ export function EquipmentManagement() {
   }
 
   const resetForm = () => {
-    setNewItem({
-      tipo: "",
-      marca: "",
-      modelo: "",
-      capacidad: "",
-      propiedad: "propio",
-      observaciones: "",
-      proyectoId: null,
-    })
+    setNewItem(emptyForm)
     setShowNewForm(false)
   }
 
@@ -317,12 +402,18 @@ export function EquipmentManagement() {
     return project ? project.name : "Proyecto no encontrado"
   }
 
-  // ─── Render ──────────────────────────────────────────────────────────────────
-
   return (
     <>
       <ToastContainer toasts={toasts} onClose={removeToast} />
-      <HistoryModal equipment={historyItem} onClose={() => setHistoryItem(null)} />
+      <HistoryModal item={historyItem} onClose={() => setHistoryItem(null)} />
+      <AssetNotesModal
+        assetType="equipo"
+        asset={notesItem}
+        onClose={() => setNotesItem(null)}
+        onChanged={(count) => {
+          if (notesItem) updateEquipment(notesItem.id, { ...notesItem, incidenciasAbiertas: count })
+        }}
+      />
 
       <div className="container px-4 md:px-6 py-6 md:py-8 space-y-6">
         {/* Header */}
@@ -330,7 +421,7 @@ export function EquipmentManagement() {
           <div className="hidden md:block">
             <h2 className="text-lg md:text-xl font-bold text-foreground">Equipos y Herramientas</h2>
             <p className="text-muted-foreground mt-1 text-sm">
-              {stats.active.length} equipos activos • {stats.assigned.length} asignados • {stats.unassigned.length} disponibles
+              {stats.activeItems.length} equipos activos • {stats.assignedItems.length} asignados • {stats.unassignedItems.length} disponibles
             </p>
           </div>
           <Button
@@ -341,7 +432,7 @@ export function EquipmentManagement() {
           </Button>
         </div>
 
-        {/* New Equipment Form */}
+        {/* New Item Form */}
         {showNewForm && (
           <Card className="p-6 md:p-8 bg-card border-border">
             <div className="space-y-6">
@@ -353,7 +444,6 @@ export function EquipmentManagement() {
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {/* Fila 1: tipo, marca, modelo */}
                 <div className="space-y-2">
                   <Label htmlFor="tipo" className="text-xs md:text-sm font-medium text-foreground">
                     Tipo *
@@ -373,6 +463,19 @@ export function EquipmentManagement() {
                       ))}
                     </SelectContent>
                   </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="codigoInterno" className="text-xs md:text-sm font-medium text-foreground">
+                    Código Interno *
+                  </Label>
+                  <Input
+                    id="codigoInterno"
+                    placeholder="Ej: GZ-EQ-014"
+                    value={newItem.codigoInterno || ""}
+                    onChange={(e) => setNewItem({ ...newItem, codigoInterno: e.target.value })}
+                    className="bg-input border-border text-foreground text-sm"
+                  />
                 </div>
 
                 <div className="space-y-2">
@@ -401,7 +504,6 @@ export function EquipmentManagement() {
                   />
                 </div>
 
-                {/* Fila 2: capacidad, propiedad, proyecto */}
                 <div className="space-y-2">
                   <Label htmlFor="capacidad" className="text-xs md:text-sm font-medium text-foreground">
                     Capacidad
@@ -421,9 +523,7 @@ export function EquipmentManagement() {
                   </Label>
                   <Select
                     value={newItem.propiedad}
-                    onValueChange={(value: EquipmentOwnership) =>
-                      setNewItem({ ...newItem, propiedad: value })
-                    }
+                    onValueChange={(value: EquipmentOwnership) => setNewItem({ ...newItem, propiedad: value })}
                   >
                     <SelectTrigger id="propiedad">
                       <SelectValue placeholder="Seleccionar" />
@@ -436,14 +536,52 @@ export function EquipmentManagement() {
                 </div>
 
                 <div className="space-y-2">
+                  <Label className="text-xs md:text-sm font-medium text-foreground">Última Mantención</Label>
+                  <DatePicker
+                    value={newItem.ultimaMantencion || ""}
+                    onChange={(v) => setNewItem({ ...newItem, ultimaMantencion: v })}
+                  />
+                </div>
+
+                {esPotNuevo && (
+                  <>
+                    <div className="space-y-2">
+                      <Label className="text-xs md:text-sm font-medium text-foreground">Fecha de Compra</Label>
+                      <DatePicker
+                        value={newItem.fechaCompra || ""}
+                        onChange={(v) => setNewItem({ ...newItem, fechaCompra: v })}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-xs md:text-sm font-medium text-foreground">Última Calibración</Label>
+                      <DatePicker
+                        value={newItem.fechaUltimaCalibracion || ""}
+                        onChange={(v) => setNewItem({ ...newItem, fechaUltimaCalibracion: v })}
+                      />
+                    </div>
+                  </>
+                )}
+
+                <div className="space-y-2 md:col-span-2 lg:col-span-3">
+                  <Label htmlFor="observaciones" className="text-xs md:text-sm font-medium text-foreground">
+                    Observaciones
+                  </Label>
+                  <Textarea
+                    id="observaciones"
+                    placeholder="Notas adicionales sobre el equipo..."
+                    value={newItem.observaciones || ""}
+                    onChange={(e) => setNewItem({ ...newItem, observaciones: e.target.value })}
+                    className="bg-input border-border text-foreground text-sm min-h-[80px]"
+                  />
+                </div>
+
+                <div className="space-y-2">
                   <Label htmlFor="proyecto" className="text-xs md:text-sm font-medium text-foreground">
                     Asignar a Proyecto (opcional)
                   </Label>
                   <Select
                     value={newItem.proyectoId || "none"}
-                    onValueChange={(value) =>
-                      setNewItem({ ...newItem, proyectoId: value === "none" ? null : value })
-                    }
+                    onValueChange={(value) => setNewItem({ ...newItem, proyectoId: value === "none" ? null : value })}
                   >
                     <SelectTrigger id="proyecto">
                       <SelectValue placeholder="Sin asignar" />
@@ -458,25 +596,11 @@ export function EquipmentManagement() {
                     </SelectContent>
                   </Select>
                 </div>
-
-                {/* Fila 3: observaciones (full width) */}
-                <div className="space-y-2 md:col-span-2 lg:col-span-3">
-                  <Label htmlFor="observaciones" className="text-xs md:text-sm font-medium text-foreground">
-                    Observaciones
-                  </Label>
-                  <Textarea
-                    id="observaciones"
-                    placeholder="Notas adicionales sobre el equipo..."
-                    value={newItem.observaciones || ""}
-                    onChange={(e) => setNewItem({ ...newItem, observaciones: e.target.value })}
-                    className="bg-input border-border text-foreground text-sm min-h-[80px]"
-                  />
-                </div>
               </div>
 
               <div className="flex gap-3 pt-4 border-t border-border">
                 <Button
-                  onClick={handleAdd}
+                  onClick={handleAddItem}
                   className="bg-primary hover:bg-primary/90 text-primary-foreground text-sm"
                   disabled={isSaving}
                 >
@@ -497,7 +621,7 @@ export function EquipmentManagement() {
           </Card>
         )}
 
-        {/* Edit Form */}
+        {/* Edit Item Form */}
         {editingItem && (
           <Card className="p-6 md:p-8 bg-card border-border">
             <div className="space-y-6">
@@ -526,6 +650,15 @@ export function EquipmentManagement() {
                       ))}
                     </SelectContent>
                   </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-xs md:text-sm font-medium text-foreground">Código Interno</Label>
+                  <Input
+                    value={editingItem.codigoInterno}
+                    onChange={(e) => setEditingItem({ ...editingItem, codigoInterno: e.target.value })}
+                    className="bg-input border-border text-foreground text-sm"
+                  />
                 </div>
 
                 <div className="space-y-2">
@@ -559,9 +692,7 @@ export function EquipmentManagement() {
                   <Label className="text-xs md:text-sm font-medium text-foreground">Propio / Alquilado</Label>
                   <Select
                     value={editingItem.propiedad}
-                    onValueChange={(value: EquipmentOwnership) =>
-                      setEditingItem({ ...editingItem, propiedad: value })
-                    }
+                    onValueChange={(value: EquipmentOwnership) => setEditingItem({ ...editingItem, propiedad: value })}
                   >
                     <SelectTrigger>
                       <SelectValue />
@@ -572,6 +703,33 @@ export function EquipmentManagement() {
                     </SelectContent>
                   </Select>
                 </div>
+
+                <div className="space-y-2">
+                  <Label className="text-xs md:text-sm font-medium text-foreground">Última Mantención</Label>
+                  <DatePicker
+                    value={editingItem.ultimaMantencion || ""}
+                    onChange={(v) => setEditingItem({ ...editingItem, ultimaMantencion: v })}
+                  />
+                </div>
+
+                {esPotEditando && (
+                  <>
+                    <div className="space-y-2">
+                      <Label className="text-xs md:text-sm font-medium text-foreground">Fecha de Compra</Label>
+                      <DatePicker
+                        value={editingItem.fechaCompra || ""}
+                        onChange={(v) => setEditingItem({ ...editingItem, fechaCompra: v })}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-xs md:text-sm font-medium text-foreground">Última Calibración</Label>
+                      <DatePicker
+                        value={editingItem.fechaUltimaCalibracion || ""}
+                        onChange={(v) => setEditingItem({ ...editingItem, fechaUltimaCalibracion: v })}
+                      />
+                    </div>
+                  </>
+                )}
 
                 <div className="space-y-2 md:col-span-2 lg:col-span-3">
                   <Label className="text-xs md:text-sm font-medium text-foreground">Observaciones</Label>
@@ -585,7 +743,7 @@ export function EquipmentManagement() {
 
               <div className="flex gap-3 pt-4 border-t border-border">
                 <Button
-                  onClick={handleUpdate}
+                  onClick={handleUpdateItem}
                   className="bg-primary hover:bg-primary/90 text-primary-foreground text-sm"
                   disabled={isSaving}
                 >
@@ -608,6 +766,20 @@ export function EquipmentManagement() {
 
         {/* Filters */}
         <Card className="p-4 md:p-6 bg-card border-border">
+          <div className="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-4 items-center mb-4">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <input
+                type="text"
+                placeholder="Buscar por código, marca o modelo..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-9 pr-3 py-2 text-sm rounded-lg bg-input border border-border text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+              />
+            </div>
+            <ViewToggle value={viewMode} onChange={setViewMode} />
+          </div>
+
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6 w-full">
             <div className="flex items-center">
               <button
@@ -618,7 +790,7 @@ export function EquipmentManagement() {
                 <span>Proyecto</span>
                 {filterProject !== "all" && (
                   <span className="px-2 py-0.5 text-[10px] rounded-full bg-primary/10 text-primary truncate max-w-[120px]">
-                    {filterProject === "none" ? "Sin asignar" : projects.find((p) => p.id === filterProject)?.name}
+                    {filterProject === "none" ? "Sin asignar" : projects.find(p => p.id === filterProject)?.name}
                   </span>
                 )}
                 <ChevronDown className={`w-4 h-4 transition-transform ${showProjectFilter ? "rotate-180" : ""}`} />
@@ -629,12 +801,29 @@ export function EquipmentManagement() {
               <Label className="text-xs md:text-sm font-medium text-foreground whitespace-nowrap">Estado</Label>
               <Select value={filterStatus} onValueChange={setFilterStatus}>
                 <SelectTrigger className="w-32 md:w-40">
+                  <SelectValue placeholder="Todas" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todas</SelectItem>
+                  <SelectItem value="activa">Activos</SelectItem>
+                  <SelectItem value="baja">Dados de baja</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="flex items-center gap-2 col-span-2 md:col-span-2">
+              <Label className="text-xs md:text-sm font-medium text-foreground whitespace-nowrap">Tipo</Label>
+              <Select value={filterTipo} onValueChange={setFilterTipo}>
+                <SelectTrigger className="w-full md:w-48">
                   <SelectValue placeholder="Todos" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Todos</SelectItem>
-                  <SelectItem value="activa">Activos</SelectItem>
-                  <SelectItem value="baja">Dados de baja</SelectItem>
+                  {EQUIPMENT_TYPES.map((type) => (
+                    <SelectItem key={type} value={type}>
+                      {type}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -682,7 +871,6 @@ export function EquipmentManagement() {
           )}
         </Card>
 
-        {/* Loading */}
         {isLoading && equipment.length === 0 && (
           <div className="flex items-center justify-center min-h-[200px]">
             <div className="flex flex-col items-center gap-4">
@@ -692,9 +880,113 @@ export function EquipmentManagement() {
           </div>
         )}
 
-        {/* Equipment Cards */}
+        {/* Table view */}
+        {!isLoading && viewMode === "list" && (
+          <Card className="hidden md:block bg-card border-border overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-muted/50 text-xs text-muted-foreground">
+                <tr>
+                  <th className="text-left font-medium px-4 py-3">Código</th>
+                  <th className="text-left font-medium px-4 py-3">Tipo</th>
+                  <th className="text-left font-medium px-4 py-3">Marca / Modelo</th>
+                  <th className="text-left font-medium px-4 py-3">Capacidad</th>
+                  <th className="text-left font-medium px-4 py-3">Proyecto</th>
+                  <th className="text-left font-medium px-4 py-3">Última Mantención</th>
+                  <th className="text-left font-medium px-4 py-3">Incidencias</th>
+                  <th className="text-left font-medium px-4 py-3">Estado</th>
+                  <th className="text-left font-medium px-4 py-3">Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredItems.map((item) => (
+                  <tr
+                    key={item.id}
+                    className={`border-b border-border hover:bg-muted/50 ${item.estado === "baja" ? "opacity-60" : ""}`}
+                  >
+                    <td className="px-4 py-3 font-medium text-foreground whitespace-nowrap">{item.codigoInterno}</td>
+                    <td className="px-4 py-3 text-foreground whitespace-nowrap">
+                      {item.tipo}
+                      {isPotEquipment(item.tipo) && (item.fechaCompra || item.fechaUltimaCalibracion) && (
+                        <div className="text-[10px] text-muted-foreground">
+                          {item.fechaCompra && <>Compra: {formatDateLocal(item.fechaCompra)} </>}
+                          {item.fechaUltimaCalibracion && <>· Calib.: {formatDateLocal(item.fechaUltimaCalibracion)}</>}
+                        </div>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 text-foreground whitespace-nowrap">{item.marca} {item.modelo}</td>
+                    <td className="px-4 py-3 text-muted-foreground whitespace-nowrap">{item.capacidad || "—"}</td>
+                    <td className="px-4 py-3 text-muted-foreground whitespace-nowrap">{getProjectName(item.proyectoId)}</td>
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      <QuickDateEdit
+                        label=""
+                        value={item.ultimaMantencion}
+                        onSave={(v) => handleQuickUpdateMantencion(item, v)}
+                      />
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      {item.incidenciasAbiertas > 0 ? (
+                        <button
+                          onClick={() => setNotesItem(item)}
+                          className="flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400"
+                        >
+                          <AlertTriangle className="w-3 h-3" />
+                          {item.incidenciasAbiertas}
+                        </button>
+                      ) : (
+                        <span className="text-muted-foreground text-xs">—</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      {item.estado === "baja" ? (
+                        <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-destructive/10 text-destructive">Baja</span>
+                      ) : (
+                        <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary">Activo</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      <div className="relative">
+                        <button
+                          onClick={() => setOpenMenuId(openMenuId === item.id ? null : item.id)}
+                          className="p-1.5 hover:bg-muted rounded-lg transition-colors"
+                        >
+                          <MoreVertical className="w-4 h-4 text-muted-foreground" />
+                        </button>
+                        {openMenuId === item.id && (
+                          <ItemActionsMenu
+                            item={item}
+                            onClose={() => setOpenMenuId(null)}
+                            onEdit={() => setEditingItem(item)}
+                            onHistory={() => setHistoryItem(item)}
+                            onNotes={() => setNotesItem(item)}
+                            onMove={() => {
+                              setSelectedItem(item)
+                              setMoveToProject(item.proyectoId || "none")
+                              setShowMoveDialog(true)
+                            }}
+                            onDeactivate={() => {
+                              setSelectedItem(item)
+                              setShowDeactivateDialog(true)
+                            }}
+                            onReactivate={() => handleReactivateItem(item)}
+                          />
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {filteredItems.length === 0 && (
+              <div className="text-center py-8">
+                <p className="text-sm text-muted-foreground">No hay equipos que coincidan con los filtros seleccionados.</p>
+              </div>
+            )}
+          </Card>
+        )}
+
+        {/* Cards view */}
         {!isLoading && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 ${viewMode === "list" ? "md:hidden" : ""}`}>
             {filteredItems.map((item) => (
               <Card
                 key={item.id}
@@ -705,19 +997,16 @@ export function EquipmentManagement() {
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex items-center gap-3">
                     <div className={`p-2 rounded-lg ${item.estado === "activa" ? "bg-primary/10" : "bg-muted"}`}>
-                      <Wrench
-                        className={`w-5 h-5 ${item.estado === "activa" ? "text-primary" : "text-muted-foreground"}`}
-                      />
+                      <Wrench className={`w-5 h-5 ${item.estado === "activa" ? "text-primary" : "text-muted-foreground"}`} />
                     </div>
                     <div>
                       <h4 className="text-sm font-semibold text-foreground">
-                        {item.tipo} — {item.marca}
+                        {item.tipo} - {item.marca}
                       </h4>
                       <p className="text-xs text-muted-foreground">{item.modelo}</p>
                     </div>
                   </div>
 
-                  {/* Actions Menu */}
                   <div className="relative">
                     <button
                       onClick={() => setOpenMenuId(openMenuId === item.id ? null : item.id)}
@@ -727,87 +1016,55 @@ export function EquipmentManagement() {
                     </button>
 
                     {openMenuId === item.id && (
-                      <>
-                        <div className="fixed inset-0 z-40" onClick={() => setOpenMenuId(null)} />
-                        <div className="absolute right-0 top-8 bg-card border border-border rounded-lg shadow-lg p-1 z-50 min-w-[220px]">
-                          <button
-                            onClick={() => {
-                              setEditingItem(item)
-                              setOpenMenuId(null)
-                            }}
-                            className="w-full flex items-center gap-2 px-3 py-2 text-sm text-foreground hover:bg-muted rounded-md transition-colors"
-                          >
-                            <Edit2 className="w-4 h-4" />
-                            Editar
-                          </button>
-                          <button
-                            onClick={() => {
-                              setHistoryItem(item)
-                              setOpenMenuId(null)
-                            }}
-                            className="w-full flex items-center gap-2 px-3 py-2 text-sm text-foreground hover:bg-muted rounded-md transition-colors"
-                          >
-                            <Clock className="w-4 h-4" />
-                            Ver historial
-                          </button>
-                          {item.estado === "activa" && (
-                            <>
-                              <button
-                                onClick={() => {
-                                  setSelectedItem(item)
-                                  setMoveToProject(item.proyectoId || "none")
-                                  setShowMoveDialog(true)
-                                  setOpenMenuId(null)
-                                }}
-                                className="w-full flex items-center gap-2 px-3 py-2 text-sm text-foreground hover:bg-muted rounded-md transition-colors"
-                              >
-                                <ArrowRightLeft className="w-4 h-4" />
-                                {item.proyectoId ? "Mover a otro proyecto" : "Asignar a proyecto"}
-                              </button>
-                              <button
-                                onClick={() => {
-                                  setSelectedItem(item)
-                                  setShowDeactivateDialog(true)
-                                  setOpenMenuId(null)
-                                }}
-                                className="w-full flex items-center gap-2 px-3 py-2 text-sm text-destructive hover:bg-destructive/10 rounded-md transition-colors"
-                              >
-                                <Power className="w-4 h-4" />
-                                Dar de baja
-                              </button>
-                            </>
-                          )}
-                          {item.estado === "baja" && (
-                            <button
-                              onClick={() => {
-                                handleReactivate(item)
-                                setOpenMenuId(null)
-                              }}
-                              className="w-full flex items-center gap-2 px-3 py-2 text-sm text-primary hover:bg-primary/10 rounded-md transition-colors"
-                            >
-                              <Power className="w-4 h-4" />
-                              Reactivar
-                            </button>
-                          )}
-                        </div>
-                      </>
+                      <ItemActionsMenu
+                        item={item}
+                        onClose={() => setOpenMenuId(null)}
+                        onEdit={() => setEditingItem(item)}
+                        onHistory={() => setHistoryItem(item)}
+                        onNotes={() => setNotesItem(item)}
+                        onMove={() => {
+                          setSelectedItem(item)
+                          setMoveToProject(item.proyectoId || "none")
+                          setShowMoveDialog(true)
+                        }}
+                        onDeactivate={() => {
+                          setSelectedItem(item)
+                          setShowDeactivateDialog(true)
+                        }}
+                        onReactivate={() => handleReactivateItem(item)}
+                      />
                     )}
                   </div>
                 </div>
 
                 <div className="space-y-2">
+                  <div className="flex items-center gap-2 text-xs">
+                    <span className="text-muted-foreground">Código:</span>
+                    <span className="font-medium text-foreground">{item.codigoInterno}</span>
+                  </div>
                   {item.capacidad && (
                     <div className="flex items-center gap-2 text-xs">
                       <span className="text-muted-foreground">Capacidad:</span>
                       <span className="font-medium text-foreground">{item.capacidad}</span>
                     </div>
                   )}
-                  <div className="flex items-center gap-2 text-xs">
+                  <QuickDateEdit
+                    label="Última mantención"
+                    value={item.ultimaMantencion}
+                    onSave={(v) => handleQuickUpdateMantencion(item, v)}
+                  />
+                  {isPotEquipment(item.tipo) && (item.fechaCompra || item.fechaUltimaCalibracion) && (
+                    <div className="text-xs text-muted-foreground space-y-0.5">
+                      {item.fechaCompra && <p>Fecha de compra: {formatDateLocal(item.fechaCompra)}</p>}
+                      {item.fechaUltimaCalibracion && <p>Última calibración: {formatDateLocal(item.fechaUltimaCalibracion)}</p>}
+                    </div>
+                  )}
+                  <div className="flex items-center gap-2 text-xs flex-wrap">
                     <span
                       className={`px-2 py-0.5 rounded-full text-xs font-medium ${
                         item.propiedad === "propio"
                           ? "bg-primary/10 text-primary"
-                          : "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400"
+                          : "bg-secondary/10 text-secondary"
                       }`}
                     >
                       {item.propiedad === "propio" ? "Propio" : "Alquilado"}
@@ -816,6 +1073,15 @@ export function EquipmentManagement() {
                       <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-destructive/10 text-destructive">
                         Baja
                       </span>
+                    )}
+                    {item.incidenciasAbiertas > 0 && (
+                      <button
+                        onClick={() => setNotesItem(item)}
+                        className="flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400"
+                      >
+                        <AlertTriangle className="w-3 h-3" />
+                        {item.incidenciasAbiertas} abierta{item.incidenciasAbiertas > 1 ? "s" : ""}
+                      </button>
                     )}
                   </div>
                 </div>
@@ -859,33 +1125,26 @@ export function EquipmentManagement() {
             setSelectedItem(null)
             setMoveToProject("")
           }}
-          onConfirm={handleMove}
+          onConfirm={handleMoveItem}
           title={selectedItem?.proyectoId ? "Mover Equipo" : "Asignar a Proyecto"}
           confirmText={selectedItem?.proyectoId ? "Mover" : "Asignar"}
           cancelText="Cancelar"
         >
-          <div className="p-6 space-y-4">
-            <p className="text-sm text-muted-foreground">
-              {selectedItem?.proyectoId
-                ? `Selecciona el proyecto al que deseas mover "${selectedItem?.tipo} — ${selectedItem?.marca}".`
-                : `Selecciona el proyecto al que deseas asignar "${selectedItem?.tipo} — ${selectedItem?.marca}".`}
-            </p>
-            <div className="space-y-2">
-              <Label className="text-xs md:text-sm font-medium text-foreground">Proyecto destino</Label>
-              <Select value={moveToProject} onValueChange={setMoveToProject}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Seleccionar proyecto" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">Sin asignar</SelectItem>
-                  {projects.map((project) => (
-                    <SelectItem key={project.id} value={project.id}>
-                      {project.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+          <div className="space-y-2">
+            <Label className="text-sm font-medium text-foreground">Proyecto</Label>
+            <Select value={moveToProject} onValueChange={setMoveToProject}>
+              <SelectTrigger>
+                <SelectValue placeholder="Seleccionar proyecto" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">Sin asignar</SelectItem>
+                {projects.map((project) => (
+                  <SelectItem key={project.id} value={project.id}>
+                    {project.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         </Dialog>
 
@@ -896,12 +1155,111 @@ export function EquipmentManagement() {
             setShowDeactivateDialog(false)
             setSelectedItem(null)
           }}
-          onConfirm={handleDeactivate}
-          title="Dar de Baja Equipo"
-          message={`¿Estás seguro de que deseas dar de baja "${selectedItem?.tipo} — ${selectedItem?.marca}"? El equipo será desasignado de su proyecto actual.`}
-          confirmText="Dar de Baja"
+          onConfirm={handleDeactivateItem}
+          type="confirm"
+          title="Dar de baja equipo"
+          message={`¿Estás seguro de dar de baja "${selectedItem?.tipo} - ${selectedItem?.marca} ${selectedItem?.modelo}"?`}
+          confirmText="Dar de baja"
           cancelText="Cancelar"
         />
+      </div>
+    </>
+  )
+}
+
+// ─── Actions menu ───────────────────────────────────────────────────────────────
+
+interface ItemActionsMenuProps {
+  item: Equipment
+  onClose: () => void
+  onEdit: () => void
+  onHistory: () => void
+  onNotes: () => void
+  onMove: () => void
+  onDeactivate: () => void
+  onReactivate: () => void
+}
+
+function ItemActionsMenu({
+  item,
+  onClose,
+  onEdit,
+  onHistory,
+  onNotes,
+  onMove,
+  onDeactivate,
+  onReactivate,
+}: ItemActionsMenuProps) {
+  return (
+    <>
+      <div className="fixed inset-0 z-40" onClick={onClose} />
+      <div className="absolute right-0 top-8 bg-card border border-border rounded-lg shadow-lg p-1 z-50 min-w-[220px]">
+        <button
+          onClick={() => {
+            onEdit()
+            onClose()
+          }}
+          className="w-full flex items-center gap-2 px-3 py-2 text-sm text-foreground hover:bg-muted rounded-md transition-colors"
+        >
+          <Edit2 className="w-4 h-4" />
+          Editar
+        </button>
+        <button
+          onClick={() => {
+            onHistory()
+            onClose()
+          }}
+          className="w-full flex items-center gap-2 px-3 py-2 text-sm text-foreground hover:bg-muted rounded-md transition-colors"
+        >
+          <Clock className="w-4 h-4" />
+          Ver historial
+        </button>
+        <button
+          onClick={() => {
+            onNotes()
+            onClose()
+          }}
+          className="w-full flex items-center gap-2 px-3 py-2 text-sm text-foreground hover:bg-muted rounded-md transition-colors"
+        >
+          <NotebookPen className="w-4 h-4" />
+          Bitácora
+        </button>
+        {item.estado === "activa" && (
+          <>
+            <button
+              onClick={() => {
+                onMove()
+                onClose()
+              }}
+              className="w-full flex items-center gap-2 px-3 py-2 text-sm text-foreground hover:bg-muted rounded-md transition-colors"
+            >
+              <ArrowRightLeft className="w-4 h-4" />
+              {item.proyectoId ? "Mover a otro proyecto" : "Asignar a proyecto"}
+            </button>
+            <button
+              onClick={() => {
+                onDeactivate()
+                onClose()
+              }}
+              className="w-full flex items-center gap-2 px-3 py-2 text-sm text-destructive hover:bg-muted rounded-md transition-colors"
+            >
+              <Power className="w-4 h-4" />
+              Dar de baja
+            </button>
+          </>
+        )}
+        {item.estado === "baja" && (
+          <button
+            onClick={() => {
+              onReactivate()
+              onClose()
+            }}
+            className="w-full flex items-center gap-2 px-3 py-2 text-sm text-emerald-600 hover:bg-muted rounded-md transition-colors"
+          >
+            <Power className="w-4 h-4" />
+            Reactivar
+          </button>
+        )}
       </div>
     </>
   )

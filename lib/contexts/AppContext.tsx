@@ -8,6 +8,7 @@ import type {
   TeamMember,
   Machine,
   Equipment,
+  Driver,
   DailyReport,
   DashboardSummary,
   Baseline,
@@ -18,6 +19,7 @@ import {
   teamService,
   machineryService,
   equipmentService,
+  driverService,
   reportsService,
   dashboardService,
   baselinesService,
@@ -34,6 +36,7 @@ interface AppState {
   team: TeamMember[];
   machinery: Machine[];
   equipment: Equipment[];
+  drivers: Driver[];
   baselines: Record<string, Baseline>; // projectId -> Baseline
   dashboardSummary: DashboardSummary | null;
 
@@ -44,6 +47,7 @@ interface AppState {
   isLoadingTeam: boolean;
   isLoadingMachinery: boolean;
   isLoadingEquipment: boolean;
+  isLoadingDrivers: boolean;
 
   // Control de onboarding
   isOnboardingComplete: boolean;
@@ -79,6 +83,12 @@ interface AppContextValue extends AppState {
   addEquipment: (item: Equipment) => void;
   updateEquipment: (id: string, data: Partial<Equipment>) => void;
   removeEquipment: (id: string) => void;
+
+  // Acciones de Choferes
+  loadDrivers: () => Promise<void>;
+  addDriver: (driver: Driver) => void;
+  updateDriver: (id: string, data: Partial<Driver>) => void;
+  removeDriver: (id: string) => void;
 
   // Acciones de Línea Base
   loadBaseline: (projectId: string) => Promise<Baseline | null>;
@@ -134,6 +144,7 @@ export function AppProvider({ children, initialData }: AppProviderProps) {
     team: initialData?.team ?? [],
     machinery: initialData?.machinery ?? [],
     equipment: [],
+    drivers: [],
     baselines: {},
     dashboardSummary: initialData?.dashboardSummary ?? null,
     isLoading: false,
@@ -142,6 +153,7 @@ export function AppProvider({ children, initialData }: AppProviderProps) {
     isLoadingTeam: false,
     isLoadingMachinery: false,
     isLoadingEquipment: false,
+    isLoadingDrivers: false,
     isOnboardingComplete: isOnboardingCompleteInitial,
     selectedProjectId: null,
   });
@@ -331,6 +343,44 @@ export function AppProvider({ children, initialData }: AppProviderProps) {
   }, []);
 
   // ============================================
+  // CHOFERES
+  // ============================================
+
+  const loadDrivers = useCallback(async () => {
+    setState(prev => ({ ...prev, isLoadingDrivers: true }));
+    try {
+      const drivers = await driverService.getAll({ status: 'all' });
+      setState(prev => ({ ...prev, drivers, isLoadingDrivers: false }));
+    } catch (error) {
+      console.error('Error loading drivers:', error);
+      setState(prev => ({ ...prev, isLoadingDrivers: false }));
+    }
+  }, []);
+
+  const addDriver = useCallback((driver: Driver) => {
+    setState(prev => ({
+      ...prev,
+      drivers: [...prev.drivers, driver],
+    }));
+  }, []);
+
+  const updateDriverState = useCallback((id: string, data: Partial<Driver>) => {
+    setState(prev => ({
+      ...prev,
+      drivers: prev.drivers.map(d =>
+        d.id === id ? { ...d, ...data } : d
+      ),
+    }));
+  }, []);
+
+  const removeDriver = useCallback((id: string) => {
+    setState(prev => ({
+      ...prev,
+      drivers: prev.drivers.filter(d => d.id !== id),
+    }));
+  }, []);
+
+  // ============================================
   // LÍNEA BASE
   // ============================================
 
@@ -456,6 +506,10 @@ export function AppProvider({ children, initialData }: AppProviderProps) {
     addEquipment,
     updateEquipment: updateEquipmentState,
     removeEquipment,
+    loadDrivers,
+    addDriver,
+    updateDriver: updateDriverState,
+    removeDriver,
     loadBaseline,
     setBaseline,
     loadDashboardSummary,
@@ -510,6 +564,11 @@ export function useMachinery() {
 export function useEquipment() {
   const { equipment, isLoadingEquipment, loadEquipment, addEquipment, updateEquipment, removeEquipment } = useApp();
   return { equipment, isLoading: isLoadingEquipment, loadEquipment, addEquipment, updateEquipment, removeEquipment };
+}
+
+export function useDrivers() {
+  const { drivers, isLoadingDrivers, loadDrivers, addDriver, updateDriver, removeDriver } = useApp();
+  return { drivers, isLoading: isLoadingDrivers, loadDrivers, addDriver, updateDriver, removeDriver };
 }
 
 export function useSelectedProject() {

@@ -296,12 +296,16 @@ export interface ReportFilters {
 // MAQUINARIA
 // ============================================
 
+export type RtoEstado = 'vigente' | 'por_vencer' | 'vencido';
+
 export interface Machine {
   id: string;
   tipo: string;
   marca: string;
   modelo: string;
-  patente: string;
+  codigoInterno: string;
+  patente?: string | null;
+  numeroChasis?: string | null;
   capacidad: string;
   propiedad: MachineOwnership;
   observaciones: string;
@@ -311,17 +315,36 @@ export interface Machine {
   companyId: string;
   createdAt: string;
   updatedAt: string;
+
+  choferId?: string | null;
+  /** Nombre completo del chofer asignado. Derivado en el backend: solo lectura. */
+  choferResponsable?: string | null;
+  vencimientoRto?: string | null;
+  tieneGps: boolean;
+  tieneTelepase: boolean;
+  ultimoService?: string | null;
+
+  rtoEstado?: RtoEstado | null;
+  rtoDiasRestantes?: number | null;
+  incidenciasAbiertas: number;
 }
 
 export interface CreateMachineDTO {
   tipo: string;
   marca: string;
   modelo: string;
-  patente: string;
+  codigoInterno: string;
+  patente?: string | null;
+  numeroChasis?: string | null;
   capacidad?: string;
   propiedad: MachineOwnership;
   observaciones?: string;
   proyectoId?: string | null;
+  choferId?: string | null;
+  vencimientoRto?: string | null;
+  tieneGps?: boolean;
+  tieneTelepase?: boolean;
+  ultimoService?: string | null;
 }
 
 export interface UpdateMachineDTO extends Partial<CreateMachineDTO> {}
@@ -329,6 +352,95 @@ export interface UpdateMachineDTO extends Partial<CreateMachineDTO> {}
 export interface MachineFilters {
   projectId?: string | 'none';
   status?: MachineStatus | 'all';
+}
+
+export type NoteTipo = 'incidente' | 'observacion' | 'reparacion' | 'seguimiento';
+export type NoteEstado = 'abierta' | 'resuelta';
+
+export interface AssetNote {
+  id: string;
+  parentId: string | null;
+  tipo: NoteTipo;
+  descripcion: string;
+  fecha: string;
+  estado: NoteEstado;
+  resueltaAt: string | null;
+  userId: string;
+  userName: string;
+  createdAt: string;
+  replies: AssetNote[];
+}
+
+export interface CreateNoteDTO {
+  tipo: NoteTipo;
+  descripcion: string;
+  fecha: string;
+  parentId?: string | null;
+}
+
+export interface UpdateNoteDTO extends Partial<Omit<CreateNoteDTO, 'parentId'>> {
+  estado?: NoteEstado;
+}
+
+export interface MachineryExpirationAlert {
+  id: string;
+  codigoInterno?: string | null;
+  tipo: string;
+  marca: string;
+  modelo: string;
+  patente?: string | null;
+  choferId?: string | null;
+  choferResponsable?: string | null;
+  vencimientoRto?: string | null;
+  estado: RtoEstado;
+  diasRestantes: number;
+  proyectoName?: string | null;
+}
+
+// ============================================
+// CHOFERES Y OPERADORES
+// ============================================
+
+export type DriverStatus = 'activo' | 'baja';
+
+export interface Driver {
+  id: string;
+  nombre: string;
+  apellido: string;
+  nombreCompleto: string;
+  tipoLicencia: string;
+  cuit: string;
+  email?: string | null;
+  estado: DriverStatus;
+  vehiculosAsignados: number;
+  companyId: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateDriverDTO {
+  nombre: string;
+  apellido: string;
+  tipoLicencia: string;
+  cuit: string;
+  email?: string | null;
+}
+
+export interface UpdateDriverDTO extends Partial<CreateDriverDTO> {}
+
+export interface DriverFilters {
+  status?: DriverStatus | 'all';
+  licenseType?: string | 'all';
+}
+
+export interface DriverEventLogEntry {
+  id: string;
+  driverId: string;
+  eventType: 'alta' | 'edicion' | 'baja' | 'reactivacion';
+  userId: string;
+  userName: string;
+  companyId: string;
+  createdAt: string;
 }
 
 // ============================================
@@ -340,6 +452,7 @@ export interface Equipment {
   tipo: string;
   marca: string;
   modelo: string;
+  codigoInterno: string;
   capacidad: string;
   propiedad: EquipmentOwnership;
   observaciones: string;
@@ -349,23 +462,32 @@ export interface Equipment {
   companyId: string;
   createdAt: string;
   updatedAt: string;
+
+  ultimaMantencion?: string | null;
+  fechaCompra?: string | null;
+  fechaUltimaCalibracion?: string | null;
+  incidenciasAbiertas: number;
 }
 
 export interface CreateEquipmentDTO {
   tipo: string;
   marca: string;
   modelo: string;
+  codigoInterno: string;
   capacidad?: string;
   propiedad: EquipmentOwnership;
   observaciones?: string;
   proyectoId?: string | null;
+  ultimaMantencion?: string | null;
+  fechaCompra?: string | null;
+  fechaUltimaCalibracion?: string | null;
 }
 
 export interface UpdateEquipmentDTO extends Partial<CreateEquipmentDTO> {}
 
 export interface EventLogEntry {
   id: string;
-  eventType: 'alta' | 'asignacion' | 'desasignacion' | 'baja' | 'reactivacion';
+  eventType: 'alta' | 'asignacion' | 'desasignacion' | 'baja' | 'reactivacion' | 'service' | 'rto' | 'mantencion' | 'incidencia' | 'resolucion';
   userId: string;
   userName: string;
   projectId: string | null;
@@ -450,6 +572,96 @@ export interface ProjectMachineryHistory {
   projectId: string;
   projectName: string;
   history: MachineryHistoryEntry[];
+}
+
+// ============================================
+// TABLERO DE FLOTA (Maquinaria y Equipos)
+// ============================================
+
+export interface FleetCategorySummary {
+  total: number;
+  activas?: number;
+  activos?: number;
+  asignadas?: number;
+  asignados?: number;
+  disponibles: number;
+  baja: number;
+  propias?: number;
+  propios?: number;
+  subcontrato?: number;
+  alquilados?: number;
+}
+
+export interface FleetSummary {
+  maquinaria: FleetCategorySummary;
+  equipos: FleetCategorySummary;
+}
+
+export interface FleetMaintenanceEntry {
+  tipoActivo: 'maquinaria' | 'equipo';
+  id: string;
+  codigoInterno?: string | null;
+  tipo: string;
+  marca: string;
+  modelo: string;
+  ultimaFecha: string | null;
+  diasDesde: number | null;
+}
+
+export interface FleetProjectDistribution {
+  projectId: string | null;
+  projectName: string;
+  maquinaria: number;
+  equipos: number;
+}
+
+export interface FleetTypeCount {
+  tipo: string;
+  cantidad: number;
+}
+
+export interface FleetTypeDistribution {
+  maquinaria: FleetTypeCount[];
+  equipos: FleetTypeCount[];
+}
+
+export interface FleetVehicle {
+  id: string;
+  codigoInterno?: string | null;
+  tipo: string;
+  patente?: string | null;
+  choferResponsable?: string | null;
+  vencimientoRto?: string | null;
+  rtoEstado?: RtoEstado | null;
+  rtoDiasRestantes?: number | null;
+  tieneGps: boolean;
+  tieneTelepase: boolean;
+  proyectoName?: string | null;
+}
+
+export interface FleetOpenIncident {
+  tipoActivo: 'maquinaria' | 'equipo';
+  activoId: string;
+  codigoInterno?: string | null;
+  tipo: string;
+  marca: string;
+  modelo: string;
+  proyectoName?: string | null;
+  noteId: string;
+  noteTipo: NoteTipo;
+  fecha: string;
+  diasAbierta: number;
+  descripcion: string;
+}
+
+export interface FleetDashboard {
+  summary: FleetSummary;
+  rtoAlerts: MachineryExpirationAlert[];
+  mantenimientoPendiente: FleetMaintenanceEntry[];
+  porProyecto: FleetProjectDistribution[];
+  porTipo: FleetTypeDistribution;
+  vehiculos: FleetVehicle[];
+  incidenciasAbiertas: FleetOpenIncident[];
 }
 
 // ============================================

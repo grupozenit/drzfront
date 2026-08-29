@@ -275,6 +275,7 @@ export const MACHINE_TYPES = [
     "Retroexcavadora",
     "Camión",
     "Camioneta",
+    "Combi",
     "Minicargador",
     "Rodillo Compactador",
     "Generador",
@@ -283,6 +284,17 @@ export const MACHINE_TYPES = [
 ] as const;
 
 export type MachineType = (typeof MACHINE_TYPES)[number];
+
+// Tipos de maquinaria que son vehículos (piden patente, chofer y RTO/VTV)
+export const VEHICLE_MACHINE_TYPES = ["Camión", "Camioneta", "Combi"] as const;
+
+const VEHICLE_KEYWORDS = ["camion", "camión", "camioneta", "combi", "pickup", "utilitario"];
+
+export function isVehicleType(tipo?: string | null): boolean {
+    if (!tipo) return false;
+    const tipoLower = tipo.toLowerCase();
+    return VEHICLE_KEYWORDS.some((k) => tipoLower.includes(k));
+}
 
 // ============================================
 // TIPOS DE EQUIPOS Y HERRAMIENTAS
@@ -302,10 +314,21 @@ export const EQUIPMENT_TYPES = [
     "Amoladora",
     "Sierra Circular",
     "Pistola de Calor",
+    "Equipo POT (Pull Out Test)",
     "Otro",
 ] as const;
 
 export type EquipmentType = (typeof EQUIPMENT_TYPES)[number];
+
+export const POT_EQUIPMENT_TYPE = "Equipo POT (Pull Out Test)";
+
+const POT_KEYWORDS = ["pot", "pull out test"];
+
+export function isPotEquipment(tipo?: string | null): boolean {
+    if (!tipo) return false;
+    const tipoLower = tipo.toLowerCase();
+    return POT_KEYWORDS.some((k) => tipoLower.includes(k));
+}
 
 // ============================================
 // ETIQUETAS DE CLIMA
@@ -339,3 +362,40 @@ export const REPORT_STATUS_LABELS: Record<string, string> = {
     borrador: "Borrador",
     archivado: "Archivado",
 };
+
+// ============================================
+// TIPOS DE LICENCIA DE CONDUCIR (choferes y operadores)
+// ============================================
+
+export const LICENSE_TYPES = [
+    "B1", "B2",
+    "C1", "C2", "C3",
+    "D1", "D2", "D3", "D4",
+    "E1", "E2",
+    "G1", "G2", "G3",
+] as const;
+
+export type LicenseType = (typeof LICENSE_TYPES)[number];
+
+export const LICENSE_LABELS: Record<string, string> = {
+    B1: "B1 — Automóviles y camionetas",
+    B2: "B2 — Automóviles con acoplado",
+    C1: "C1 — Camiones sin acoplado",
+    C2: "C2 — Camiones con acoplado",
+    C3: "C3 — Camiones articulados",
+    D1: "D1 — Transporte de pasajeros hasta 8",
+    D2: "D2 — Transporte de pasajeros más de 8",
+    D3: "D3 — Servicios de emergencia",
+    D4: "D4 — Transporte escolar",
+    E1: "E1 — Maquinaria especial no agrícola",
+    E2: "E2 — Maquinaria especial con acoplado",
+    G1: "G1 — Tractores agrícolas",
+    G2: "G2 — Maquinaria agrícola especial",
+    G3: "G3 — Tractores con acoplado",
+};
+
+/** Etiqueta legible de un tipo de licencia (o el propio código si no está mapeado). */
+export function licenseLabel(tipo?: string | null): string {
+    if (!tipo) return "—";
+    return LICENSE_LABELS[tipo] || tipo;
+}

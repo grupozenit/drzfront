@@ -1,3 +1,4 @@
+export { useViewMode } from './useViewMode';
 export { useReports } from './useReports';
 export { useDashboard } from './useDashboard';
 export { useBaseline } from './useBaseline';
@@ -13,6 +14,7 @@ export {
   useTeam,
   useMachinery,
   useEquipment,
+  useDrivers,
   useSelectedProject,
 } from '@/lib/contexts/AppContext';
 

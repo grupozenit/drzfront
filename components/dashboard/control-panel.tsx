@@ -766,7 +766,7 @@ function ProjectCard({
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-xs font-medium text-foreground truncate">{machine.tipo} - {machine.marca}</p>
-                    <p className="text-[10px] text-muted-foreground truncate">{machine.modelo} • {machine.patente}</p>
+                    <p className="text-[10px] text-muted-foreground truncate">{machine.modelo} • {machine.patente ?? machine.numeroChasis ?? machine.codigoInterno}</p>
                   </div>
                 </div>
               ))}

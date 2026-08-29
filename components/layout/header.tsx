@@ -12,6 +12,8 @@ const viewTitles: Record<string, string> = {
   "/reporte": "Reportes Diarios",
   "/equipos": "Equipos y Herramientas",
   "/reporte-semanal": "Reportes Semanales",
+  "/flota": "Tablero de Flota",
+  "/choferes": "Choferes",
   "/maquinaria": "Maquinaria",
   "/configuracion": "Configuración",
   "/configuracion/proyectos": "Configuración - Proyectos",
