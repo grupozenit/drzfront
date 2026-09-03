@@ -14,6 +14,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Dialog } from "@/components/ui/dialog"
+import { AnchoredPopover } from "@/components/ui/anchored-popover"
 import { useToast, ToastContainer } from "@/components/ui/toast"
 import {
   UserRound,
@@ -825,53 +826,50 @@ function DriverActionsMenu({
   onReactivate,
 }: DriverActionsMenuProps) {
   return (
-    <>
-      <div className="fixed inset-0 z-40" onClick={onClose} />
-      <div className="absolute right-0 top-8 bg-card border border-border rounded-lg shadow-lg p-1 z-50 min-w-[200px]">
+    <AnchoredPopover onClose={onClose} className="bg-card border border-border rounded-lg shadow-lg p-1 min-w-[200px]">
+      <button
+        onClick={() => {
+          onEdit()
+          onClose()
+        }}
+        className="w-full flex items-center gap-2 px-3 py-2 text-sm text-foreground hover:bg-muted rounded-md transition-colors"
+      >
+        <Edit2 className="w-4 h-4" />
+        Editar
+      </button>
+      <button
+        onClick={() => {
+          onHistory()
+          onClose()
+        }}
+        className="w-full flex items-center gap-2 px-3 py-2 text-sm text-foreground hover:bg-muted rounded-md transition-colors"
+      >
+        <Clock className="w-4 h-4" />
+        Ver historial
+      </button>
+      {driver.estado === "activo" ? (
         <button
           onClick={() => {
-            onEdit()
+            onDeactivate()
             onClose()
           }}
-          className="w-full flex items-center gap-2 px-3 py-2 text-sm text-foreground hover:bg-muted rounded-md transition-colors"
+          className="w-full flex items-center gap-2 px-3 py-2 text-sm text-destructive hover:bg-muted rounded-md transition-colors"
         >
-          <Edit2 className="w-4 h-4" />
-          Editar
+          <Power className="w-4 h-4" />
+          Dar de baja
         </button>
+      ) : (
         <button
           onClick={() => {
-            onHistory()
+            onReactivate()
             onClose()
           }}
-          className="w-full flex items-center gap-2 px-3 py-2 text-sm text-foreground hover:bg-muted rounded-md transition-colors"
+          className="w-full flex items-center gap-2 px-3 py-2 text-sm text-emerald-600 hover:bg-muted rounded-md transition-colors"
         >
-          <Clock className="w-4 h-4" />
-          Ver historial
+          <Power className="w-4 h-4" />
+          Reactivar
         </button>
-        {driver.estado === "activo" ? (
-          <button
-            onClick={() => {
-              onDeactivate()
-              onClose()
-            }}
-            className="w-full flex items-center gap-2 px-3 py-2 text-sm text-destructive hover:bg-muted rounded-md transition-colors"
-          >
-            <Power className="w-4 h-4" />
-            Dar de baja
-          </button>
-        ) : (
-          <button
-            onClick={() => {
-              onReactivate()
-              onClose()
-            }}
-            className="w-full flex items-center gap-2 px-3 py-2 text-sm text-emerald-600 hover:bg-muted rounded-md transition-colors"
-          >
-            <Power className="w-4 h-4" />
-            Reactivar
-          </button>
-        )}
-      </div>
-    </>
+      )}
+    </AnchoredPopover>
   )
 }

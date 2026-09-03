@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { DatePicker } from "@/components/ui/date-picker"
+import { AnchoredPopover } from "@/components/ui/anchored-popover"
 import { ViewToggle } from "@/components/ui/view-toggle"
 import {
   Select,
@@ -1389,76 +1390,73 @@ function MachineActionsMenu({
   onReactivate,
 }: MachineActionsMenuProps) {
   return (
-    <>
-      <div className="fixed inset-0 z-40" onClick={onClose} />
-      <div className="absolute right-0 top-8 bg-card border border-border rounded-lg shadow-lg p-1 z-50 min-w-[220px]">
-        <button
-          onClick={() => {
-            onEdit()
-            onClose()
-          }}
-          className="w-full flex items-center gap-2 px-3 py-2 text-sm text-foreground hover:bg-muted rounded-md transition-colors"
-        >
-          <Edit2 className="w-4 h-4" />
-          Editar
-        </button>
-        <button
-          onClick={() => {
-            onHistory()
-            onClose()
-          }}
-          className="w-full flex items-center gap-2 px-3 py-2 text-sm text-foreground hover:bg-muted rounded-md transition-colors"
-        >
-          <Clock className="w-4 h-4" />
-          Ver historial
-        </button>
-        <button
-          onClick={() => {
-            onNotes()
-            onClose()
-          }}
-          className="w-full flex items-center gap-2 px-3 py-2 text-sm text-foreground hover:bg-muted rounded-md transition-colors"
-        >
-          <NotebookPen className="w-4 h-4" />
-          Bitácora
-        </button>
-        {machine.estado === "activa" && (
-          <>
-            <button
-              onClick={() => {
-                onMove()
-                onClose()
-              }}
-              className="w-full flex items-center gap-2 px-3 py-2 text-sm text-foreground hover:bg-muted rounded-md transition-colors"
-            >
-              <ArrowRightLeft className="w-4 h-4" />
-              {machine.proyectoId ? "Mover a otro proyecto" : "Asignar a proyecto"}
-            </button>
-            <button
-              onClick={() => {
-                onDeactivate()
-                onClose()
-              }}
-              className="w-full flex items-center gap-2 px-3 py-2 text-sm text-destructive hover:bg-muted rounded-md transition-colors"
-            >
-              <Power className="w-4 h-4" />
-              Dar de baja
-            </button>
-          </>
-        )}
-        {machine.estado === "baja" && (
+    <AnchoredPopover onClose={onClose} className="bg-card border border-border rounded-lg shadow-lg p-1 min-w-[220px]">
+      <button
+        onClick={() => {
+          onEdit()
+          onClose()
+        }}
+        className="w-full flex items-center gap-2 px-3 py-2 text-sm text-foreground hover:bg-muted rounded-md transition-colors"
+      >
+        <Edit2 className="w-4 h-4" />
+        Editar
+      </button>
+      <button
+        onClick={() => {
+          onHistory()
+          onClose()
+        }}
+        className="w-full flex items-center gap-2 px-3 py-2 text-sm text-foreground hover:bg-muted rounded-md transition-colors"
+      >
+        <Clock className="w-4 h-4" />
+        Ver historial
+      </button>
+      <button
+        onClick={() => {
+          onNotes()
+          onClose()
+        }}
+        className="w-full flex items-center gap-2 px-3 py-2 text-sm text-foreground hover:bg-muted rounded-md transition-colors"
+      >
+        <NotebookPen className="w-4 h-4" />
+        Bitácora
+      </button>
+      {machine.estado === "activa" && (
+        <>
           <button
             onClick={() => {
-              onReactivate()
+              onMove()
               onClose()
             }}
-            className="w-full flex items-center gap-2 px-3 py-2 text-sm text-emerald-600 hover:bg-muted rounded-md transition-colors"
+            className="w-full flex items-center gap-2 px-3 py-2 text-sm text-foreground hover:bg-muted rounded-md transition-colors"
+          >
+            <ArrowRightLeft className="w-4 h-4" />
+            {machine.proyectoId ? "Mover a otro proyecto" : "Asignar a proyecto"}
+          </button>
+          <button
+            onClick={() => {
+              onDeactivate()
+              onClose()
+            }}
+            className="w-full flex items-center gap-2 px-3 py-2 text-sm text-destructive hover:bg-muted rounded-md transition-colors"
           >
             <Power className="w-4 h-4" />
-            Reactivar
+            Dar de baja
           </button>
-        )}
-      </div>
-    </>
+        </>
+      )}
+      {machine.estado === "baja" && (
+        <button
+          onClick={() => {
+            onReactivate()
+            onClose()
+          }}
+          className="w-full flex items-center gap-2 px-3 py-2 text-sm text-emerald-600 hover:bg-muted rounded-md transition-colors"
+        >
+          <Power className="w-4 h-4" />
+          Reactivar
+        </button>
+      )}
+    </AnchoredPopover>
   )
 }

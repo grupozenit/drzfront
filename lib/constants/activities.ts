@@ -370,9 +370,8 @@ export const REPORT_STATUS_LABELS: Record<string, string> = {
 export const LICENSE_TYPES = [
     "B1", "B2",
     "C1", "C2", "C3",
-    "D1", "D2", "D3", "D4",
+    "D1", "D2", "D3",
     "E1", "E2",
-    "G1", "G2", "G3",
 ] as const;
 
 export type LicenseType = (typeof LICENSE_TYPES)[number];
@@ -386,12 +385,8 @@ export const LICENSE_LABELS: Record<string, string> = {
     D1: "D1 — Transporte de pasajeros hasta 8",
     D2: "D2 — Transporte de pasajeros más de 8",
     D3: "D3 — Servicios de emergencia",
-    D4: "D4 — Transporte escolar",
     E1: "E1 — Maquinaria especial no agrícola",
     E2: "E2 — Maquinaria especial con acoplado",
-    G1: "G1 — Tractores agrícolas",
-    G2: "G2 — Maquinaria agrícola especial",
-    G3: "G3 — Tractores con acoplado",
 };
 
 /** Etiqueta legible de un tipo de licencia (o el propio código si no está mapeado). */
