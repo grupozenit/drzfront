@@ -21,10 +21,19 @@ export default function DashboardLayout({
   children: React.ReactNode
 }) {
   const { isLoaded, userId, orgId } = useAuth()
-  const { isOnboardingComplete, isLoading } = useApp()
+  const { isLoading } = useApp()
   const { permissions, isLoading: isLoadingPermissions, role, can, landing } = usePermissions()
   const router = useRouter()
   const pathname = usePathname()
+
+  // "¿La empresa ya tiene al menos un proyecto?" tiene que ser un hecho de
+  // la empresa, no de lo que este usuario puede ver: la lista de `projects`
+  // de AppContext viene acotada por el alcance del rol, así que un rol
+  // "assigned" sin proyectos asignados todavía vería 0 y quedaría atrapado
+  // en un ping-pong de redirects hacia "/". Se usa el campo sin scopear de
+  // /me en su lugar; mientras /me no cargó, se asume completo para no
+  // bloquear la navegación con un falso negativo.
+  const isOnboardingComplete = permissions ? permissions.orgHasProjects : true
 
   const [isOffline, setIsOffline] = useState(
     typeof window !== "undefined" ? !navigator.onLine : false

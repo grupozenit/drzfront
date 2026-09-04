@@ -103,7 +103,10 @@ Si deseas crear un template personalizado:
 
 ## 6. Invitar al Primer Usuario (Admin)
 
-### Opción A: Desde el Dashboard de Clerk
+Las invitaciones se gestionan **únicamente desde el Dashboard de Clerk** (no
+desde la app — la pantalla *Configuración → Equipo* solo administra el rol de
+negocio y los proyectos asignados de la gente que ya está en la organización).
+
 1. Ve a la organización creada
 2. Haz clic en **Members**
 3. Haz clic en **+ Invite member**
@@ -111,12 +114,8 @@ Si deseas crear un template personalizado:
    - **Email**: correo del primer usuario
    - **Role**: `org:admin`
 5. El usuario recibirá un email con un link para crear su cuenta
-
-### Opción B: Desde la Aplicación (una vez configurada)
-1. El primer admin puede usar la página **Configuración → Equipo**
-2. Hacer clic en **Invitar Miembro**
-3. Ingresar email y seleccionar rol
-4. La invitación se envía automáticamente
+6. Una vez que inicia sesión, Tecnología le asigna el rol de negocio (y
+   proyectos si corresponde) desde **Configuración → Equipo**
 
 ## 7. Variables de Entorno
 

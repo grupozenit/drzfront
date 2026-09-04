@@ -11,12 +11,19 @@ export default function Home() {
   const [isMounted, setIsMounted] = useState(false)
   const { isLoaded: isClerkLoaded, userId, orgId } = useAuth()
   const { isLoaded: isOrgLoaded, membership } = useOrganization()
-  const { isOnboardingComplete, addProject, isLoading, projects } = useApp()
+  const { addProject, isLoading, projects } = useApp()
   const { landing, permissions: userPermissions } = usePermissions()
   const router = useRouter()
 
   // Verificar si el usuario es admin de la organización
   const isAdmin = membership?.role === "org:admin"
+
+  // "¿La empresa ya tiene al menos un proyecto?" es un hecho de la empresa,
+  // no de lo que este usuario puede ver: `projects` viene acotado por el
+  // alcance del rol (p. ej. sin_rol o un rol "assigned" sin asignaciones ve
+  // 0 proyectos aunque la empresa ya tenga varios). Por eso se usa el campo
+  // sin scopear de /me en vez de `projects.length > 0`.
+  const isOnboardingComplete = userPermissions ? userPermissions.orgHasProjects : projects.length > 0
 
   useEffect(() => {
     setIsMounted(true)

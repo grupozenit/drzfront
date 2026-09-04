@@ -91,6 +91,7 @@ export interface MeResponse {
   projectIds: string[] | null;
   landing: string;
   permissions: Partial<Record<PermissionResource, PermissionAction[]>>;
+  orgHasProjects: boolean;
 }
 
 // ============================================
