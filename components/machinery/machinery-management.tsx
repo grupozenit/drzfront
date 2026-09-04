@@ -184,11 +184,21 @@ interface QuickDateEditProps {
   label: string
   value: string | null | undefined
   onSave: (value: string) => Promise<void>
+  readOnly?: boolean
 }
 
-function QuickDateEdit({ label, value, onSave }: QuickDateEditProps) {
+function QuickDateEdit({ label, value, onSave, readOnly = false }: QuickDateEditProps) {
   const [editing, setEditing] = useState(false)
   const [saving, setSaving] = useState(false)
+
+  if (readOnly) {
+    return (
+      <div className="flex items-center gap-1.5 text-xs">
+        <span className="text-muted-foreground">{label}:</span>
+        <span className="font-medium text-foreground">{value ? formatDateLocal(value) : "Sin registrar"}</span>
+      </div>
+    )
+  }
 
   if (editing) {
     return (
@@ -592,6 +602,7 @@ export function MachineryManagement() {
         onChanged={(count) => {
           if (notesMachine) updateMachine(notesMachine.id, { ...notesMachine, incidenciasAbiertas: count })
         }}
+        canWrite={canWrite}
       />
 
       <div className="container px-4 md:px-6 py-6 md:py-8 space-y-6">
@@ -1103,6 +1114,7 @@ export function MachineryManagement() {
                         label=""
                         value={machine.ultimoService}
                         onSave={(v) => handleQuickUpdateService(machine, v)}
+                        readOnly={!canWrite}
                       />
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap"><RtoBadge machine={machine} /></td>
@@ -1151,6 +1163,7 @@ export function MachineryManagement() {
                               setShowDeactivateDialog(true)
                             }}
                             onReactivate={() => handleReactivateMachine(machine)}
+                            canWrite={canWrite}
                           />
                         )}
                       </div>
@@ -1216,6 +1229,7 @@ export function MachineryManagement() {
                           setShowDeactivateDialog(true)
                         }}
                         onReactivate={() => handleReactivateMachine(machine)}
+                        canWrite={canWrite}
                       />
                     )}
                   </div>
@@ -1260,6 +1274,7 @@ export function MachineryManagement() {
                     label="Último service"
                     value={machine.ultimoService}
                     onSave={(v) => handleQuickUpdateService(machine, v)}
+                    readOnly={!canWrite}
                   />
                   <div className="flex items-center gap-2 text-xs flex-wrap">
                     <span
@@ -1381,6 +1396,7 @@ interface MachineActionsMenuProps {
   onMove: () => void
   onDeactivate: () => void
   onReactivate: () => void
+  canWrite: boolean
 }
 
 function MachineActionsMenu({
@@ -1392,19 +1408,22 @@ function MachineActionsMenu({
   onMove,
   onDeactivate,
   onReactivate,
+  canWrite,
 }: MachineActionsMenuProps) {
   return (
     <AnchoredPopover onClose={onClose} className="bg-card border border-border rounded-lg shadow-lg p-1 min-w-[220px]">
-      <button
-        onClick={() => {
-          onEdit()
-          onClose()
-        }}
-        className="w-full flex items-center gap-2 px-3 py-2 text-sm text-foreground hover:bg-muted rounded-md transition-colors"
-      >
-        <Edit2 className="w-4 h-4" />
-        Editar
-      </button>
+      {canWrite && (
+        <button
+          onClick={() => {
+            onEdit()
+            onClose()
+          }}
+          className="w-full flex items-center gap-2 px-3 py-2 text-sm text-foreground hover:bg-muted rounded-md transition-colors"
+        >
+          <Edit2 className="w-4 h-4" />
+          Editar
+        </button>
+      )}
       <button
         onClick={() => {
           onHistory()
@@ -1425,7 +1444,7 @@ function MachineActionsMenu({
         <NotebookPen className="w-4 h-4" />
         Bitácora
       </button>
-      {machine.estado === "activa" && (
+      {canWrite && machine.estado === "activa" && (
         <>
           <button
             onClick={() => {
@@ -1449,7 +1468,7 @@ function MachineActionsMenu({
           </button>
         </>
       )}
-      {machine.estado === "baja" && (
+      {canWrite && machine.estado === "baja" && (
         <button
           onClick={() => {
             onReactivate()

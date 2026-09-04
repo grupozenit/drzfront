@@ -674,6 +674,7 @@ export function DriversManagement() {
                               setShowDeactivateDialog(true)
                             }}
                             onReactivate={() => handleReactivateDriver(driver)}
+                            canWrite={canWrite}
                           />
                         )}
                       </div>
@@ -732,6 +733,7 @@ export function DriversManagement() {
                           setShowDeactivateDialog(true)
                         }}
                         onReactivate={() => handleReactivateDriver(driver)}
+                        canWrite={canWrite}
                       />
                     )}
                   </div>
@@ -819,6 +821,7 @@ interface DriverActionsMenuProps {
   onHistory: () => void
   onDeactivate: () => void
   onReactivate: () => void
+  canWrite: boolean
 }
 
 function DriverActionsMenu({
@@ -828,19 +831,22 @@ function DriverActionsMenu({
   onHistory,
   onDeactivate,
   onReactivate,
+  canWrite,
 }: DriverActionsMenuProps) {
   return (
     <AnchoredPopover onClose={onClose} className="bg-card border border-border rounded-lg shadow-lg p-1 min-w-[200px]">
-      <button
-        onClick={() => {
-          onEdit()
-          onClose()
-        }}
-        className="w-full flex items-center gap-2 px-3 py-2 text-sm text-foreground hover:bg-muted rounded-md transition-colors"
-      >
-        <Edit2 className="w-4 h-4" />
-        Editar
-      </button>
+      {canWrite && (
+        <button
+          onClick={() => {
+            onEdit()
+            onClose()
+          }}
+          className="w-full flex items-center gap-2 px-3 py-2 text-sm text-foreground hover:bg-muted rounded-md transition-colors"
+        >
+          <Edit2 className="w-4 h-4" />
+          Editar
+        </button>
+      )}
       <button
         onClick={() => {
           onHistory()
@@ -851,7 +857,7 @@ function DriverActionsMenu({
         <Clock className="w-4 h-4" />
         Ver historial
       </button>
-      {driver.estado === "activo" ? (
+      {canWrite && (driver.estado === "activo" ? (
         <button
           onClick={() => {
             onDeactivate()
@@ -873,7 +879,7 @@ function DriverActionsMenu({
           <Power className="w-4 h-4" />
           Reactivar
         </button>
-      )}
+      ))}
     </AnchoredPopover>
   )
 }

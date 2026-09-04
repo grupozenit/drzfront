@@ -40,9 +40,10 @@ interface AssetNotesModalProps {
   asset: { id: string; codigoInterno?: string | null; tipo: string; marca: string; modelo: string } | null
   onClose: () => void
   onChanged?: (incidenciasAbiertas: number) => void
+  canWrite?: boolean
 }
 
-export function AssetNotesModal({ assetType, asset, onClose, onChanged }: AssetNotesModalProps) {
+export function AssetNotesModal({ assetType, asset, onClose, onChanged, canWrite = true }: AssetNotesModalProps) {
   const service = assetType === "maquinaria" ? machineryService : equipmentService
 
   const [notes, setNotes] = useState<AssetNote[]>([])
@@ -145,31 +146,33 @@ export function AssetNotesModal({ assetType, asset, onClose, onChanged }: AssetN
           </button>
         </div>
 
-        <div className="p-6 border-b border-border flex-shrink-0 space-y-3">
-          <div className="grid grid-cols-1 md:grid-cols-[160px_160px_1fr] gap-3">
-            <Select value={newTipo} onValueChange={(v: NoteTipo) => setNewTipo(v)}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="incidente">Incidente</SelectItem>
-                <SelectItem value="observacion">Observación</SelectItem>
-                <SelectItem value="reparacion">Reparación</SelectItem>
-              </SelectContent>
-            </Select>
-            <DatePicker value={newFecha} onChange={setNewFecha} />
-            <Textarea
-              placeholder="Describe lo sucedido..."
-              value={newDescripcion}
-              onChange={(e) => setNewDescripcion(e.target.value)}
-              className="min-h-[40px] text-sm"
-            />
+        {canWrite && (
+          <div className="p-6 border-b border-border flex-shrink-0 space-y-3">
+            <div className="grid grid-cols-1 md:grid-cols-[160px_160px_1fr] gap-3">
+              <Select value={newTipo} onValueChange={(v: NoteTipo) => setNewTipo(v)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="incidente">Incidente</SelectItem>
+                  <SelectItem value="observacion">Observación</SelectItem>
+                  <SelectItem value="reparacion">Reparación</SelectItem>
+                </SelectContent>
+              </Select>
+              <DatePicker value={newFecha} onChange={setNewFecha} />
+              <Textarea
+                placeholder="Describe lo sucedido..."
+                value={newDescripcion}
+                onChange={(e) => setNewDescripcion(e.target.value)}
+                className="min-h-[40px] text-sm"
+              />
+            </div>
+            <Button onClick={handleCreate} disabled={submitting || !newDescripcion.trim()} className="text-sm">
+              {submitting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
+              Registrar
+            </Button>
           </div>
-          <Button onClick={handleCreate} disabled={submitting || !newDescripcion.trim()} className="text-sm">
-            {submitting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
-            Registrar
-          </Button>
-        </div>
+        )}
 
         <div className="px-6 pt-4 flex-shrink-0">
           <div className="flex gap-2">
@@ -226,26 +229,28 @@ export function AssetNotesModal({ assetType, asset, onClose, onChanged }: AssetN
                         {note.estado === "abierta" ? "Abierta" : `Resuelta${note.resueltaAt ? " " + formatDateLocal(note.resueltaAt) : ""}`}
                       </span>
                     </div>
-                    <div className="flex items-center gap-1 flex-shrink-0">
-                      <button
-                        onClick={() => handleToggleResolved(note)}
-                        title={note.estado === "abierta" ? "Marcar como resuelta" : "Reabrir"}
-                        className="p-1 hover:bg-muted rounded-md transition-colors"
-                      >
-                        {note.estado === "abierta" ? (
-                          <CheckCircle2 className="w-4 h-4 text-muted-foreground hover:text-green-600" />
-                        ) : (
-                          <RotateCcw className="w-4 h-4 text-muted-foreground hover:text-amber-600" />
-                        )}
-                      </button>
-                      <button
-                        onClick={() => handleDelete(note.id)}
-                        title="Eliminar"
-                        className="p-1 hover:bg-muted rounded-md transition-colors"
-                      >
-                        <Trash2 className="w-4 h-4 text-muted-foreground hover:text-destructive" />
-                      </button>
-                    </div>
+                    {canWrite && (
+                      <div className="flex items-center gap-1 flex-shrink-0">
+                        <button
+                          onClick={() => handleToggleResolved(note)}
+                          title={note.estado === "abierta" ? "Marcar como resuelta" : "Reabrir"}
+                          className="p-1 hover:bg-muted rounded-md transition-colors"
+                        >
+                          {note.estado === "abierta" ? (
+                            <CheckCircle2 className="w-4 h-4 text-muted-foreground hover:text-green-600" />
+                          ) : (
+                            <RotateCcw className="w-4 h-4 text-muted-foreground hover:text-amber-600" />
+                          )}
+                        </button>
+                        <button
+                          onClick={() => handleDelete(note.id)}
+                          title="Eliminar"
+                          className="p-1 hover:bg-muted rounded-md transition-colors"
+                        >
+                          <Trash2 className="w-4 h-4 text-muted-foreground hover:text-destructive" />
+                        </button>
+                      </div>
+                    )}
                   </div>
                   <p className="text-sm text-foreground mt-1.5">{note.descripcion}</p>
 
@@ -263,29 +268,31 @@ export function AssetNotesModal({ assetType, asset, onClose, onChanged }: AssetN
                     </div>
                   )}
 
-                  <div className="mt-3 flex items-center gap-2">
-                    <input
-                      type="text"
-                      placeholder="Agregar seguimiento..."
-                      value={replyDrafts[note.id] || ""}
-                      onChange={(e) => setReplyDrafts((d) => ({ ...d, [note.id]: e.target.value }))}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") handleReply(note.id)
-                      }}
-                      className="flex-1 px-3 py-1.5 text-xs rounded-lg bg-input border border-border text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-                    />
-                    <button
-                      onClick={() => handleReply(note.id)}
-                      disabled={replySubmitting === note.id || !(replyDrafts[note.id] || "").trim()}
-                      className="p-1.5 hover:bg-muted rounded-md transition-colors disabled:opacity-40"
-                    >
-                      {replySubmitting === note.id ? (
-                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                      ) : (
-                        <Send className="w-3.5 h-3.5 text-muted-foreground" />
-                      )}
-                    </button>
-                  </div>
+                  {canWrite && (
+                    <div className="mt-3 flex items-center gap-2">
+                      <input
+                        type="text"
+                        placeholder="Agregar seguimiento..."
+                        value={replyDrafts[note.id] || ""}
+                        onChange={(e) => setReplyDrafts((d) => ({ ...d, [note.id]: e.target.value }))}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") handleReply(note.id)
+                        }}
+                        className="flex-1 px-3 py-1.5 text-xs rounded-lg bg-input border border-border text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                      />
+                      <button
+                        onClick={() => handleReply(note.id)}
+                        disabled={replySubmitting === note.id || !(replyDrafts[note.id] || "").trim()}
+                        className="p-1.5 hover:bg-muted rounded-md transition-colors disabled:opacity-40"
+                      >
+                        {replySubmitting === note.id ? (
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        ) : (
+                          <Send className="w-3.5 h-3.5 text-muted-foreground" />
+                        )}
+                      </button>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>

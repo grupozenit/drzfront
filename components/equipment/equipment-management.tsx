@@ -164,11 +164,21 @@ interface QuickDateEditProps {
   label: string
   value: string | null | undefined
   onSave: (value: string) => Promise<void>
+  readOnly?: boolean
 }
 
-function QuickDateEdit({ label, value, onSave }: QuickDateEditProps) {
+function QuickDateEdit({ label, value, onSave, readOnly = false }: QuickDateEditProps) {
   const [editing, setEditing] = useState(false)
   const [saving, setSaving] = useState(false)
+
+  if (readOnly) {
+    return (
+      <div className="flex items-center gap-1.5 text-xs">
+        <span className="text-muted-foreground">{label}:</span>
+        <span className="font-medium text-foreground">{value ? formatDateLocal(value) : "Sin registrar"}</span>
+      </div>
+    )
+  }
 
   if (editing) {
     return (
@@ -416,6 +426,7 @@ export function EquipmentManagement() {
         onChanged={(count) => {
           if (notesItem) updateEquipment(notesItem.id, { ...notesItem, incidenciasAbiertas: count })
         }}
+        canWrite={canWrite}
       />
 
       <div className="container px-4 md:px-6 py-6 md:py-8 space-y-6">
@@ -926,6 +937,7 @@ export function EquipmentManagement() {
                         label=""
                         value={item.ultimaMantencion}
                         onSave={(v) => handleQuickUpdateMantencion(item, v)}
+                        readOnly={!canWrite}
                       />
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap">
@@ -973,6 +985,7 @@ export function EquipmentManagement() {
                               setShowDeactivateDialog(true)
                             }}
                             onReactivate={() => handleReactivateItem(item)}
+                            canWrite={canWrite}
                           />
                         )}
                       </div>
@@ -1037,6 +1050,7 @@ export function EquipmentManagement() {
                           setShowDeactivateDialog(true)
                         }}
                         onReactivate={() => handleReactivateItem(item)}
+                        canWrite={canWrite}
                       />
                     )}
                   </div>
@@ -1057,6 +1071,7 @@ export function EquipmentManagement() {
                     label="Última mantención"
                     value={item.ultimaMantencion}
                     onSave={(v) => handleQuickUpdateMantencion(item, v)}
+                    readOnly={!canWrite}
                   />
                   {isPotEquipment(item.tipo) && (item.fechaCompra || item.fechaUltimaCalibracion) && (
                     <div className="text-xs text-muted-foreground space-y-0.5">
@@ -1183,6 +1198,7 @@ interface ItemActionsMenuProps {
   onMove: () => void
   onDeactivate: () => void
   onReactivate: () => void
+  canWrite: boolean
 }
 
 function ItemActionsMenu({
@@ -1194,19 +1210,22 @@ function ItemActionsMenu({
   onMove,
   onDeactivate,
   onReactivate,
+  canWrite,
 }: ItemActionsMenuProps) {
   return (
     <AnchoredPopover onClose={onClose} className="bg-card border border-border rounded-lg shadow-lg p-1 min-w-[220px]">
-      <button
-        onClick={() => {
-          onEdit()
-          onClose()
-        }}
-        className="w-full flex items-center gap-2 px-3 py-2 text-sm text-foreground hover:bg-muted rounded-md transition-colors"
-      >
-        <Edit2 className="w-4 h-4" />
-        Editar
-      </button>
+      {canWrite && (
+        <button
+          onClick={() => {
+            onEdit()
+            onClose()
+          }}
+          className="w-full flex items-center gap-2 px-3 py-2 text-sm text-foreground hover:bg-muted rounded-md transition-colors"
+        >
+          <Edit2 className="w-4 h-4" />
+          Editar
+        </button>
+      )}
       <button
         onClick={() => {
           onHistory()
@@ -1227,7 +1246,7 @@ function ItemActionsMenu({
         <NotebookPen className="w-4 h-4" />
         Bitácora
       </button>
-      {item.estado === "activa" && (
+      {canWrite && item.estado === "activa" && (
         <>
           <button
             onClick={() => {
@@ -1251,7 +1270,7 @@ function ItemActionsMenu({
           </button>
         </>
       )}
-      {item.estado === "baja" && (
+      {canWrite && item.estado === "baja" && (
         <button
           onClick={() => {
             onReactivate()

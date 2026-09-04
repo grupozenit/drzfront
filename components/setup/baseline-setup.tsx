@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label"
 import { ArrowLeft, Loader2, CheckCircle } from "lucide-react"
 import { useToast, ToastContainer } from "@/components/ui/toast"
 import { useBaseline } from "@/lib/hooks/useBaseline"
+import { usePermissions } from "@/lib/hooks"
 import type { CreateBaselineDTO, TrackerComponent, TrackerData } from "@/lib/types"
 
 interface BaselineSetupProps {
@@ -49,6 +50,8 @@ export function BaselineSetup({ projectId, projectName, onBack }: BaselineSetupP
 
   const { toasts, success, error: showError, removeToast } = useToast()
   const { baseline, isLoading, loadBaseline, saveBaseline, hasBaseline } = useBaseline()
+  const { can } = usePermissions()
+  const canWrite = can("avances", hasBaseline ? "update" : "create")
 
   // Cargar línea base al montar
   useEffect(() => {
@@ -156,7 +159,7 @@ export function BaselineSetup({ projectId, projectName, onBack }: BaselineSetupP
               </p>
             </div>
           </div>
-          {!isEditing && (
+          {!isEditing && canWrite && (
             <Button
               onClick={() => setIsEditing(true)}
               className="w-full md:w-auto bg-primary hover:bg-primary/90 text-primary-foreground text-sm"

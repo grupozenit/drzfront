@@ -8,7 +8,7 @@ import { DateRangePicker } from "@/components/ui/date-range-picker"
 import { ChevronDown, Loader2, FileText, Eye, Download, Share2, Mail, MessageCircle, Edit, Trash2 } from "lucide-react"
 import { ReportPreviewModal } from "@/components/dashboard/report-preview-modal"
 import { useReports } from "@/lib/hooks/useReports"
-import { useProjects } from "@/lib/hooks"
+import { useProjects, usePermissions } from "@/lib/hooks"
 import { useToast, ToastContainer } from "@/components/ui/toast"
 import { Dialog } from "@/components/ui/dialog"
 import { ACTIVITY_CATEGORIES, REPORT_STATUS_LABELS } from "@/lib/constants/activities"
@@ -53,6 +53,10 @@ export function ReportHistory() {
     shareWhatsApp,
     deleteReport,
   } = useReports()
+  const { can } = usePermissions()
+  const canCreate = can("reportes", "create")
+  const canUpdate = can("reportes", "update")
+  const canDelete = can("reportes", "delete")
 
   // Cargar datos iniciales
   useEffect(() => {
@@ -337,12 +341,14 @@ export function ReportHistory() {
               {filteredReports.length} reportes encontrados
             </p>
           </div>
-          <Button
-            onClick={() => setShowNewReportForm(true)}
-            className="w-full md:w-auto bg-primary hover:bg-primary/90 text-primary-foreground text-sm"
-          >
-            + Nuevo Reporte Diario
-          </Button>
+          {canCreate && (
+            <Button
+              onClick={() => setShowNewReportForm(true)}
+              className="w-full md:w-auto bg-primary hover:bg-primary/90 text-primary-foreground text-sm"
+            >
+              + Nuevo Reporte Diario
+            </Button>
+          )}
         </div>
 
         {/* Filters */}
@@ -507,9 +513,11 @@ export function ReportHistory() {
               <p className="text-sm text-muted-foreground mb-4">
                 No hay reportes que coincidan con los filtros seleccionados.
               </p>
-              <Button onClick={() => setShowNewReportForm(true)}>
-                Crear Primer Reporte
-              </Button>
+              {canCreate && (
+                <Button onClick={() => setShowNewReportForm(true)}>
+                  Crear Primer Reporte
+                </Button>
+              )}
             </div>
           </Card>
         )}
@@ -586,20 +594,24 @@ export function ReportHistory() {
                                 </button>
                               </>
                             )}
-                            <button
-                              onClick={() => handleEditReport(report)}
-                              className="p-1.5 rounded hover:bg-muted transition-colors text-blue-600 dark:text-blue-400"
-                              title="Editar reporte"
-                            >
-                              <Edit className="w-4 h-4" />
-                            </button>
-                            <button
-                              onClick={() => handleDeleteReport(report)}
-                              className="p-1.5 rounded hover:bg-muted transition-colors text-red-600 dark:text-red-400"
-                              title="Eliminar reporte"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
+                            {canUpdate && (
+                              <button
+                                onClick={() => handleEditReport(report)}
+                                className="p-1.5 rounded hover:bg-muted transition-colors text-blue-600 dark:text-blue-400"
+                                title="Editar reporte"
+                              >
+                                <Edit className="w-4 h-4" />
+                              </button>
+                            )}
+                            {canDelete && (
+                              <button
+                                onClick={() => handleDeleteReport(report)}
+                                className="p-1.5 rounded hover:bg-muted transition-colors text-red-600 dark:text-red-400"
+                                title="Eliminar reporte"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            )}
                           </div>
                         </td>
                       </tr>
@@ -669,20 +681,24 @@ export function ReportHistory() {
                       </button>
                     </>
                   )}
-                  <button
-                    onClick={() => handleEditReport(report)}
-                    className="p-1.5 rounded hover:bg-muted transition-colors text-blue-600 dark:text-blue-400"
-                    title="Editar reporte"
-                  >
-                    <Edit className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={() => handleDeleteReport(report)}
-                    className="p-1.5 rounded hover:bg-muted transition-colors text-red-600 dark:text-red-400"
-                    title="Eliminar reporte"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+                  {canUpdate && (
+                    <button
+                      onClick={() => handleEditReport(report)}
+                      className="p-1.5 rounded hover:bg-muted transition-colors text-blue-600 dark:text-blue-400"
+                      title="Editar reporte"
+                    >
+                      <Edit className="w-4 h-4" />
+                    </button>
+                  )}
+                  {canDelete && (
+                    <button
+                      onClick={() => handleDeleteReport(report)}
+                      className="p-1.5 rounded hover:bg-muted transition-colors text-red-600 dark:text-red-400"
+                      title="Eliminar reporte"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  )}
                 </div>
               </Card>
             ))}

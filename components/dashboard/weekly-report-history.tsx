@@ -11,7 +11,7 @@ import { Dialog } from "@/components/ui/dialog"
 import { useToast, ToastContainer } from "@/components/ui/toast"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useWeeklyReports } from "@/lib/hooks"
-import { useProjects } from "@/lib/hooks"
+import { useProjects, usePermissions } from "@/lib/hooks"
 import { weeklyReportsService } from "@/lib/api/weekly-reports"
 import type { WeeklyReport, WeeklyReportFilters } from "@/lib/types"
 
@@ -78,6 +78,10 @@ export function WeeklyReportHistory() {
     downloadPDF,
     deleteReport,
   } = useWeeklyReports()
+  const { can } = usePermissions()
+  const canCreate = can("reportes_semanales", "create")
+  const canUpdate = can("reportes_semanales", "update")
+  const canDelete = can("reportes_semanales", "delete")
 
   useEffect(() => {
     loadProjects()
@@ -309,13 +313,15 @@ export function WeeklyReportHistory() {
               {total} reporte{total !== 1 ? "s" : ""} encontrado{total !== 1 ? "s" : ""}
             </p>
           </div>
-          <Button
-            size="sm"
-            onClick={() => setShowGenerate(true)}
-            className="bg-primary hover:bg-primary/90 text-primary-foreground self-start md:self-auto"
-          >
-            <Plus className="w-4 h-4 mr-1.5" /> Generar Reporte
-          </Button>
+          {canCreate && (
+            <Button
+              size="sm"
+              onClick={() => setShowGenerate(true)}
+              className="bg-primary hover:bg-primary/90 text-primary-foreground self-start md:self-auto"
+            >
+              <Plus className="w-4 h-4 mr-1.5" /> Generar Reporte
+            </Button>
+          )}
         </div>
 
         {/* Filtros — estilo análogo a Reportes Diarios */}
@@ -471,21 +477,25 @@ export function WeeklyReportHistory() {
                             >
                               <FileSpreadsheet className="w-4 h-4" />
                             </button>
-                            <button
-                              onClick={() => handleRegenerate(report)}
-                              title="Regenerar"
-                              disabled={isGenerating}
-                              className="p-1.5 rounded hover:bg-muted text-muted-foreground disabled:opacity-30 transition-colors"
-                            >
-                              <RefreshCw className="w-4 h-4" />
-                            </button>
-                            <button
-                              onClick={() => setReportToDelete(report)}
-                              title="Eliminar"
-                              className="p-1.5 rounded hover:bg-red-50 dark:hover:bg-red-900/20 text-red-500 transition-colors"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
+                            {canUpdate && (
+                              <button
+                                onClick={() => handleRegenerate(report)}
+                                title="Regenerar"
+                                disabled={isGenerating}
+                                className="p-1.5 rounded hover:bg-muted text-muted-foreground disabled:opacity-30 transition-colors"
+                              >
+                                <RefreshCw className="w-4 h-4" />
+                              </button>
+                            )}
+                            {canDelete && (
+                              <button
+                                onClick={() => setReportToDelete(report)}
+                                title="Eliminar"
+                                className="p-1.5 rounded hover:bg-red-50 dark:hover:bg-red-900/20 text-red-500 transition-colors"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            )}
                           </div>
                         </td>
                       </tr>
@@ -538,22 +548,26 @@ export function WeeklyReportHistory() {
                     >
                       <FileSpreadsheet className="w-4 h-4" />
                     </Button>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      disabled={isGenerating}
-                      onClick={() => handleRegenerate(report)}
-                    >
-                      <RefreshCw className="w-4 h-4" />
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      className="text-red-500"
-                      onClick={() => setReportToDelete(report)}
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
+                    {canUpdate && (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        disabled={isGenerating}
+                        onClick={() => handleRegenerate(report)}
+                      >
+                        <RefreshCw className="w-4 h-4" />
+                      </Button>
+                    )}
+                    {canDelete && (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="text-red-500"
+                        onClick={() => setReportToDelete(report)}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    )}
                   </div>
                 </Card>
               ))}
