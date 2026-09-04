@@ -34,7 +34,7 @@ import {
   NotebookPen,
   Search,
 } from "lucide-react"
-import { useProjects, useEquipment } from "@/lib/hooks"
+import { useProjects, useEquipment, usePermissions } from "@/lib/hooks"
 import { useViewMode } from "@/lib/hooks/useViewMode"
 import { equipmentService } from "@/lib/api"
 import { EQUIPMENT_TYPES, isPotEquipment } from "@/lib/constants/activities"
@@ -241,6 +241,8 @@ export function EquipmentManagement() {
 
   const { projects, loadProjects } = useProjects()
   const { equipment, isLoading, loadEquipment, addEquipment, updateEquipment, removeEquipment } = useEquipment()
+  const { can } = usePermissions()
+  const canWrite = can("equipos", "create")
 
   useEffect(() => {
     loadProjects()
@@ -425,12 +427,14 @@ export function EquipmentManagement() {
               {stats.activeItems.length} equipos activos • {stats.assignedItems.length} asignados • {stats.unassignedItems.length} disponibles
             </p>
           </div>
-          <Button
-            onClick={() => setShowNewForm(true)}
-            className="w-full md:w-auto bg-primary hover:bg-primary/90 text-primary-foreground text-sm"
-          >
-            + Nuevo Equipo
-          </Button>
+          {canWrite && (
+            <Button
+              onClick={() => setShowNewForm(true)}
+              className="w-full md:w-auto bg-primary hover:bg-primary/90 text-primary-foreground text-sm"
+            >
+              + Nuevo Equipo
+            </Button>
+          )}
         </div>
 
         {/* New Item Form */}

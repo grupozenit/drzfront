@@ -1,12 +1,13 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter, usePathname } from "next/navigation"
 import { useAuth } from "@clerk/nextjs"
 import { DashboardClientLayout } from "@/components/layout/dashboard-client-layout"
 import { OfflineIndicator } from "@/components/offline/OfflineIndicator"
-import { useApp } from "@/lib/contexts/AppContext"
-import { Loader2 } from "lucide-react"
+import { useApp, usePermissions } from "@/lib/contexts/AppContext"
+import { checkRouteAccess } from "@/lib/permissions/route-access"
+import { Loader2, ShieldAlert } from "lucide-react"
 
 /**
  * Layout del dashboard - Protegido y verificado con organización y proyecto
@@ -21,7 +22,9 @@ export default function DashboardLayout({
 }) {
   const { isLoaded, userId, orgId } = useAuth()
   const { isOnboardingComplete, isLoading } = useApp()
+  const { permissions, isLoading: isLoadingPermissions, role, can, landing } = usePermissions()
   const router = useRouter()
+  const pathname = usePathname()
 
   const [isOffline, setIsOffline] = useState(
     typeof window !== "undefined" ? !navigator.onLine : false
@@ -65,16 +68,42 @@ export default function DashboardLayout({
     }
   }, [isLoaded, userId, orgId, isOnboardingComplete, isLoading, router, isOffline])
 
+  // Redirección por permisos: una vez que sabemos el rol, si la ruta actual
+  // no le corresponde lo mandamos a su landing (ej. Compras pidiendo /reporte
+  // por URL directa). "sin_rol" no redirige: se queda en la pantalla de abajo.
+  useEffect(() => {
+    if (!isLoaded || isLoading || isOffline || isLoadingPermissions || !permissions) return
+    if (role === "sin_rol") return
+    if (!checkRouteAccess(pathname ?? "", can)) {
+      router.push(landing)
+    }
+  }, [isLoaded, isLoading, isOffline, isLoadingPermissions, permissions, role, pathname, can, landing, router])
+
   // En modo offline con timeout, mostrar la app directamente con la sesión cacheada
   const offlineBypass = isOffline && clerkTimedOut
 
-  if (!offlineBypass && (!isLoaded || isLoading || !userId || !orgId || !isOnboardingComplete)) {
+  if (!offlineBypass && (!isLoaded || isLoading || !userId || !orgId || !isOnboardingComplete || isLoadingPermissions || !permissions)) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center space-y-4">
           <Loader2 className="w-8 h-8 animate-spin mx-auto text-primary" />
           <p className="text-muted-foreground">
             {isOffline ? "Sin conexión. Cargando sesión…" : "Verificando acceso…"}
+          </p>
+        </div>
+      </div>
+    )
+  }
+
+  if (!offlineBypass && role === "sin_rol") {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center px-4">
+        <div className="text-center space-y-4 max-w-md">
+          <ShieldAlert className="w-10 h-10 mx-auto text-muted-foreground" />
+          <h1 className="text-lg font-semibold text-foreground">Cuenta pendiente de asignación</h1>
+          <p className="text-sm text-muted-foreground">
+            Tu cuenta todavía no tiene un rol asignado. Pedile a un administrador de Tecnología
+            que te asigne uno desde Configuración → Equipo para poder acceder al sistema.
           </p>
         </div>
       </div>

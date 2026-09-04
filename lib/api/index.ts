@@ -15,4 +15,5 @@ export { organizationService } from './organization';
 export type { OrganizationMember, InviteUserDTO } from './organization';
 export { weeklyReportsService } from './weekly-reports';
 export { theoreticalCurvesService } from './theoretical-curves';
+export { meService } from './me';
 

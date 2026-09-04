@@ -12,6 +12,8 @@ import { DashboardControlIcon } from "@/components/icons/dashboard-control-icon"
 import { MachineryIcon } from "@/components/icons/machinery-icon"
 import { ThemeToggle } from "./theme-toggle"
 import { UserIcon } from "@/components/icons/user-icon"
+import { usePermissions } from "@/lib/contexts/AppContext"
+import { isNavItemVisible } from "@/lib/permissions/route-access"
 
 interface SidebarProps {
   isOpen: boolean
@@ -38,8 +40,9 @@ function UserInfo() {
 
 export function Sidebar({ isOpen, onToggle }: SidebarProps) {
   const pathname = usePathname()
-  
-  const navItems = [
+  const { can } = usePermissions()
+
+  const allNavItems = [
     { href: "/tablero", label: "Tablero de Control", icon: DashboardControlIcon },
     { href: "/avances", label: "Avances de Obra", icon: ProgressIcon },
     { href: "/reporte", label: "Reportes Diarios", icon: ReportIcon },
@@ -50,6 +53,8 @@ export function Sidebar({ isOpen, onToggle }: SidebarProps) {
     { href: "/equipos", label: "Equipos", icon: Wrench },
     { href: "/configuracion", label: "Configuración", icon: Settings },
   ] as const
+
+  const navItems = allNavItems.filter((item) => isNavItemVisible(item.href, can))
 
   const isActive = (href: string) => {
     if (href === "/configuracion") {

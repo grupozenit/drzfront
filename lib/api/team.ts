@@ -3,6 +3,8 @@ import type {
   TeamMember,
   InviteTeamMemberDTO,
   UpdateTeamMemberDTO,
+  UpdateRoleDTO,
+  UpdateProjectAssignmentsDTO,
   PaginatedResponse,
 } from '@/lib/types';
 
@@ -71,7 +73,16 @@ export const teamService = {
    * Cambia el rol de un miembro
    */
   async changeRole(id: string, role: TeamMember['role']): Promise<TeamMember> {
-    return this.update(id, { role });
+    return apiClient.put<TeamMember>(`${ENDPOINT}/${id}/role`, { role } satisfies UpdateRoleDTO);
+  },
+
+  /**
+   * Reemplaza el conjunto de proyectos asignados a un miembro.
+   * Solo tiene efecto para roles de alcance "assigned" (Gerente de
+   * Proyecto, Jefe de Obra), pero se puede llamar para cualquier rol.
+   */
+  async updateProjectAssignments(id: string, projectIds: string[]): Promise<TeamMember> {
+    return apiClient.put<TeamMember>(`${ENDPOINT}/${id}/projects`, { projectIds } satisfies UpdateProjectAssignmentsDTO);
   },
 
   /**

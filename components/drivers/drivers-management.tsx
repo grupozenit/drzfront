@@ -29,7 +29,7 @@ import {
   Search,
   Truck,
 } from "lucide-react"
-import { useDrivers } from "@/lib/hooks"
+import { useDrivers, usePermissions } from "@/lib/hooks"
 import { useViewMode } from "@/lib/hooks/useViewMode"
 import { driverService } from "@/lib/api"
 import { LICENSE_TYPES, LICENSE_LABELS, licenseLabel } from "@/lib/constants/activities"
@@ -173,6 +173,8 @@ export function DriversManagement() {
 
   const { toasts, success, error: showError, removeToast } = useToast()
   const { drivers, isLoading, loadDrivers, addDriver, updateDriver, removeDriver } = useDrivers()
+  const { can } = usePermissions()
+  const canWrite = can("choferes", "create")
 
   useEffect(() => {
     loadDrivers()
@@ -313,12 +315,14 @@ export function DriversManagement() {
               {stats.activos.length} choferes activos • {stats.bajas.length} dados de baja
             </p>
           </div>
-          <Button
-            onClick={() => setShowNewForm(true)}
-            className="w-full md:w-auto bg-primary hover:bg-primary/90 text-primary-foreground text-sm"
-          >
-            + Nuevo Chofer
-          </Button>
+          {canWrite && (
+            <Button
+              onClick={() => setShowNewForm(true)}
+              className="w-full md:w-auto bg-primary hover:bg-primary/90 text-primary-foreground text-sm"
+            >
+              + Nuevo Chofer
+            </Button>
+          )}
         </div>
 
         {/* New Driver Form */}

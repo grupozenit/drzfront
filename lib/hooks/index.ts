@@ -16,5 +16,6 @@ export {
   useEquipment,
   useDrivers,
   useSelectedProject,
+  usePermissions,
 } from '@/lib/contexts/AppContext';
 

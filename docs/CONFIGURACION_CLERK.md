@@ -47,6 +47,18 @@ Pero **NO** es obligatorio para que funcione.
 
 ## 3. Configurar Roles de Organización
 
+> **IMPORTANTE**: `org:admin`/`org:member` son roles de **identidad de Clerk**
+> (quién puede invitar gente y administrar la organización), no los roles de
+> negocio de la aplicación. Los permisos reales — qué puede ver y hacer cada
+> persona dentro del sistema (Tecnología, Gerente General, Gerente de
+> Proyecto, Jefe de Obra, Compras) — se administran aparte, desde
+> **Configuración → Equipo** dentro de la app, y viven en la base de datos
+> del backend (`src/core/permissions.py`). Un `org:admin` de Clerk no tiene
+> automáticamente acceso a todo el sistema: el único efecto especial de
+> `org:admin` es que, si la empresa todavía no tiene ningún usuario con rol
+> "Tecnología", el primer `org:admin` que inicia sesión es promovido a
+> Tecnología para poder empezar a asignar roles al resto del equipo.
+
 En **Configure** → **Organizations** → **Roles**, asegúrate de tener estos roles:
 
 ### Roles Predeterminados

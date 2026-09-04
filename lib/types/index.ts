@@ -2,7 +2,8 @@
 // TIPOS BASE
 // ============================================
 
-export type UserRole = 'admin' | 'manager' | 'worker';
+// Espejo de src.core.permissions.Role en el backend.
+export type UserRole = 'tecnologia' | 'gerente_general' | 'gerente_proyecto' | 'jefe_obra' | 'compras' | 'sin_rol';
 export type MachineStatus = 'activa' | 'baja';
 export type MachineOwnership = 'propio' | 'subcontrato';
 export type EquipmentOwnership = 'propio' | 'alquilado';
@@ -46,6 +47,8 @@ export interface TeamMember {
   name: string;
   email: string;
   role: UserRole;
+  isActive: boolean;
+  projectIds: string[];
   joinDate: string;
 }
 
@@ -57,6 +60,37 @@ export interface InviteTeamMemberDTO {
 export interface UpdateTeamMemberDTO {
   name?: string;
   role?: UserRole;
+}
+
+export interface UpdateRoleDTO {
+  role: UserRole;
+}
+
+export interface UpdateProjectAssignmentsDTO {
+  projectIds: string[];
+}
+
+// ============================================
+// PERMISOS
+// ============================================
+
+// Espejo de src.core.permissions.Resource/Action en el backend.
+export type PermissionResource =
+  | 'tablero' | 'avances' | 'reportes' | 'reportes_semanales' | 'flota'
+  | 'maquinaria' | 'equipos' | 'choferes' | 'proyectos' | 'usuarios' | 'configuracion';
+
+export type PermissionAction = 'read' | 'create' | 'update' | 'delete';
+
+export type PermissionScope = 'all' | 'assigned';
+
+export interface MeResponse {
+  userId: string;
+  userName: string;
+  role: UserRole;
+  scope: PermissionScope;
+  projectIds: string[] | null;
+  landing: string;
+  permissions: Partial<Record<PermissionResource, PermissionAction[]>>;
 }
 
 // ============================================

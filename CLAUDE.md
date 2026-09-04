@@ -38,13 +38,23 @@ Server-side requests also read `API_URL` (internal network URL) with fallback to
 - Each user must belong to a Clerk Organization (`orgId`). The organization maps to a company in the backend.
 - `OrganizationProvider` (`components/providers/organization-provider.tsx`) auto-activates the user's first organization if none is active.
 - `ClerkApiConfig` (`lib/api/clerk-config.tsx`) injects `getToken` into the API client singleton at app startup.
-- Onboarding is complete when the org has at least one project. `app/page.tsx` is the onboarding gate: routes to `/tablero` if ready, shows `FirstProjectModal` for org admins, or shows error states for non-admins.
+- Onboarding is complete when the org has at least one project. `app/page.tsx` is the onboarding gate: routes to the user's role landing (see Roles & Permissions below) if ready, shows `FirstProjectModal` for org admins, or shows error states for non-admins.
+
+### Roles & Permissions
+
+- **Backend is the only source of truth.** The frontend never reimplements the permission matrix — it fetches `GET /me` (via `meService`, wired into `AppContext`) and exposes it through `usePermissions()`.
+- `usePermissions()` (from `lib/contexts/AppContext.tsx`, re-exported via `lib/hooks`) returns `{ role, scope, projectIds, landing, can(resource, action), canAccessProject(id) }`. `can()` returns `false` for everything until `/me` has actually loaded — never assume access by default.
+- **Route ↔ resource mapping** lives in one place: `lib/permissions/route-access.ts` (`isNavItemVisible` for the sidebar, `checkRouteAccess` for the layout guard). Update it there, not per-component, if a route's resource changes.
+- `components/layout/sidebar.tsx` filters `navItems` through `isNavItemVisible` — a role with no read access to a resource never sees it in the menu, not even greyed out.
+- `app/(dashboard)/layout.tsx` waits for permissions to load before rendering (avoids a flash of the full sidebar), redirects to `landing` when the current route isn't in the user's `can()`, and renders a dedicated "pendiente de asignación" screen for role `sin_rol` instead of an empty dashboard.
+- Six roles: `tecnologia | gerente_general | gerente_proyecto | jefe_obra | compras | sin_rol`. `gerente_proyecto` and `jefe_obra` have `scope: "assigned"` — every list they see (projects, reports, machinery…) is already filtered server-side to their assigned projects; the frontend does not filter again.
+- Role/project assignment UI is in `components/setup/team-management.tsx` (`AppRoleEditor`), gated behind `can('usuarios', 'update')` — only `tecnologia` sees it. Uses `teamService.changeRole` / `teamService.updateProjectAssignments`, distinct from the Clerk-identity invite flow in the same file (`organization.inviteMember`).
 
 ### Data Flow
 
-Initial data is loaded in the **root Server Component** (`app/layout.tsx`) via `lib/api/server.ts` using Clerk's server-side `auth()`. This pre-populates `AppProvider` to avoid client-side waterfalls.
+Initial data is loaded in the **root Server Component** (`app/layout.tsx`) via `lib/api/server.ts` using Clerk's server-side `auth()`. This pre-populates `AppProvider` to avoid client-side waterfalls. `permissions` (from `GET /me`) has no server-side preload — `AppProvider` fetches it client-side unconditionally on mount, independent of whether `initialData` was provided (see the dedicated `useEffect` for it in `AppContext.tsx`).
 
-`AppContext` (`lib/contexts/AppContext.tsx`) is the single global state store (React Context + useState). It holds company, projects, team, machinery, baselines, and dashboard summary. Convenience hooks are exported from the same file: `useProjects`, `useCompany`, `useTeam`, `useMachinery`, `useSelectedProject`.
+`AppContext` (`lib/contexts/AppContext.tsx`) is the single global state store (React Context + useState). It holds company, projects, team, machinery, baselines, dashboard summary, and permissions. Convenience hooks are exported from the same file: `useProjects`, `useCompany`, `useTeam`, `useMachinery`, `useSelectedProject`, `usePermissions`.
 
 ### API Client
 

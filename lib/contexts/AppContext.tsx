@@ -12,6 +12,9 @@ import type {
   DailyReport,
   DashboardSummary,
   Baseline,
+  MeResponse,
+  PermissionResource,
+  PermissionAction,
 } from '@/lib/types';
 import {
   companyService,
@@ -23,6 +26,7 @@ import {
   reportsService,
   dashboardService,
   baselinesService,
+  meService,
 } from '@/lib/api';
 
 // ============================================
@@ -39,6 +43,7 @@ interface AppState {
   drivers: Driver[];
   baselines: Record<string, Baseline>; // projectId -> Baseline
   dashboardSummary: DashboardSummary | null;
+  permissions: MeResponse | null;
 
   // Estados de carga
   isLoading: boolean;
@@ -48,6 +53,7 @@ interface AppState {
   isLoadingMachinery: boolean;
   isLoadingEquipment: boolean;
   isLoadingDrivers: boolean;
+  isLoadingPermissions: boolean;
 
   // Control de onboarding
   isOnboardingComplete: boolean;
@@ -57,6 +63,9 @@ interface AppState {
 }
 
 interface AppContextValue extends AppState {
+  // Acciones de Permisos
+  loadPermissions: () => Promise<void>;
+
   // Acciones de Empresa
   loadCompany: () => Promise<void>;
 
@@ -147,6 +156,7 @@ export function AppProvider({ children, initialData }: AppProviderProps) {
     drivers: [],
     baselines: {},
     dashboardSummary: initialData?.dashboardSummary ?? null,
+    permissions: null,
     isLoading: false,
     isLoadingCompany: false,
     isLoadingProjects: false,
@@ -154,9 +164,25 @@ export function AppProvider({ children, initialData }: AppProviderProps) {
     isLoadingMachinery: false,
     isLoadingEquipment: false,
     isLoadingDrivers: false,
+    isLoadingPermissions: false,
     isOnboardingComplete: isOnboardingCompleteInitial,
     selectedProjectId: null,
   });
+
+  // ============================================
+  // PERMISOS
+  // ============================================
+
+  const loadPermissions = useCallback(async () => {
+    setState(prev => ({ ...prev, isLoadingPermissions: true }));
+    try {
+      const permissions = await meService.get();
+      setState(prev => ({ ...prev, permissions, isLoadingPermissions: false }));
+    } catch (error) {
+      console.error('Error loading permissions:', error);
+      setState(prev => ({ ...prev, permissions: null, isLoadingPermissions: false }));
+    }
+  }, []);
 
   // ============================================
   // EMPRESA
@@ -457,6 +483,7 @@ export function AppProvider({ children, initialData }: AppProviderProps) {
   const refreshAll = useCallback(async () => {
     setState(prev => ({ ...prev, isLoading: true }));
     await Promise.all([
+      loadPermissions(),
       loadCompany(),
       loadProjects(),
       loadTeam(),
@@ -464,7 +491,7 @@ export function AppProvider({ children, initialData }: AppProviderProps) {
       loadDashboardSummary(),
     ]);
     setState(prev => ({ ...prev, isLoading: false }));
-  }, [loadCompany, loadProjects, loadTeam, loadMachinery, loadDashboardSummary]);
+  }, [loadPermissions, loadCompany, loadProjects, loadTeam, loadMachinery, loadDashboardSummary]);
 
   // ============================================
   // CARGAR DATOS INICIALES
@@ -483,12 +510,23 @@ export function AppProvider({ children, initialData }: AppProviderProps) {
     }
   }, [isLoaded, userId, orgId, initialData, refreshAll, state.projects.length]);
 
+  // Los permisos no tienen precarga SSR (a diferencia de company/projects),
+  // así que el efecto de arriba los puede saltear por completo cuando el
+  // servidor sí trajo datos iniciales. Este efecto es incondicional a eso.
+  useEffect(() => {
+    if (!isLoaded || !userId || !orgId) {
+      return;
+    }
+    loadPermissions();
+  }, [isLoaded, userId, orgId, loadPermissions]);
+
   // ============================================
   // VALOR DEL CONTEXT
   // ============================================
 
   const value: AppContextValue = {
     ...state,
+    loadPermissions,
     loadCompany,
     loadProjects,
     addProject,
@@ -575,5 +613,46 @@ export function useSelectedProject() {
   const { projects, selectedProjectId, setSelectedProjectId } = useApp();
   const selectedProject = projects.find(p => p.id === selectedProjectId) || null;
   return { selectedProject, selectedProjectId, setSelectedProjectId, projects };
+}
+
+/**
+ * Única fuente de verdad de la matriz de permisos en el cliente: consume
+ * `GET /me` (vía AppContext) en vez de reimplementar la matriz.
+ *
+ * Mientras `permissions` no cargó todavía (login recién hecho, primer
+ * render) `can()` devuelve `false` para todo — evita destellos de UI con
+ * permisos de más antes de que llegue la respuesta real del backend.
+ */
+export function usePermissions() {
+  const { permissions, isLoadingPermissions, loadPermissions } = useApp();
+
+  const can = useCallback(
+    (resource: PermissionResource, action: PermissionAction): boolean => {
+      if (!permissions) return false;
+      return permissions.permissions[resource]?.includes(action) ?? false;
+    },
+    [permissions]
+  );
+
+  const canAccessProject = useCallback(
+    (projectId: string | null): boolean => {
+      if (!permissions) return false;
+      if (permissions.scope === 'all') return true;
+      return (permissions.projectIds ?? []).includes(projectId ?? '');
+    },
+    [permissions]
+  );
+
+  return {
+    permissions,
+    isLoading: isLoadingPermissions,
+    loadPermissions,
+    role: permissions?.role ?? null,
+    scope: permissions?.scope ?? null,
+    projectIds: permissions?.projectIds ?? null,
+    landing: permissions?.landing ?? '/tablero',
+    can,
+    canAccessProject,
+  };
 }
 

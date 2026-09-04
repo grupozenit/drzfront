@@ -38,7 +38,7 @@ import {
   Search,
 } from "lucide-react"
 import Link from "next/link"
-import { useProjects, useMachinery, useDrivers } from "@/lib/hooks"
+import { useProjects, useMachinery, useDrivers, usePermissions } from "@/lib/hooks"
 import { useViewMode } from "@/lib/hooks/useViewMode"
 import { machineryService } from "@/lib/api"
 import { MACHINE_TYPES, isVehicleType } from "@/lib/constants/activities"
@@ -274,6 +274,8 @@ export function MachineryManagement() {
   const { projects, loadProjects } = useProjects()
   const { machinery, isLoading, loadMachinery, addMachine, updateMachine, removeMachine } = useMachinery()
   const { drivers, loadDrivers } = useDrivers()
+  const { can } = usePermissions()
+  const canWrite = can("maquinaria", "create")
 
   // Cargar datos iniciales
   useEffect(() => {
@@ -601,12 +603,14 @@ export function MachineryManagement() {
               {stats.activeMachines.length} máquinas activas • {stats.assignedMachines.length} asignadas • {stats.unassignedMachines.length} disponibles
             </p>
           </div>
-          <Button
-            onClick={() => setShowNewForm(true)}
-            className="w-full md:w-auto bg-primary hover:bg-primary/90 text-primary-foreground text-sm"
-          >
-            + Nueva Maquinaria
-          </Button>
+          {canWrite && (
+            <Button
+              onClick={() => setShowNewForm(true)}
+              className="w-full md:w-auto bg-primary hover:bg-primary/90 text-primary-foreground text-sm"
+            >
+              + Nueva Maquinaria
+            </Button>
+          )}
         </div>
 
         {/* New Machine Form */}
