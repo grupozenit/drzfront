@@ -9,6 +9,7 @@ const ROUTE_RESOURCE_MAP: Record<string, PermissionResource> = {
   "/tablero": "tablero",
   "/avances": "avances",
   "/reporte": "reportes",
+  "/reporte-semanal": "reportes_semanales",
   "/flota": "flota",
   "/choferes": "choferes",
   "/maquinaria": "maquinaria",
@@ -23,7 +24,6 @@ export function checkRouteAccess(pathname: string, can: CanFn): boolean {
   if (pathname.startsWith("/configuracion/equipo")) return can("usuarios", "read")
   if (pathname.startsWith("/configuracion/proyectos")) return can("proyectos", "read")
   if (pathname.startsWith("/configuracion")) return can("proyectos", "read") || can("usuarios", "read")
-  if (pathname.startsWith("/reporte-semanal")) return can("reportes_semanales", "read")
 
   const resource = ROUTE_RESOURCE_MAP[pathname] ?? ROUTE_RESOURCE_MAP[`/${pathname.split("/")[1] ?? ""}`]
   if (!resource) return true // ruta sin recurso conocido: no es responsabilidad de este guard
