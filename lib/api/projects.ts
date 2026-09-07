@@ -57,34 +57,6 @@ export const projectsService = {
   },
 
   /**
-   * Agrega usuarios al equipo del proyecto
-   */
-  async addTeamMembers(projectId: string, members: string[]): Promise<Project> {
-    return apiClient.post<Project>(`${ENDPOINT}/${projectId}/team`, { members });
-  },
-
-  /**
-   * Elimina un usuario del equipo del proyecto
-   */
-  async removeTeamMember(projectId: string, member: string): Promise<Project> {
-    return apiClient.delete<Project>(`${ENDPOINT}/${projectId}/team/${encodeURIComponent(member)}`);
-  },
-
-  /**
-   * Agrega destinatarios de email al proyecto
-   */
-  async addRecipients(projectId: string, emails: string[]): Promise<Project> {
-    return apiClient.post<Project>(`${ENDPOINT}/${projectId}/recipients`, { emails });
-  },
-
-  /**
-   * Elimina un destinatario de email del proyecto
-   */
-  async removeRecipient(projectId: string, email: string): Promise<Project> {
-    return apiClient.delete<Project>(`${ENDPOINT}/${projectId}/recipients/${encodeURIComponent(email)}`);
-  },
-
-  /**
    * Obtiene solo los proyectos activos (en ejecución)
    */
   async getActive(): Promise<Project[]> {

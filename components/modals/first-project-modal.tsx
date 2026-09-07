@@ -28,8 +28,6 @@ export function FirstProjectModal({ onProjectCreated }: FirstProjectModalProps) 
     try {
       const project = await projectsService.create({
         name: projectName.trim(),
-        team: [],
-        recipients: [],
       })
       
       success("Proyecto creado", "Tu primer proyecto está listo")

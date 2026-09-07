@@ -102,8 +102,6 @@ export interface Project {
   id: string;
   name: string;
   companyId: string;
-  team: string[]; // IDs o nombres de usuarios asignados
-  recipients: string[]; // Emails para reportes
   hasBaseline: boolean;
   progress: number; // 0-100
   status: 'active' | 'completed' | 'paused';
@@ -117,14 +115,10 @@ export interface Project {
 
 export interface CreateProjectDTO {
   name: string;
-  team?: string[];
-  recipients?: string[];
 }
 
 export interface UpdateProjectDTO {
   name?: string;
-  team?: string[];
-  recipients?: string[];
   startDate?: string | null;
   signatureName?: string;
   signaturePosition?: string;

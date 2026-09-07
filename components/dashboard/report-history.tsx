@@ -5,7 +5,7 @@ import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { DailyReportForm } from "@/components/forms/daily-report-form"
 import { DateRangePicker } from "@/components/ui/date-range-picker"
-import { ChevronDown, Loader2, FileText, Eye, Download, Share2, Mail, MessageCircle, Edit, Trash2 } from "lucide-react"
+import { ChevronDown, Loader2, FileText, Eye, Download, Share2, MessageCircle, Edit, Trash2 } from "lucide-react"
 import { ReportPreviewModal } from "@/components/dashboard/report-preview-modal"
 import { useReports } from "@/lib/hooks/useReports"
 import { useProjects, usePermissions } from "@/lib/hooks"
@@ -30,8 +30,6 @@ export function ReportHistory() {
   const [filterEndDate, setFilterEndDate] = useState("")
   
   // Estados para diálogos
-  const [showEmailDialog, setShowEmailDialog] = useState(false)
-  const [selectedReportForEmail, setSelectedReportForEmail] = useState<DailyReport | null>(null)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [selectedReportForDelete, setSelectedReportForDelete] = useState<DailyReport | null>(null)
   const [reportToEdit, setReportToEdit] = useState<DailyReport | null>(null)
@@ -49,7 +47,6 @@ export function ReportHistory() {
     error,
     loadReports,
     generatePDF,
-    sendEmail,
     shareWhatsApp,
     deleteReport,
   } = useReports()
@@ -223,28 +220,11 @@ export function ReportHistory() {
     shareWhatsApp(report.id, message)
   }
 
-  const handleSendEmail = async (report: DailyReport) => {
-    setSelectedReportForEmail(report)
-    setShowEmailDialog(true)
-  }
-
-  const confirmSendEmail = async () => {
-    if (!selectedReportForEmail) return
-    
-    try {
-      await sendEmail(selectedReportForEmail.id)
-      success("Email enviado", "El reporte se ha enviado a los destinatarios del proyecto")
-      setShowEmailDialog(false)
-      setSelectedReportForEmail(null)
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : "No se pudo enviar el email"
-      if (errorMessage.includes("destinatarios")) {
-        showError("Error", "No hay destinatarios configurados en el proyecto. Configúralos en Configuración → Proyectos")
-      } else {
-        showError("Error", errorMessage)
-      }
-    }
-  }
+  // El envío de reportes por correo está desactivado: el endpoint
+  // POST /reports/{id}/email acepta destinatarios arbitrarios (sin allowlist),
+  // así que queda cerrado en el backend mientras la función no se use
+  // (settings.reports_email_enabled). `reportsService.sendEmail` sigue existiendo
+  // para cuando se reactive, con los destinatarios acotados a los del proyecto.
 
   const handleEditReport = (report: DailyReport) => {
     setReportToEdit(report)
@@ -290,24 +270,6 @@ export function ReportHistory() {
     <>
       <ToastContainer toasts={toasts} onClose={removeToast} />
       
-      {/* Diálogo de confirmación de email */}
-      <Dialog
-        isOpen={showEmailDialog}
-        onClose={() => {
-          setShowEmailDialog(false)
-          setSelectedReportForEmail(null)
-        }}
-        onConfirm={confirmSendEmail}
-        title="Enviar Reporte por Correo"
-        message={
-          selectedReportForEmail 
-            ? `¿Deseas enviar el reporte del ${formatDateLocal(selectedReportForEmail.date)} del proyecto "${selectedReportForEmail.projectName}" a los destinatarios configurados?\n\nEl reporte se enviará con el PDF adjunto a los correos configurados en Configuración → Proyectos.`
-            : ""
-        }
-        confirmText="Enviar"
-        cancelText="Cancelar"
-      />
-
       {/* Diálogo de confirmación de eliminación */}
       <Dialog
         isOpen={showDeleteDialog}
@@ -585,13 +547,6 @@ export function ReportHistory() {
                                 >
                                   <MessageCircle className="w-4 h-4" />
                                 </button>
-                                <button
-                                  onClick={() => handleSendEmail(report)}
-                                  className="p-1.5 rounded hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
-                                  title="Enviar por correo"
-                                >
-                                  <Mail className="w-4 h-4" />
-                                </button>
                               </>
                             )}
                             {canUpdate && (
@@ -671,13 +626,6 @@ export function ReportHistory() {
                         title="Compartir por WhatsApp"
                       >
                         <MessageCircle className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() => handleSendEmail(report)}
-                        className="p-1.5 rounded hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
-                        title="Enviar por correo"
-                      >
-                        <Mail className="w-4 h-4" />
                       </button>
                     </>
                   )}

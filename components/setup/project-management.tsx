@@ -10,7 +10,7 @@ import { Loader2, Upload, X, PenLine } from "lucide-react"
 import { BaselineSetup } from "./baseline-setup"
 import { TheoreticalCurveSetup } from "./theoretical-curve-setup"
 import { useProjects, usePermissions } from "@/lib/hooks"
-import { projectsService, organizationService, type OrganizationMember } from "@/lib/api"
+import { projectsService } from "@/lib/api"
 import { validateImageFile } from "@/lib/utils/sanitize"
 import type { Project, CreateProjectDTO } from "@/lib/types"
 
@@ -20,23 +20,19 @@ export function ProjectManagement() {
   const [showCurveForm, setShowCurveForm] = useState<{ projectId: string; projectName: string } | null>(null)
   const [editingProject, setEditingProject] = useState<Project | null>(null)
   const [isSaving, setIsSaving] = useState(false)
-  const [orgMembers, setOrgMembers] = useState<OrganizationMember[]>([])
-  const [showMemberDropdown, setShowMemberDropdown] = useState(false)
-  const [showEditMemberDropdown, setShowEditMemberDropdown] = useState(false)
   const [signatureImageFile, setSignatureImageFile] = useState<File | null>(null)
   const [signatureImagePreview, setSignatureImagePreview] = useState<string | null>(null)
   const [isUploadingSignature, setIsUploadingSignature] = useState(false)
   const signatureInputRef = useRef<HTMLInputElement>(null)
 
   
+  // Un proyecto se crea solo con su nombre. La asignacion de personas vive en
+  // Configuracion -> Equipo (user_project_assignments), que es lo que consume
+  // el alcance por proyecto de los roles; y el envio de reportes por correo
+  // esta desactivado, asi que no hay destinatarios que declarar.
   const [newProject, setNewProject] = useState<Partial<CreateProjectDTO>>({
     name: "",
-    team: [],
-    recipients: [],
   })
-  const [newTeamMember, setNewTeamMember] = useState("")
-  const [editTeamMember, setEditTeamMember] = useState("")
-  const [newRecipient, setNewRecipient] = useState("")
 
   const { toasts, success, error: showError, removeToast } = useToast()
   const { projects, isLoading, loadProjects, addProject, updateProject, removeProject } = useProjects()
@@ -44,20 +40,9 @@ export function ProjectManagement() {
   const canWrite = can("proyectos", "create")
   const canWriteAvances = can("avances", "update")
 
-  // Cargar proyectos y miembros de la organización al montar
   useEffect(() => {
     loadProjects()
-    loadOrgMembers()
   }, [loadProjects])
-
-  const loadOrgMembers = async () => {
-    try {
-      const members = await organizationService.getMembers()
-      setOrgMembers(members)
-    } catch (err) {
-      console.error("Error loading organization members:", err)
-    }
-  }
 
   const handleAddProject = async () => {
     if (!newProject.name?.trim()) {
@@ -69,8 +54,6 @@ export function ProjectManagement() {
     try {
       const project = await projectsService.create({
         name: newProject.name,
-        team: newProject.team || [],
-        recipients: newProject.recipients || [],
       })
       addProject(project)
       resetForm()
@@ -89,8 +72,6 @@ export function ProjectManagement() {
     try {
       let updated = await projectsService.update(editingProject.id, {
         name: editingProject.name,
-        team: editingProject.team,
-        recipients: editingProject.recipients,
         signatureName: editingProject.signatureName || undefined,
         signaturePosition: editingProject.signaturePosition || undefined,
       })
@@ -140,103 +121,10 @@ export function ProjectManagement() {
     }
   }
 
-  const handleAddTeamMember = (memberName?: string) => {
-    const nameToAdd = memberName || newTeamMember.trim()
-    if (nameToAdd && !(newProject.team || []).includes(nameToAdd)) {
-      setNewProject({
-        ...newProject,
-        team: [...(newProject.team || []), nameToAdd],
-      })
-      setNewTeamMember("")
-      setShowMemberDropdown(false)
-    }
-  }
-
-  // Filtrar miembros disponibles (no asignados aún)
-  const availableMembers = orgMembers.filter(
-    (member) => !(newProject.team || []).includes(member.name)
-  )
-
-  const handleRemoveTeamMember = (index: number) => {
-    setNewProject({
-      ...newProject,
-      team: (newProject.team || []).filter((_, i) => i !== index),
-    })
-  }
-
-  const handleAddRecipient = () => {
-    if (newRecipient.trim()) {
-      // Validar formato de email básico
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-      if (!emailRegex.test(newRecipient)) {
-        showError("Error", "Ingresa un correo electrónico válido")
-        return
-      }
-      setNewProject({
-        ...newProject,
-        recipients: [...(newProject.recipients || []), newRecipient],
-      })
-      setNewRecipient("")
-    }
-  }
-
-  const handleRemoveRecipient = (index: number) => {
-    setNewProject({
-      ...newProject,
-      recipients: (newProject.recipients || []).filter((_, i) => i !== index),
-    })
-  }
-
-  // Para edición
-  const handleEditAddTeamMember = (member: string) => {
-    if (editingProject && member.trim()) {
-      setEditingProject({
-        ...editingProject,
-        team: [...editingProject.team, member],
-      })
-    }
-  }
-
-  const handleEditRemoveTeamMember = (index: number) => {
-    if (editingProject) {
-      setEditingProject({
-        ...editingProject,
-        team: editingProject.team.filter((_, i) => i !== index),
-      })
-    }
-  }
-
-  const handleEditAddRecipient = (email: string) => {
-    if (editingProject && email.trim()) {
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-      if (!emailRegex.test(email)) {
-        showError("Error", "Ingresa un correo electrónico válido")
-        return
-      }
-      setEditingProject({
-        ...editingProject,
-        recipients: [...editingProject.recipients, email],
-      })
-    }
-  }
-
-  const handleEditRemoveRecipient = (index: number) => {
-    if (editingProject) {
-      setEditingProject({
-        ...editingProject,
-        recipients: editingProject.recipients.filter((_, i) => i !== index),
-      })
-    }
-  }
-
   const resetForm = () => {
     setNewProject({
       name: "",
-      team: [],
-      recipients: [],
     })
-    setNewTeamMember("")
-    setNewRecipient("")
     setShowNewForm(false)
     setSignatureImageFile(null)
     setSignatureImagePreview(null)
@@ -307,114 +195,6 @@ export function ProjectManagement() {
                 />
               </div>
 
-              <div className="space-y-2">
-                <Label className="text-xs md:text-sm font-medium text-foreground">Usuarios Asignados</Label>
-                <p className="text-xs text-muted-foreground">Selecciona usuarios de tu organización</p>
-                <div className="relative">
-                  <div className="flex gap-2">
-                    <div className="flex-1 relative">
-                      <Input
-                        placeholder="Buscar usuario..."
-                        value={newTeamMember}
-                        onChange={(e) => {
-                          setNewTeamMember(e.target.value)
-                          setShowMemberDropdown(true)
-                        }}
-                        onFocus={() => setShowMemberDropdown(true)}
-                        onKeyPress={(e) => e.key === "Enter" && (e.preventDefault(), handleAddTeamMember())}
-                        className="bg-input border-border text-foreground text-sm"
-                      />
-                      {showMemberDropdown && availableMembers.length > 0 && newTeamMember.length > 0 && (
-                        <div className="absolute top-full left-0 right-0 mt-1 bg-card border border-border rounded-lg shadow-lg z-10 max-h-48 overflow-y-auto">
-                          {availableMembers
-                            .filter((member) =>
-                              member.name.toLowerCase().includes(newTeamMember.toLowerCase()) ||
-                              member.email.toLowerCase().includes(newTeamMember.toLowerCase())
-                            )
-                            .map((member) => (
-                              <button
-                                key={member.id}
-                                type="button"
-                                onClick={() => handleAddTeamMember(member.name)}
-                                className="w-full text-left px-3 py-2 text-sm hover:bg-muted transition-colors"
-                              >
-                                <div className="font-medium text-foreground">{member.name}</div>
-                                <div className="text-xs text-muted-foreground">{member.email}</div>
-                              </button>
-                            ))}
-                        </div>
-                      )}
-                    </div>
-                    <Button
-                      type="button"
-                      onClick={() => handleAddTeamMember()}
-                      variant="outline"
-                      className="text-sm whitespace-nowrap"
-                    >
-                      Agregar
-                    </Button>
-                  </div>
-                </div>
-                {newProject.team && newProject.team.length > 0 && (
-                  <div className="flex flex-wrap gap-2 mt-2">
-                    {newProject.team.map((member, i) => (
-                      <span
-                        key={i}
-                        className="px-3 py-1 rounded-full bg-muted text-muted-foreground text-xs flex items-center gap-2"
-                      >
-                        {member}
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveTeamMember(i)}
-                          className="hover:text-destructive"
-                        >
-                          ×
-                        </button>
-                      </span>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              <div className="space-y-2">
-                <Label className="text-xs md:text-sm font-medium text-foreground">
-                  Destinatarios de Reportes (Correos)
-                </Label>
-                <div className="flex gap-2">
-                  <Input
-                    type="email"
-                    placeholder="correo@ejemplo.com"
-                    value={newRecipient}
-                    onChange={(e) => setNewRecipient(e.target.value)}
-                    onKeyPress={(e) => e.key === "Enter" && (e.preventDefault(), handleAddRecipient())}
-                    className="bg-input border-border text-foreground text-sm"
-                  />
-                  <Button
-                    type="button"
-                    onClick={handleAddRecipient}
-                    variant="outline"
-                    className="text-sm whitespace-nowrap"
-                  >
-                    Agregar
-                  </Button>
-                </div>
-                {newProject.recipients && newProject.recipients.length > 0 && (
-                  <div className="flex flex-wrap gap-2 mt-2">
-                    {newProject.recipients.map((email, i) => (
-                      <span
-                        key={i}
-                        className="px-3 py-1 rounded-full bg-primary/10 text-primary text-xs flex items-center gap-2"
-                      >
-                        {email}
-                        <button type="button" onClick={() => handleRemoveRecipient(i)} className="hover:text-destructive">
-                          ×
-                        </button>
-                      </span>
-                    ))}
-                  </div>
-                )}
-              </div>
-
               <div className="flex gap-3 pt-4 border-t border-border">
                 <Button
                   onClick={handleAddProject}
@@ -453,137 +233,6 @@ export function ProjectManagement() {
                   onChange={(e) => setEditingProject({ ...editingProject, name: e.target.value })}
                   className="bg-input border-border text-foreground text-sm"
                 />
-              </div>
-
-              <div className="space-y-2">
-                <Label className="text-xs md:text-sm font-medium text-foreground">Usuarios Asignados</Label>
-                <p className="text-xs text-muted-foreground">Selecciona usuarios de tu organización</p>
-                <div className="relative">
-                  <div className="flex gap-2">
-                    <div className="flex-1 relative">
-                      <Input
-                        placeholder="Buscar usuario..."
-                        value={editTeamMember}
-                        onChange={(e) => {
-                          setEditTeamMember(e.target.value)
-                          setShowEditMemberDropdown(true)
-                        }}
-                        onFocus={() => setShowEditMemberDropdown(true)}
-                        onKeyPress={(e) => {
-                          if (e.key === "Enter") {
-                            e.preventDefault()
-                            handleEditAddTeamMember(editTeamMember)
-                          }
-                        }}
-                        className="bg-input border-border text-foreground text-sm"
-                      />
-                      {showEditMemberDropdown && availableMembers.length > 0 && editTeamMember.length > 0 && (
-                        <div className="absolute top-full left-0 right-0 mt-1 bg-card border border-border rounded-lg shadow-lg z-10 max-h-48 overflow-y-auto">
-                          {availableMembers
-                            .filter((member) =>
-                              !editingProject.team.includes(member.name) &&
-                              (member.name.toLowerCase().includes(editTeamMember.toLowerCase()) ||
-                              member.email.toLowerCase().includes(editTeamMember.toLowerCase()))
-                            )
-                            .map((member) => (
-                              <button
-                                key={member.id}
-                                type="button"
-                                onClick={() => {
-                                  handleEditAddTeamMember(member.name)
-                                  setEditTeamMember("")
-                                  setShowEditMemberDropdown(false)
-                                }}
-                                className="w-full text-left px-3 py-2 text-sm hover:bg-muted transition-colors"
-                              >
-                                <div className="font-medium text-foreground">{member.name}</div>
-                                <div className="text-xs text-muted-foreground">{member.email}</div>
-                              </button>
-                            ))}
-                        </div>
-                      )}
-                    </div>
-                    <Button
-                      type="button"
-                      onClick={() => {
-                        handleEditAddTeamMember(editTeamMember)
-                        setEditTeamMember("")
-                      }}
-                      variant="outline"
-                      className="text-sm whitespace-nowrap"
-                    >
-                      Agregar
-                    </Button>
-                  </div>
-                </div>
-                {editingProject.team.length > 0 && (
-                  <div className="flex flex-wrap gap-2 mt-2">
-                    {editingProject.team.map((member, i) => (
-                      <span
-                        key={i}
-                        className="px-3 py-1 rounded-full bg-muted text-muted-foreground text-xs flex items-center gap-2"
-                      >
-                        {member}
-                        <button
-                          type="button"
-                          onClick={() => handleEditRemoveTeamMember(i)}
-                          className="hover:text-destructive"
-                        >
-                          ×
-                        </button>
-                      </span>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              <div className="space-y-2">
-                <Label className="text-xs md:text-sm font-medium text-foreground">
-                  Destinatarios de Reportes (Correos)
-                </Label>
-                <div className="flex gap-2">
-                  <Input
-                    type="email"
-                    placeholder="correo@ejemplo.com"
-                    id="edit-recipient"
-                    onKeyPress={(e) => {
-                      if (e.key === "Enter") {
-                        e.preventDefault()
-                        const input = e.target as HTMLInputElement
-                        handleEditAddRecipient(input.value)
-                        input.value = ""
-                      }
-                    }}
-                    className="bg-input border-border text-foreground text-sm"
-                  />
-                  <Button
-                    type="button"
-                    onClick={() => {
-                      const input = document.getElementById("edit-recipient") as HTMLInputElement
-                      handleEditAddRecipient(input.value)
-                      input.value = ""
-                    }}
-                    variant="outline"
-                    className="text-sm whitespace-nowrap"
-                  >
-                    Agregar
-                  </Button>
-                </div>
-                {editingProject.recipients.length > 0 && (
-                  <div className="flex flex-wrap gap-2 mt-2">
-                    {editingProject.recipients.map((email, i) => (
-                      <span
-                        key={i}
-                        className="px-3 py-1 rounded-full bg-primary/10 text-primary text-xs flex items-center gap-2"
-                      >
-                        {email}
-                        <button type="button" onClick={() => handleEditRemoveRecipient(i)} className="hover:text-destructive">
-                          ×
-                        </button>
-                      </span>
-                    ))}
-                  </div>
-                )}
               </div>
 
               {/* Firma de Responsable */}
@@ -751,38 +400,6 @@ export function ProjectManagement() {
                         >
                           Curva S
                         </button>
-                      )}
-                    </div>
-                  </div>
-
-                  <div>
-                    <p className="text-xs text-muted-foreground mb-2">Usuarios Asignados ({project.team.length})</p>
-                    <div className="flex flex-wrap gap-2">
-                      {project.team.length > 0 ? (
-                        project.team.map((member, i) => (
-                          <span key={i} className="px-3 py-1 rounded-full bg-muted text-muted-foreground text-xs">
-                            {member}
-                          </span>
-                        ))
-                      ) : (
-                        <span className="text-xs text-muted-foreground italic">Sin usuarios asignados</span>
-                      )}
-                    </div>
-                  </div>
-
-                  <div>
-                    <p className="text-xs text-muted-foreground mb-2">
-                      Destinatarios de Reportes ({project.recipients.length})
-                    </p>
-                    <div className="flex flex-wrap gap-2">
-                      {project.recipients.length > 0 ? (
-                        project.recipients.map((email, i) => (
-                          <span key={i} className="px-3 py-1 rounded-full bg-primary/10 text-primary text-xs">
-                            {email}
-                          </span>
-                        ))
-                      ) : (
-                        <span className="text-xs text-muted-foreground italic">Sin destinatarios configurados</span>
                       )}
                     </div>
                   </div>
