@@ -80,17 +80,30 @@ describe('reportsService.getById', () => {
 // ─── create ───────────────────────────────────────────────────────────────────
 
 describe('reportsService.create', () => {
-  it('sin imágenes → llama apiClient.post con el objeto de datos', async () => {
+  it('sin imágenes → igual manda FormData con el campo data', async () => {
+    // El endpoint recibe el reporte en un campo de formulario. Mandar el
+    // objeto como JSON hacía que el backend contestara "Se requiere campo
+    // 'data'" y no se pudiera enviar un reporte sin fotos.
     (apiClient.post as Mock).mockResolvedValue(mockReport);
     await reportsService.create(baseReportData);
-    expect(apiClient.post).toHaveBeenCalledWith('/reports', baseReportData);
+
+    const [endpoint, body] = (apiClient.post as Mock).mock.calls[0];
+    expect(endpoint).toBe('/reports');
+    expect(body).toBeInstanceOf(FormData);
+    expect(JSON.parse((body as FormData).get('data') as string)).toEqual(baseReportData);
+    expect((body as FormData).getAll('images')).toEqual([]);
   });
 
-  it('con imágenes → llama apiClient.post con FormData', async () => {
+  it('con imágenes → las adjunta en el campo images', async () => {
     (apiClient.post as Mock).mockResolvedValue(mockReport);
     const mockFile = new File(['content'], 'photo.jpg', { type: 'image/jpeg' });
     await reportsService.create({ ...baseReportData, images: [mockFile] });
-    expect(apiClient.post).toHaveBeenCalledWith('/reports', expect.any(FormData));
+
+    const body = (apiClient.post as Mock).mock.calls[0][1] as FormData;
+    expect(body).toBeInstanceOf(FormData);
+    expect(body.getAll('images')).toEqual([mockFile]);
+    // Las imágenes no viajan además dentro del JSON
+    expect(JSON.parse(body.get('data') as string).images).toBeUndefined();
   });
 });
 
@@ -120,10 +133,9 @@ describe('reportsService.saveDraft', () => {
   it('llama a create con status borrador', async () => {
     (apiClient.post as Mock).mockResolvedValue(mockReport);
     await reportsService.saveDraft(baseReportData);
-    expect(apiClient.post).toHaveBeenCalledWith(
-      '/reports',
-      expect.objectContaining({ status: 'borrador' }),
-    );
+
+    const body = (apiClient.post as Mock).mock.calls[0][1] as FormData;
+    expect(JSON.parse(body.get('data') as string).status).toBe('borrador');
   });
 });
 

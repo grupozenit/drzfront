@@ -47,48 +47,33 @@ export const reportsService = {
    * Crea un nuevo reporte
    */
   async create(data: CreateReportDTO): Promise<DailyReport> {
-    // Si hay imágenes, usar FormData
-    if (data.images && data.images.length > 0) {
-      const formData = new FormData();
-      
-      // Agregar datos del reporte como JSON
-      const { images, ...reportData } = data;
-      formData.append('data', JSON.stringify(reportData));
-      
-      // Agregar imágenes con el nombre correcto que espera el backend
-      images.forEach((image) => {
-        formData.append('images', image);
-      });
+    // SIEMPRE multipart, con o sin imágenes: el endpoint recibe el reporte en
+    // un campo de formulario `data`, así que un body JSON no lo completa y el
+    // backend responde "Se requiere campo 'data'". Las fotos son opcionales.
+    const { images, ...reportData } = data;
+    const formData = new FormData();
+    formData.append('data', JSON.stringify(reportData));
 
-      return apiClient.post<DailyReport>(ENDPOINT, formData);
-    }
+    (images ?? []).forEach((image) => {
+      formData.append('images', image);
+    });
 
-    return apiClient.post<DailyReport>(ENDPOINT, data);
+    return apiClient.post<DailyReport>(ENDPOINT, formData);
   },
 
   /**
    * Actualiza un reporte existente
    */
   async update(id: string, data: UpdateReportDTO): Promise<DailyReport> {
-    // Si hay imágenes, usar FormData
-    if (data.images && data.images.length > 0) {
-      const formData = new FormData();
-      
-      // Agregar datos del reporte como JSON
-      const { images, ...reportData } = data;
-      formData.append('data', JSON.stringify(reportData));
-      
-      // Agregar imágenes con el nombre correcto que espera el backend
-      images.forEach((image) => {
-        formData.append('images', image);
-      });
-
-      return apiClient.put<DailyReport>(`${ENDPOINT}/${id}`, formData);
-    }
-
-    // Si no hay imágenes, enviar como JSON dentro de FormData
+    // Igual que en el alta: siempre multipart, las fotos son opcionales
+    const { images, ...reportData } = data;
     const formData = new FormData();
-    formData.append('data', JSON.stringify(data));
+    formData.append('data', JSON.stringify(reportData));
+
+    (images ?? []).forEach((image) => {
+      formData.append('images', image);
+    });
+
     return apiClient.put<DailyReport>(`${ENDPOINT}/${id}`, formData);
   },
 
