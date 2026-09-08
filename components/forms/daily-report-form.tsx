@@ -25,8 +25,8 @@ import { validateImageFile, sanitizeTextInput } from "@/lib/utils/sanitize"
 import { useProjects } from "@/lib/hooks"
 import { useOfflineReports } from "@/lib/hooks/useOfflineReports"
 import { reportsService } from "@/lib/api"
-import type { CreateReportDTO, WeatherType, ActivityEntry, DailyReport } from "@/lib/types"
-import { WEATHER_LABELS } from "@/lib/constants/activities"
+import type { CreateReportDTO, WeatherType, ActivityEntry, ActivityCategory, DailyReport } from "@/lib/types"
+import { WEATHER_LABELS, ACTIVITY_CATEGORIES } from "@/lib/constants/activities"
 
 interface Activity {
   id: string
@@ -329,9 +329,10 @@ export function DailyReportForm({ onBack, existingReport }: DailyReportFormProps
       let errorMessage = "Debes completar al menos una actividad para crear el reporte."
       
       if (firstActivity.category && !firstActivity.subActivity) {
-        errorMessage = `Has seleccionado la categoría "${firstActivity.category}" pero falta seleccionar una SUB-ACTIVIDAD. Por favor haz clic en una de las opciones que aparecen debajo (ej: Montaje, Pre-Armado, etc.).`
+        const categoryLabel = ACTIVITY_CATEGORIES[firstActivity.category as ActivityCategory]?.label ?? firstActivity.category
+        errorMessage = `Has seleccionado la categoría "${categoryLabel}" pero falta seleccionar una SUB-ACTIVIDAD. Por favor haz clic en una de las opciones que aparecen debajo.`
       } else if (!firstActivity.category) {
-        errorMessage = "Debes hacer clic en una CATEGORÍA (Hincas, Trackers, Módulos, etc.) y luego en una SUB-ACTIVIDAD para completar la actividad."
+        errorMessage = "Debes hacer clic en una CATEGORÍA (Hincado, Trackers, Módulos, etc.) y luego en una SUB-ACTIVIDAD para completar la actividad."
       }
       
       showError("Actividad Incompleta", errorMessage)

@@ -161,6 +161,16 @@ const lastReport = await reportsService.getLatestByProject(projectId)
 - **`useOfflineReports`**: use in forms that create/edit reports. Offline-aware: queues to IndexedDB when offline, syncs on reconnect.
 - **`useReports`**: use in read-only views (history, dashboard). No offline queue.
 
+## Activity Catalog
+
+`lib/constants/activities.ts` holds `ACTIVITY_CATEGORIES` — the 17 categories, their sub-activities and the unit each sub-activity is reported in. It's the mirror of `src/core/activity_catalog.py` in the backend, which **validates against it and returns 422** on mismatch, so the two files must say exactly the same thing. The backend test `tests/test_activity_catalog.py` parses this file and fails if they drift — run the backend suite after touching it.
+
+- `subActivityLabels()`, `unitFor()` and `acceptsCableType()` are the accessors; don't reach into the record directly.
+- Sub-activity is required, except for `movilizacion` (no sub-activities, fixed unit `%`) and `otras` (free description + unit).
+- `component` carries the **cable type** and only for `obraElectrica`. It no longer holds tracker components.
+- `ActivityForm` renders straight from the catalog — it has no local copy any more.
+- `BASELINE_ACTIVITY_MAPPING` in the same file still points at the old taxonomy and is unused; it gets rewired with the progress engine.
+
 ## Daily Report Form — Gotchas
 
 ### Local Activity type (not from lib/types)

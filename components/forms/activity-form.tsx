@@ -6,6 +6,12 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { ChevronDown, ChevronUp } from "lucide-react"
+import {
+  ACTIVITY_CATEGORIES,
+  acceptsCableType,
+  unitFor,
+} from "@/lib/constants/activities"
+import type { ActivityCategory } from "@/lib/types"
 
 interface Activity {
   id: string
@@ -28,170 +34,87 @@ interface ActivityFormProps {
   canRemove: boolean
 }
 
-// Tipo para las actividades predefinidas
-type PredefinedActivityCategory = {
-  label: string;
-  subActivities?: string[];
-  components?: string[];
-  unit?: string;
-  getUnit?: (subActivity: string) => string;
-  isCustom?: boolean;
-}
-
-// Definición de actividades predefinidas
-const predefinedActivities: Record<string, PredefinedActivityCategory> = {
-  hincas: {
-    label: "Hincas",
-    subActivities: ["Replanteo", "Distribución", "Hincado", "Pre-Drilling"],
-    unit: "unidades",
-  },
-  trackers: {
-    label: "Trackers",
-    subActivities: ["Pre-Armado", "Distribución", "Montaje", "Alineación", "Torque"],
-    components: ["Soportes", "Rodamientos", "Tubos", "Purlins", "Motor", "Amortiguadores", "TCU"],
-    unit: "unidades",
-  },
-  modulos: {
-    label: "Módulos",
-    subActivities: ["Distribución", "Montaje", "Torque", "Seriado", "Escaneado"],
-    unit: "unidades",
-  },
-  calidad: {
-    label: "Calidad",
-    subActivities: ["Revire", "Limado", "Galvanizado", "Mecanizado", "Pull Out Test"],
-    unit: "unidades",
-  },
-  obraElectrica: {
-    label: "Obra Eléctrica",
-    subActivities: ["Replanteo", "Excavación", "Tendido", "Tapado", "Confección Terminales MC4"],
-    components: ["Cable BT/AC", "Cable BT/CC", "Cable MT", "Cable FO", "Cable PAT"],
-    getUnit: (subActivity: string) => {
-      const metrosActivities = ["Replanteo", "Excavación", "Tendido", "Tapado"]
-      return metrosActivities.includes(subActivity) ? "metros" : "unidades"
-    },
-  },
-  ensayos: {
-    label: "Ensayos",
-    subActivities: ["Continuidad", "Polaridad", "Megado", "Medición de VOC"],
-    unit: "unidades",
-  },
-  inversores: {
-    label: "Inversores",
-    subActivities: ["Replanteo", "Hincado", "Montaje", "Conexión"],
-    unit: "unidades",
-  },
-  cts: {
-    label: "CTs",
-    subActivities: ["Replanteo", "Excavación", "Armadura", "Encofrado", "Hormigonado", "Montaje"],
-    unit: "unidades",
-  },
-  otras: {
-    label: "Otras",
-    isCustom: true,
-  },
-}
-
-type ActivityCategory = keyof typeof predefinedActivities
-
 export function ActivityForm({ activity, index, onUpdate, onRemove, canRemove }: ActivityFormProps) {
   const [selectedCategory, setSelectedCategory] = useState<ActivityCategory | null>(null)
   const [selectedSubActivity, setSelectedSubActivity] = useState<string | null>(null)
-  const [selectedComponent, setSelectedComponent] = useState<string | null>(null)
+  const [selectedCableType, setSelectedCableType] = useState<string | null>(null)
   const [isExpanded, setIsExpanded] = useState(true)
 
   // Inicializar estados locales con los valores de la actividad si existen (modo edición)
   useEffect(() => {
-    if (activity.category && activity.category in predefinedActivities) {
+    if (activity.category && activity.category in ACTIVITY_CATEGORIES) {
       setSelectedCategory(activity.category as ActivityCategory)
     }
     if (activity.subActivity) {
       setSelectedSubActivity(activity.subActivity)
     }
     if (activity.component) {
-      setSelectedComponent(activity.component)
+      setSelectedCableType(activity.component)
     }
   }, [activity.id]) // Solo ejecutar cuando cambia el ID de la actividad
+
+  // La descripción se arma sola a partir de lo elegido; para "Otras" la escribe
+  // el usuario. El tipo de cable, cuando aplica, se anexa al final.
+  const buildDescription = (
+    category: ActivityCategory,
+    subActivity: string | null,
+    cableType: string | null,
+  ): string => {
+    const label = ACTIVITY_CATEGORIES[category].label
+    const base = subActivity ? `${label} - ${subActivity}` : label
+    return cableType ? `${base} de ${cableType}` : base
+  }
 
   const handleCategorySelect = (category: ActivityCategory) => {
     setSelectedCategory(category)
     setSelectedSubActivity(null)
-    setSelectedComponent(null)
+    setSelectedCableType(null)
 
-    // Actualizar el campo category en el estado del padre
     onUpdate(activity.id, "category", category)
+    onUpdate(activity.id, "subActivity", "")
+    onUpdate(activity.id, "component", "")
 
     if (category === "otras") {
+      // Descripción y unidad libres: se limpian para que las cargue el usuario
       onUpdate(activity.id, "description", "")
       onUpdate(activity.id, "unit", "")
-      onUpdate(activity.id, "subActivity", "")
-      onUpdate(activity.id, "component", "")
+      return
+    }
+
+    // Las categorías sin sub-actividades (Movilización) ya quedan completas
+    if (!ACTIVITY_CATEGORIES[category].subActivities?.length) {
+      onUpdate(activity.id, "description", buildDescription(category, null, null))
+      onUpdate(activity.id, "unit", unitFor(category))
+    } else {
+      onUpdate(activity.id, "description", "")
+      onUpdate(activity.id, "unit", "")
     }
   }
 
   const handleSubActivitySelect = (subActivity: string) => {
+    if (!selectedCategory) return
     setSelectedSubActivity(subActivity)
-    
-    // Actualizar el campo subActivity en el estado del padre
+
     onUpdate(activity.id, "subActivity", subActivity)
-    
-    const categoryData = predefinedActivities[selectedCategory!]
-    let description = ""
-    let unit = "unidades"
-
-    if (selectedCategory === "obraElectrica") {
-      const obraData = categoryData as PredefinedActivityCategory & { getUnit: (subActivity: string) => string }
-      unit = obraData.getUnit(subActivity)
-      if (selectedComponent) {
-        description = `${categoryData.label} - ${subActivity} de ${selectedComponent}`
-      } else {
-        description = `${categoryData.label} - ${subActivity}`
-      }
-    } else if ("components" in categoryData && categoryData.components) {
-      if (selectedComponent) {
-        description = `${categoryData.label} - ${subActivity} de ${selectedComponent}`
-      } else {
-        description = `${categoryData.label} - ${subActivity}`
-      }
-      unit = categoryData.unit || "unidades"
-    } else {
-      description = `${categoryData.label} - ${subActivity}`
-      unit = categoryData.unit || "unidades"
-    }
-
-    onUpdate(activity.id, "description", description)
-    onUpdate(activity.id, "unit", unit)
+    onUpdate(activity.id, "description", buildDescription(selectedCategory, subActivity, selectedCableType))
+    onUpdate(activity.id, "unit", unitFor(selectedCategory, subActivity))
   }
 
-  const handleComponentSelect = (component: string) => {
-    setSelectedComponent(component)
-    
-    // Actualizar el campo component en el estado del padre
-    onUpdate(activity.id, "component", component)
-    
-    const categoryData = predefinedActivities[selectedCategory!]
-    let description = ""
-    let unit = "unidades"
+  const handleCableTypeSelect = (cableType: string) => {
+    if (!selectedCategory) return
+    // Volver a tocar el mismo tipo lo deselecciona: el campo es opcional
+    const next = selectedCableType === cableType ? null : cableType
+    setSelectedCableType(next)
 
-    if (selectedSubActivity) {
-      description = `${categoryData.label} - ${selectedSubActivity} de ${component}`
-      if (selectedCategory === "obraElectrica") {
-        const obraData = categoryData as PredefinedActivityCategory & { getUnit: (subActivity: string) => string }
-        unit = obraData.getUnit(selectedSubActivity)
-      } else {
-        unit = categoryData.unit || "unidades"
-      }
-    } else {
-      description = `${categoryData.label} - ${component}`
-      unit = categoryData.unit || "unidades"
-    }
-
-    onUpdate(activity.id, "description", description)
-    onUpdate(activity.id, "unit", unit)
+    onUpdate(activity.id, "component", next ?? "")
+    onUpdate(activity.id, "description", buildDescription(selectedCategory, selectedSubActivity, next))
+    onUpdate(activity.id, "unit", unitFor(selectedCategory, selectedSubActivity ?? undefined))
   }
 
   const isCustomActivity = selectedCategory === "otras"
-  const currentCategory = selectedCategory ? predefinedActivities[selectedCategory] : null
-  const hasComponents = currentCategory && "components" in currentCategory && currentCategory.components
+  const currentCategory = selectedCategory ? ACTIVITY_CATEGORIES[selectedCategory] : null
+  const hasSubActivities = Boolean(currentCategory?.subActivities?.length)
+  const hasCableTypes = Boolean(selectedCategory && acceptsCableType(selectedCategory))
 
   return (
     <Card className="p-4 md:p-6 bg-card border-border relative">
@@ -230,7 +153,7 @@ export function ActivityForm({ activity, index, onUpdate, onRemove, canRemove }:
           <div className="space-y-2">
             <Label className="text-xs md:text-sm font-medium text-foreground">Tipo de Actividad</Label>
             <div className="flex flex-wrap gap-2">
-              {(Object.keys(predefinedActivities) as ActivityCategory[]).map((key) => (
+              {(Object.keys(ACTIVITY_CATEGORIES) as ActivityCategory[]).map((key) => (
                 <button
                   key={key}
                   type="button"
@@ -241,35 +164,36 @@ export function ActivityForm({ activity, index, onUpdate, onRemove, canRemove }:
                       : "border-border bg-background text-foreground hover:border-primary/50"
                   }`}
                 >
-                  {predefinedActivities[key].label}
+                  {ACTIVITY_CATEGORIES[key].label}
                 </button>
               ))}
             </div>
           </div>
 
-          {/* Sub-activities */}
-          {selectedCategory && selectedCategory !== "otras" && currentCategory && "subActivities" in currentCategory && (
+          {/* Sub-actividades. Movilización no tiene, y "Otras" es libre. */}
+          {hasSubActivities && !isCustomActivity && (
             <div className="space-y-2">
               <Label className="text-xs md:text-sm font-medium text-foreground">
                 Sub-actividad <span className="text-destructive">*</span> (Requerido)
               </Label>
               <div className="flex flex-wrap gap-2">
-                {currentCategory.subActivities?.map((sub) => (
+                {currentCategory?.subActivities?.map((sub) => (
                   <button
-                    key={sub}
+                    key={sub.label}
                     type="button"
-                    onClick={() => handleSubActivitySelect(sub)}
+                    onClick={() => handleSubActivitySelect(sub.label)}
                     className={`px-3 py-1.5 text-xs rounded-lg border transition-all ${
-                      selectedSubActivity === sub
+                      selectedSubActivity === sub.label
                         ? "border-primary bg-primary/10 text-primary font-medium"
                         : "border-border bg-muted/50 text-foreground hover:border-primary/50"
                     }`}
                   >
-                    {sub}
+                    {sub.label}
+                    <span className="ml-1.5 text-[10px] text-muted-foreground">({sub.unit})</span>
                   </button>
                 ))}
               </div>
-              {selectedCategory && !selectedSubActivity && (
+              {!selectedSubActivity && (
                 <p className="text-xs text-destructive">
                   ⚠️ Debes hacer clic en una de las sub-actividades para continuar
                 </p>
@@ -277,23 +201,25 @@ export function ActivityForm({ activity, index, onUpdate, onRemove, canRemove }:
             </div>
           )}
 
-          {/* Components (for Trackers and Obra Eléctrica) */}
-          {hasComponents && (
+          {/* Tipo de cable: solo Obra Eléctrica, y es opcional */}
+          {hasCableTypes && (
             <div className="space-y-2">
-              <Label className="text-xs md:text-sm font-medium text-foreground">Componente</Label>
+              <Label className="text-xs md:text-sm font-medium text-foreground">
+                Tipo de Cable <span className="text-muted-foreground font-normal">(opcional)</span>
+              </Label>
               <div className="flex flex-wrap gap-2">
-                {currentCategory.components?.map((comp) => (
+                {currentCategory?.cableTypes?.map((cable) => (
                   <button
-                    key={comp}
+                    key={cable}
                     type="button"
-                    onClick={() => handleComponentSelect(comp)}
+                    onClick={() => handleCableTypeSelect(cable)}
                     className={`px-3 py-1.5 text-xs rounded-lg border transition-all ${
-                      selectedComponent === comp
+                      selectedCableType === cable
                         ? "border-primary bg-primary/10 text-primary font-medium"
                         : "border-border bg-muted/50 text-foreground hover:border-primary/50"
                     }`}
                   >
-                    {comp}
+                    {cable}
                   </button>
                 ))}
               </div>

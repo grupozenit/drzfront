@@ -233,22 +233,32 @@ export type UpdateBaselineDTO = Partial<CreateBaselineDTO>;
 // ACTIVIDADES
 // ============================================
 
-export type ActivityCategory = 
-  | 'hincas'
+// Los IDs y su orden salen de ACTIVITY_CATEGORIES (lib/constants/activities.ts),
+// que es el espejo de src/core/activity_catalog.py en el backend.
+export type ActivityCategory =
+  | 'movilizacion'
+  | 'cercoPerimetral'
+  | 'desconsolidacion'
+  | 'preparacionTerreno'
+  | 'caminos'
+  | 'hincado'
   | 'trackers'
   | 'modulos'
-  | 'calidad'
   | 'obraElectrica'
-  | 'ensayos'
   | 'inversores'
+  | 'ensayos'
   | 'cts'
-  | 'preComisionamiento'
+  | 'estructurasMenores'
+  | 'cmm'
+  | 'lamt'
+  | 'comisionado'
   | 'otras';
 
 export interface ActivityEntry {
   id: string;
   category: ActivityCategory;
   subActivity: string;
+  /** Solo Obra Eléctrica: tipo de cable. Antes eran los componentes de tracker. */
   component?: string;
   description: string;
   quantity: number;

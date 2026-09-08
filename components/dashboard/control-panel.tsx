@@ -308,30 +308,46 @@ export function ControlPanel() {
 // COMPONENTE DE TARJETA DE PROYECTO
 // ============================================
 
-// Colores consistentes por categoría de actividad
+// Colores consistentes por categoría de actividad. Son categóricos: cada uno
+// identifica una categoría, no son los acentos de marca.
 const CATEGORY_COLORS: Record<string, string> = {
-  hincas: "#FF6B35",
+  movilizacion: "#8D6E63",
+  cercoPerimetral: "#7CB342",
+  desconsolidacion: "#5E35B1",
+  preparacionTerreno: "#795548",
+  caminos: "#6D4C41",
+  hincado: "#FF6B35",
   trackers: "#2196F3",
   modulos: "#4CAF50",
-  calidad: "#9C27B0",
   obraElectrica: "#FF9800",
-  ensayos: "#795548",
   inversores: "#607D8B",
+  ensayos: "#00897B",
   cts: "#E91E63",
-  preComisionamiento: "#00BCD4",
+  estructurasMenores: "#9C27B0",
+  cmm: "#3949AB",
+  lamt: "#00BCD4",
+  comisionado: "#F4511E",
   otras: "#9E9E9E",
 }
 
+// Etiquetas cortas para los gráficos. Las largas viven en ACTIVITY_CATEGORIES.
 const CATEGORY_LABELS: Record<string, string> = {
-  hincas: "Hincas",
+  movilizacion: "Movilización",
+  cercoPerimetral: "Cerco Perim.",
+  desconsolidacion: "Desconsolid.",
+  preparacionTerreno: "Prep. Terreno",
+  caminos: "Caminos",
+  hincado: "Hincado",
   trackers: "Trackers",
   modulos: "Módulos",
-  calidad: "Calidad",
   obraElectrica: "Obra Eléctrica",
-  ensayos: "Ensayos",
   inversores: "Inversores",
+  ensayos: "Ensayos",
   cts: "CTs",
-  preComisionamiento: "Pre-Com.",
+  estructurasMenores: "Estruct. Menores",
+  cmm: "CMM",
+  lamt: "LAMT",
+  comisionado: "Comisionado",
   otras: "Otras",
 }
 

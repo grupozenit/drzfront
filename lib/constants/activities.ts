@@ -3,14 +3,43 @@ import type { ActivityCategory } from "@/lib/types";
 // ============================================
 // CATEGORÍAS DE ACTIVIDADES
 // ============================================
+// Única fuente de verdad del frontend: qué categorías existen, qué
+// sub-actividades tiene cada una y en qué unidad se mide cada sub-actividad.
+// El backend tiene la copia espejo en `src/core/activity_catalog.py` y valida
+// contra ella, así que las dos tienen que decir exactamente lo mismo.
+//
+// Reglas:
+// - La sub-actividad es obligatoria, salvo en las categorías que no tienen
+//   ninguna (`movilizacion`) y en la libre (`otras`).
+// - `otras` es la única de descripción y unidad libres.
+// - `obraElectrica` es la única que pide tipo de cable.
+
+/** Tipos de cable de Obra Eléctrica. Viajan en el campo `component`. */
+export const CABLE_TYPES = [
+    "Cable BT/AC",
+    "Cable BT/CC",
+    "Cable MT",
+    "Cable FO",
+    "Cable PAT",
+] as const;
+
+export type CableType = (typeof CABLE_TYPES)[number];
+
+export interface SubActivityConfig {
+    label: string;
+    /** Unidad en la que se reporta la cantidad de esta sub-actividad. */
+    unit: string;
+}
 
 export interface ActivityCategoryConfig {
     id: ActivityCategory;
     label: string;
-    subActivities?: string[];
-    components?: string[];
+    subActivities?: SubActivityConfig[];
+    /** Unidad fija, para las categorías sin sub-actividades. */
     unit?: string;
-    getUnit?: (subActivity: string) => string;
+    /** Solo Obra Eléctrica. */
+    cableTypes?: readonly string[];
+    /** Solo "Otras": el usuario escribe descripción y unidad. */
     isCustom?: boolean;
 }
 
@@ -18,121 +47,172 @@ export const ACTIVITY_CATEGORIES: Record<
     ActivityCategory,
     ActivityCategoryConfig
 > = {
-    hincas: {
-        id: "hincas",
-        label: "Hincas",
-        subActivities: ["Replanteo", "Distribución", "Hincado", "Pre-Drilling"],
-        unit: "unidades",
+    movilizacion: {
+        id: "movilizacion",
+        label: "Movilización",
+        unit: "%",
+    },
+    cercoPerimetral: {
+        id: "cercoPerimetral",
+        label: "Cerco Perimetral",
+        subActivities: [
+            { label: "Colocación de Postes", unit: "ud" },
+            { label: "Tendido de Malla", unit: "m" },
+        ],
+    },
+    desconsolidacion: {
+        id: "desconsolidacion",
+        label: "Desconsolidación",
+        subActivities: [
+            { label: "Hincas", unit: "camión" },
+            { label: "Trackers", unit: "camión" },
+            { label: "Módulos", unit: "camión" },
+            { label: "Inversores", unit: "camión" },
+            { label: "Bobinas", unit: "camión" },
+            { label: "CTs", unit: "camión" },
+            { label: "Otros", unit: "camión" },
+        ],
+    },
+    preparacionTerreno: {
+        id: "preparacionTerreno",
+        label: "Preparación de Terreno",
+        subActivities: [
+            { label: "Desbroce", unit: "ha" },
+            { label: "Nivelación de Terreno", unit: "ha" },
+        ],
+    },
+    caminos: {
+        id: "caminos",
+        label: "Caminos",
+        subActivities: [
+            { label: "Apertura de Traza", unit: "m" },
+            { label: "Subbase", unit: "m" },
+            { label: "Base", unit: "m" },
+            { label: "Drenajes", unit: "m" },
+        ],
+    },
+    hincado: {
+        id: "hincado",
+        label: "Hincado",
+        subActivities: [
+            { label: "Ponchado", unit: "ud" },
+            { label: "Distribución", unit: "ud" },
+            { label: "Hincado", unit: "ud" },
+            { label: "Calidad de Hincado", unit: "ud" },
+            { label: "POT", unit: "ud" },
+            { label: "Mecanizados", unit: "ud" },
+            { label: "Pre-Drilling", unit: "ud" },
+            { label: "Micropilote", unit: "ud" },
+        ],
     },
     trackers: {
         id: "trackers",
         label: "Trackers",
         subActivities: [
-            "Pre-Armado",
-            "Distribución",
-            "Montaje",
-            "Alineación",
-            "Torque",
+            { label: "Distribución de Tubos", unit: "trk" },
+            { label: "Montaje", unit: "trk" },
+            { label: "Torque de Estructura", unit: "trk" },
+            { label: "Machinado", unit: "trk" },
         ],
-        components: [
-            "Soportes",
-            "Rodamientos",
-            "Tubos",
-            "Purlins",
-            "Motor",
-            "Amortiguadores",
-            "TCU",
-        ],
-        unit: "unidades",
     },
     modulos: {
         id: "modulos",
         label: "Módulos",
         subActivities: [
-            "Distribución",
-            "Montaje",
-            "Torque",
-            "Seriado",
-            "Escaneado",
+            { label: "Distribución", unit: "trk" },
+            { label: "Montaje", unit: "trk" },
+            { label: "Torque de Módulos", unit: "trk" },
+            { label: "Seriado", unit: "trk" },
         ],
-        unit: "unidades",
-    },
-    calidad: {
-        id: "calidad",
-        label: "Calidad",
-        subActivities: [
-            "Revire",
-            "Limado",
-            "Galvanizado",
-            "Mecanizado",
-            "Pull Out Test",
-        ],
-        unit: "unidades",
     },
     obraElectrica: {
         id: "obraElectrica",
         label: "Obra Eléctrica",
         subActivities: [
-            "Replanteo",
-            "Excavación",
-            "Tendido",
-            "Tapado",
-            "Confección Terminales MC4",
+            { label: "Excavación", unit: "m" },
+            { label: "Tendido", unit: "m" },
+            { label: "Tapado", unit: "m" },
+            { label: "Terminales", unit: "ud" },
         ],
-        components: [
-            "Cable BT/AC",
-            "Cable BT/CC",
-            "Cable MT",
-            "Cable FO",
-            "Cable PAT",
+        cableTypes: CABLE_TYPES,
+    },
+    inversores: {
+        id: "inversores",
+        label: "Inversores",
+        subActivities: [
+            { label: "Hincado", unit: "ud" },
+            { label: "Montaje", unit: "ud" },
+            { label: "Conexionado", unit: "ud" },
         ],
-        getUnit: (subActivity: string) => {
-            const metrosActivities = [
-                "Replanteo",
-                "Excavación",
-                "Tendido",
-                "Tapado",
-            ];
-            return metrosActivities.includes(subActivity)
-                ? "metros"
-                : "unidades";
-        },
     },
     ensayos: {
         id: "ensayos",
         label: "Ensayos",
         subActivities: [
-            "Continuidad",
-            "Polaridad",
-            "Megado",
-            "Medición de VOC",
+            { label: "Resistencia del Aislamiento", unit: "inv" },
+            { label: "VOC String", unit: "inv" },
+            { label: "VOC TCU", unit: "inv" },
+            { label: "VLF", unit: "fase" },
+            { label: "PAT", unit: "inv" },
         ],
-        unit: "unidades",
-    },
-    inversores: {
-        id: "inversores",
-        label: "Inversores",
-        subActivities: ["Replanteo", "Hincado", "Montaje", "Conexión"],
-        unit: "unidades",
     },
     cts: {
         id: "cts",
         label: "CTs",
         subActivities: [
-            "Replanteo",
-            "Excavación",
-            "Armadura",
-            "Encofrado",
-            "Hormigonado",
-            "Montaje",
+            { label: "Excavación", unit: "ud" },
+            { label: "Armadura", unit: "ud" },
+            { label: "Encofrado", unit: "ud" },
+            { label: "Hormigonado/Montaje Premoldeados", unit: "ud" },
+            { label: "Montaje", unit: "ud" },
+            { label: "Conexionado BT/CA", unit: "ud" },
+            { label: "Conexionado MT", unit: "ud" },
         ],
-        unit: "unidades",
     },
-    preComisionamiento: {
-        id: "preComisionamiento",
-        label: "Pre-Comisionamiento",
-        subActivities: ["Inversores", "CTs", "Trackers"],
-        unit: "unidades",
+    estructurasMenores: {
+        id: "estructurasMenores",
+        label: "Estructuras Menores",
+        subActivities: [
+            { label: "Excavación", unit: "ud" },
+            { label: "Armadura", unit: "ud" },
+            { label: "Encofrado", unit: "ud" },
+            { label: "Hormigonado", unit: "ud" },
+            { label: "Montaje", unit: "ud" },
+            { label: "Conexionado", unit: "ud" },
+        ],
+    },
+    cmm: {
+        id: "cmm",
+        label: "CMM",
+        subActivities: [
+            { label: "Excavación", unit: "ud" },
+            { label: "Armadura", unit: "ud" },
+            { label: "Encofrado", unit: "ud" },
+            { label: "Hormigonado", unit: "ud" },
+            { label: "Montaje/Construcción de Edificio", unit: "ud" },
+            { label: "Montaje de Equipos/Tableros", unit: "ud" },
+            { label: "Conexionado", unit: "ud" },
+        ],
+    },
+    lamt: {
+        id: "lamt",
+        label: "LAMT",
+        subActivities: [
+            { label: "Fundaciones", unit: "ud" },
+            { label: "Montaje de Postes", unit: "ud" },
+            { label: "Tendido de Cable MT/CA", unit: "m" },
+        ],
+    },
+    comisionado: {
+        id: "comisionado",
+        label: "Comisionado",
+        subActivities: [
+            { label: "Precomisionado Trackers", unit: "ud" },
+            { label: "Precomisionado Inversores", unit: "ud" },
+            { label: "Precomisionado Centros de Transformación", unit: "ud" },
+            { label: "Precomisionado Sistema de 33 kV", unit: "gl" },
+            { label: "Comisionado CMM", unit: "gl" },
+        ],
     },
     otras: {
         id: "otras",
@@ -140,6 +220,30 @@ export const ACTIVITY_CATEGORIES: Record<
         isCustom: true,
     },
 };
+
+/** Sub-actividades válidas de una categoría (vacío si no tiene). */
+export function subActivityLabels(category: ActivityCategory): string[] {
+    return ACTIVITY_CATEGORIES[category]?.subActivities?.map((s) => s.label) ?? [];
+}
+
+/**
+ * Unidad que corresponde a una categoría/sub-actividad.
+ * Devuelve "" para "Otras", donde la unidad la escribe el usuario.
+ */
+export function unitFor(
+    category: ActivityCategory,
+    subActivity?: string,
+): string {
+    const cat = ACTIVITY_CATEGORIES[category];
+    if (!cat || cat.isCustom) return "";
+    const sub = cat.subActivities?.find((s) => s.label === subActivity);
+    return sub?.unit ?? cat.unit ?? "";
+}
+
+/** True si la categoría pide tipo de cable. */
+export function acceptsCableType(category: ActivityCategory): boolean {
+    return Boolean(ACTIVITY_CATEGORIES[category]?.cableTypes?.length);
+}
 
 // Lista de categorías para filtros y selectores
 export const ACTIVITY_CATEGORY_LIST = Object.values(ACTIVITY_CATEGORIES);
@@ -166,6 +270,10 @@ export interface BaselineActivityMapping {
     }>;
 }
 
+// TODO(avances): este mapeo todavía apunta a la taxonomía vieja (Hincas,
+// Pre-Comisionamiento, componentes de tracker) y no coincide con
+// ACTIVITY_CATEGORIES. Se recablea junto con el motor de avances y los pesos,
+// en la tanda siguiente. Hoy no lo consume nadie.
 export const BASELINE_ACTIVITY_MAPPING: BaselineActivityMapping[] = [
     {
         categoria: "Hincas",
