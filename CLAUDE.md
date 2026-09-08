@@ -116,6 +116,22 @@ The backend is a separate FastAPI service (not in this repo). Critical conventio
 - UUIDs as **strings**
 - Backend docs are in `docs/API_BACKEND.md`, `docs/BACKEND_SETUP.md`, `docs/FRONTEND.md`
 
+## Brand Colors
+
+Two accent colors, defined once as tokens in `app/globals.css` (light and dark):
+
+| Token | Color | Role |
+|---|---|---|
+| `--primary`, `--ring`, `--sidebar-primary` | `#d68f2d` | Primary emphasis: confirm, submit, main action |
+| `--secondary`, `--accent`, `--sidebar-accent` | `#a1948b` | Secondary action, item hover |
+| `--chart-1..5` | `#d68f2d`, `#a1948b`, `#a55b00`, `#e1c188`, `#76675e` | Chart series, alternating the two accents |
+
+Both accents are **light** colors: white text on them lands at ~2.7:1, well below WCAG AA. That's why `--primary-foreground` / `--secondary-foreground` / `--accent-foreground` are a dark brown (`oklch(0.18 0.015 60)`, ≈7:1), not white. Never pair `bg-primary` with `text-white` — use `text-primary-foreground`.
+
+Use the tokens, not raw hexes. The few hardcoded spots that can't (Clerk's `appearance` in `app/layout.tsx`, the PWA `theme_color` in `app/manifest.ts`, Recharts `fill`/`stroke`) carry the hex literal with a comment.
+
+**Not** part of this palette: categorical status colors — role badges in `team-management.tsx`, machinery/equipment event colors, fleet note types, toast variants, and `CATEGORY_COLORS` for activities. Those encode meaning, so they keep their own blue/cyan/purple/green/amber scale. The backend PDFs mirror the same two accents (`BRAND_PRIMARY` in `src/services/*pdf_generator.py`).
+
 ## API Client — Error Handling
 
 `ApiError` shape: `{ message: string, code: string, details?: unknown }` where `code` is the HTTP status as a string. To check for a 404:

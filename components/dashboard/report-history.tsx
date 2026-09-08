@@ -554,7 +554,7 @@ export function ReportHistory() {
                             {canUpdate && (
                               <button
                                 onClick={() => handleEditReport(report)}
-                                className="p-1.5 rounded hover:bg-muted transition-colors text-blue-600 dark:text-blue-400"
+                                className="p-1.5 rounded hover:bg-muted transition-colors text-primary"
                                 title="Editar reporte"
                               >
                                 <Edit className="w-4 h-4" />
@@ -634,7 +634,7 @@ export function ReportHistory() {
                   {canUpdate && (
                     <button
                       onClick={() => handleEditReport(report)}
-                      className="p-1.5 rounded hover:bg-muted transition-colors text-blue-600 dark:text-blue-400"
+                      className="p-1.5 rounded hover:bg-muted transition-colors text-primary"
                       title="Editar reporte"
                     >
                       <Edit className="w-4 h-4" />

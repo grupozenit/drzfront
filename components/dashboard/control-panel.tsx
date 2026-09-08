@@ -583,9 +583,9 @@ function ProjectCard({
                     type="monotone"
                     dataKey="real"
                     name="real"
-                    stroke="#4F46E5"
+                    stroke="#d68f2d"
                     strokeWidth={2.5}
-                    dot={{ fill: "#4F46E5", strokeWidth: 2, r: 3 }}
+                    dot={{ fill: "#d68f2d", strokeWidth: 2, r: 3 }}
                     activeDot={{ r: 5 }}
                     connectNulls
                   />
@@ -652,12 +652,12 @@ function ProjectCard({
                     formatter={(value: number) => [`${value}%`, "Avance"]}
                     labelStyle={{ color: "hsl(var(--foreground))" }}
                   />
-                  <Bar dataKey="progress" fill="#4F46E5" radius={[0, 0, 0, 0]}>
+                  <Bar dataKey="progress" fill="#d68f2d" radius={[0, 0, 0, 0]}>
                     <LabelList
                       dataKey="progress"
                       position="right"
                       formatter={(value: number) => `${value}%`}
-                      fill="#4F46E5"
+                      fill="#d68f2d"
                       fontSize={9}
                       fontWeight={600}
                     />
@@ -691,11 +691,11 @@ function ProjectCard({
                     labelStyle={{ color: "hsl(var(--foreground))" }}
                   />
                   <Legend wrapperStyle={{ fontSize: "10px" }} formatter={(value) => <span className="text-foreground">{value}</span>} />
-                  <Bar dataKey="directos" name="Directo" stackId="personnel" fill="#4F46E5" radius={[0, 0, 0, 0]}>
-                    <LabelList dataKey="directos" position="center" fill="#FFFFFF" fontSize={8} fontWeight={600} />
+                  <Bar dataKey="directos" name="Directo" stackId="personnel" fill="#d68f2d" radius={[0, 0, 0, 0]}>
+                    <LabelList dataKey="directos" position="center" fill="#23190f" fontSize={8} fontWeight={600} />
                   </Bar>
-                  <Bar dataKey="indirectos" name="Indirecto" stackId="personnel" fill="#818CF8" radius={[0, 0, 0, 0]}>
-                    <LabelList dataKey="indirectos" position="center" fill="#FFFFFF" fontSize={8} fontWeight={600} />
+                  <Bar dataKey="indirectos" name="Indirecto" stackId="personnel" fill="#a1948b" radius={[0, 0, 0, 0]}>
+                    <LabelList dataKey="indirectos" position="center" fill="#23190f" fontSize={8} fontWeight={600} />
                   </Bar>
                 </BarChart>
               </ResponsiveContainer>

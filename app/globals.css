@@ -12,38 +12,44 @@
   --card-foreground: oklch(0.15 0.01 220);
   --popover: oklch(1 0 220);
   --popover-foreground: oklch(0.15 0.01 220);
-  --primary: oklch(0.45 0.22 255);
-  --primary-foreground: oklch(1 0 220);
-  --secondary: oklch(0.52 0.28 265);
-  --secondary-foreground: oklch(1 0 220);
+  /* Acentos de marca. --primary es el naranja #d68f2d (confirmar, enviar,
+     accion principal); --secondary/--accent son el topo #a1948b (accion
+     secundaria y hover de items). Los dos son colores claros: el texto que va
+     encima tiene que ser oscuro, no blanco (blanco da 2.7:1 y no pasa AA). */
+  --primary: oklch(0.7058 0.1372 69.89); /* #d68f2d */
+  --primary-foreground: oklch(0.18 0.015 60);
+  --secondary: oklch(0.6753 0.0203 57.07); /* #a1948b */
+  --secondary-foreground: oklch(0.18 0.015 60);
   --muted: oklch(0.93 0.002 220);
   --muted-foreground: oklch(0.55 0.01 220);
-  --accent: oklch(0.55 0.24 250);
-  --accent-foreground: oklch(1 0 220);
+  --accent: oklch(0.6753 0.0203 57.07); /* #a1948b */
+  --accent-foreground: oklch(0.18 0.015 60);
   --destructive: oklch(0.577 0.245 27.325);
   --destructive-foreground: oklch(0.97 0.01 220);
   --border: oklch(0.9 0.002 220);
   --input: oklch(0.95 0.001 220);
-  --ring: oklch(0.45 0.22 255);
-  --chart-1: oklch(0.45 0.22 255);
-  --chart-2: oklch(0.55 0.24 250);
-  --chart-3: oklch(0.35 0.18 270);
-  --chart-4: oklch(0.65 0.15 280);
-  --chart-5: oklch(0.52 0.22 245);
+  --ring: oklch(0.7058 0.1372 69.89);
+  /* Rampa de graficos derivada de los dos acentos, alternando naranja y topo
+     para que las series se distingan entre si sin salirse de la paleta. */
+  --chart-1: oklch(0.7058 0.1372 69.89); /* #d68f2d */
+  --chart-2: oklch(0.6753 0.0203 57.07); /* #a1948b */
+  --chart-3: oklch(0.5458 0.1304 61.89); /* #a55b00 */
+  --chart-4: oklch(0.8258 0.0823 81.89); /* #e1c188 */
+  --chart-5: oklch(0.5253 0.0243 51.07); /* #76675e */
   --radius: 0;
   --sidebar: oklch(0.98 0.001 220);
   --sidebar-foreground: oklch(0.15 0.01 220);
-  --sidebar-primary: oklch(0.45 0.22 255);
-  --sidebar-primary-foreground: oklch(1 0 220);
-  --sidebar-accent: oklch(0.55 0.24 250);
-  --sidebar-accent-foreground: oklch(1 0 220);
+  --sidebar-primary: oklch(0.7058 0.1372 69.89); /* #d68f2d */
+  --sidebar-primary-foreground: oklch(0.18 0.015 60);
+  --sidebar-accent: oklch(0.6753 0.0203 57.07); /* #a1948b */
+  --sidebar-accent-foreground: oklch(0.18 0.015 60);
   --sidebar-border: oklch(0.9 0.002 220);
-  --sidebar-ring: oklch(0.45 0.22 255);
+  --sidebar-ring: oklch(0.7058 0.1372 69.89);
 }
 
 .dark {
   /* Dark mode: fondos oscuros pero no negros, en una escala fría de baja
-     saturación que combina con el azul de marca y con el dorado del logo.
+     saturación que hace de contraste con el naranja y el topo de marca.
      Cada capa (fondo → sidebar → card) sube de luminosidad para que se
      distingan claramente entre sí. Los colores de acento (primary, secondary,
      accent, destructive, charts) NO cambian respecto al tema claro. */
@@ -53,32 +59,32 @@
   --card-foreground: oklch(0.96 0.006 250);
   --popover: oklch(0.295 0.013 250);
   --popover-foreground: oklch(0.96 0.006 250);
-  --primary: oklch(0.58 0.26 248);
-  --primary-foreground: oklch(0.16 0.01 250);
-  --secondary: oklch(0.56 0.25 255);
-  --secondary-foreground: oklch(0.16 0.01 250);
+  --primary: oklch(0.7058 0.1372 69.89); /* #d68f2d */
+  --primary-foreground: oklch(0.16 0.01 60);
+  --secondary: oklch(0.6753 0.0203 57.07); /* #a1948b */
+  --secondary-foreground: oklch(0.16 0.01 60);
   --muted: oklch(0.355 0.012 250);
   --muted-foreground: oklch(0.75 0.012 250);
-  --accent: oklch(0.65 0.27 248);
-  --accent-foreground: oklch(0.16 0.01 250);
+  --accent: oklch(0.6753 0.0203 57.07); /* #a1948b */
+  --accent-foreground: oklch(0.16 0.01 60);
   --destructive: oklch(0.396 0.141 25.723);
   --destructive-foreground: oklch(0.937 0.15 40.24);
   --border: oklch(0.4 0.013 250);
   --input: oklch(0.32 0.012 250);
-  --ring: oklch(0.58 0.26 248);
-  --chart-1: oklch(0.58 0.26 248);
-  --chart-2: oklch(0.65 0.27 248);
-  --chart-3: oklch(0.48 0.21 258);
-  --chart-4: oklch(0.62 0.24 268);
-  --chart-5: oklch(0.6 0.25 248);
+  --ring: oklch(0.7058 0.1372 69.89);
+  --chart-1: oklch(0.7058 0.1372 69.89); /* #d68f2d */
+  --chart-2: oklch(0.6753 0.0203 57.07); /* #a1948b */
+  --chart-3: oklch(0.5458 0.1304 61.89); /* #a55b00 */
+  --chart-4: oklch(0.8258 0.0823 81.89); /* #e1c188 */
+  --chart-5: oklch(0.5253 0.0243 51.07); /* #76675e */
   --sidebar: oklch(0.285 0.014 250);
   --sidebar-foreground: oklch(0.96 0.006 250);
-  --sidebar-primary: oklch(0.58 0.26 248);
-  --sidebar-primary-foreground: oklch(0.16 0.01 250);
-  --sidebar-accent: oklch(0.65 0.27 248);
-  --sidebar-accent-foreground: oklch(0.16 0.01 250);
+  --sidebar-primary: oklch(0.7058 0.1372 69.89); /* #d68f2d */
+  --sidebar-primary-foreground: oklch(0.16 0.01 60);
+  --sidebar-accent: oklch(0.6753 0.0203 57.07); /* #a1948b */
+  --sidebar-accent-foreground: oklch(0.16 0.01 60);
   --sidebar-border: oklch(0.38 0.014 250);
-  --sidebar-ring: oklch(0.58 0.26 248);
+  --sidebar-ring: oklch(0.7058 0.1372 69.89);
 }
 
 @theme inline {

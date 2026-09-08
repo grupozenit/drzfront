@@ -202,7 +202,7 @@ export function FleetDashboard({ data, isLoading }: FleetDashboardProps) {
                     }}
                     labelStyle={{ color: "hsl(var(--foreground))" }}
                   />
-                  <Bar dataKey="cantidad" name="Cantidad" fill="#2563EB" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="cantidad" name="Cantidad" fill="#d68f2d" radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </div>

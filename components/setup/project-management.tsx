@@ -388,7 +388,7 @@ export function ProjectManagement() {
                       {canWriteAvances && (
                         <button
                           onClick={() => setShowBaselineForm({ projectId: project.id, projectName: project.name })}
-                          className="px-3 py-1.5 text-xs font-medium rounded-md border border-[#0049CA] text-[#0049CA] bg-white hover:bg-[#0049CA] hover:text-white transition-colors dark:bg-transparent dark:border-[#0049CA] dark:text-[#4D8AFF] dark:hover:bg-[#0049CA] dark:hover:text-white"
+                          className="px-3 py-1.5 text-xs font-medium rounded-md border border-[#d68f2d] text-[#d68f2d] bg-white hover:bg-[#d68f2d] hover:text-[#23190f] transition-colors dark:bg-transparent dark:border-[#d68f2d] dark:text-[#e8a94f] dark:hover:bg-[#d68f2d] dark:hover:text-[#23190f]"
                         >
                           Linea Base
                         </button>
@@ -396,7 +396,7 @@ export function ProjectManagement() {
                       {canWriteAvances && (
                         <button
                           onClick={() => setShowCurveForm({ projectId: project.id, projectName: project.name })}
-                          className="px-3 py-1.5 text-xs font-medium rounded-md border border-[#0049CA] text-[#0049CA] bg-white hover:bg-[#0049CA] hover:text-white transition-colors dark:bg-transparent dark:border-[#0049CA] dark:text-[#4D8AFF] dark:hover:bg-[#0049CA] dark:hover:text-white"
+                          className="px-3 py-1.5 text-xs font-medium rounded-md border border-[#d68f2d] text-[#d68f2d] bg-white hover:bg-[#d68f2d] hover:text-[#23190f] transition-colors dark:bg-transparent dark:border-[#d68f2d] dark:text-[#e8a94f] dark:hover:bg-[#d68f2d] dark:hover:text-[#23190f]"
                         >
                           Curva S
                         </button>

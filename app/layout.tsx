@@ -73,7 +73,7 @@ export default async function RootLayout({
       signUpFallbackRedirectUrl="/"
       appearance={{
         variables: {
-          colorPrimary: '#0049CA',
+          colorPrimary: '#d68f2d',
           borderRadius: '0',
         },
         elements: {
@@ -82,12 +82,16 @@ export default async function RootLayout({
           },
           formButtonPrimary: {
             borderRadius: '0',
-            backgroundColor: '#0049CA',
+            backgroundColor: '#d68f2d',
+            // El naranja es claro: en blanco el texto queda en 2.7:1. Con este
+            // marron oscuro sube a 7:1 y el boton se sigue leyendo.
+            color: '#23190f',
             '&:hover': {
-              backgroundColor: '#003DA8',
+              backgroundColor: '#bc7600',
+              color: '#ffffff',
             },
             '&:focus': {
-              boxShadow: '0 0 0 3px rgba(0, 73, 202, 0.2)',
+              boxShadow: '0 0 0 3px rgba(214, 143, 45, 0.25)',
             },
           },
           socialButtonsBlockButton: {
@@ -97,9 +101,9 @@ export default async function RootLayout({
             borderRadius: '0',
           },
           footerActionLink: {
-            color: '#0049CA',
+            color: '#d68f2d',
             '&:hover': {
-              color: '#003DA8',
+              color: '#bc7600',
             },
           },
         },
