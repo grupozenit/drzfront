@@ -8,7 +8,8 @@ import { Textarea } from "@/components/ui/textarea"
 import { ChevronDown, ChevronUp } from "lucide-react"
 import {
   ACTIVITY_CATEGORIES,
-  acceptsCableType,
+  acceptsComponent,
+  componentLabel,
   unitFor,
 } from "@/lib/constants/activities"
 import type { ActivityCategory } from "@/lib/types"
@@ -37,7 +38,7 @@ interface ActivityFormProps {
 export function ActivityForm({ activity, index, onUpdate, onRemove, canRemove }: ActivityFormProps) {
   const [selectedCategory, setSelectedCategory] = useState<ActivityCategory | null>(null)
   const [selectedSubActivity, setSelectedSubActivity] = useState<string | null>(null)
-  const [selectedCableType, setSelectedCableType] = useState<string | null>(null)
+  const [selectedComponent, setSelectedComponent] = useState<string | null>(null)
   const [isExpanded, setIsExpanded] = useState(true)
 
   // Inicializar estados locales con los valores de la actividad si existen (modo edición)
@@ -49,7 +50,7 @@ export function ActivityForm({ activity, index, onUpdate, onRemove, canRemove }:
       setSelectedSubActivity(activity.subActivity)
     }
     if (activity.component) {
-      setSelectedCableType(activity.component)
+      setSelectedComponent(activity.component)
     }
   }, [activity.id]) // Solo ejecutar cuando cambia el ID de la actividad
 
@@ -58,17 +59,17 @@ export function ActivityForm({ activity, index, onUpdate, onRemove, canRemove }:
   const buildDescription = (
     category: ActivityCategory,
     subActivity: string | null,
-    cableType: string | null,
+    component: string | null,
   ): string => {
     const label = ACTIVITY_CATEGORIES[category].label
     const base = subActivity ? `${label} - ${subActivity}` : label
-    return cableType ? `${base} de ${cableType}` : base
+    return component ? `${base} de ${component}` : base
   }
 
   const handleCategorySelect = (category: ActivityCategory) => {
     setSelectedCategory(category)
     setSelectedSubActivity(null)
-    setSelectedCableType(null)
+    setSelectedComponent(null)
 
     onUpdate(activity.id, "category", category)
     onUpdate(activity.id, "subActivity", "")
@@ -96,15 +97,15 @@ export function ActivityForm({ activity, index, onUpdate, onRemove, canRemove }:
     setSelectedSubActivity(subActivity)
 
     onUpdate(activity.id, "subActivity", subActivity)
-    onUpdate(activity.id, "description", buildDescription(selectedCategory, subActivity, selectedCableType))
+    onUpdate(activity.id, "description", buildDescription(selectedCategory, subActivity, selectedComponent))
     onUpdate(activity.id, "unit", unitFor(selectedCategory, subActivity))
   }
 
-  const handleCableTypeSelect = (cableType: string) => {
+  const handleComponentSelect = (component: string) => {
     if (!selectedCategory) return
-    // Volver a tocar el mismo tipo lo deselecciona: el campo es opcional
-    const next = selectedCableType === cableType ? null : cableType
-    setSelectedCableType(next)
+    // Volver a tocar la misma opción la deselecciona: el campo es opcional
+    const next = selectedComponent === component ? null : component
+    setSelectedComponent(next)
 
     onUpdate(activity.id, "component", next ?? "")
     onUpdate(activity.id, "description", buildDescription(selectedCategory, selectedSubActivity, next))
@@ -114,7 +115,7 @@ export function ActivityForm({ activity, index, onUpdate, onRemove, canRemove }:
   const isCustomActivity = selectedCategory === "otras"
   const currentCategory = selectedCategory ? ACTIVITY_CATEGORIES[selectedCategory] : null
   const hasSubActivities = Boolean(currentCategory?.subActivities?.length)
-  const hasCableTypes = Boolean(selectedCategory && acceptsCableType(selectedCategory))
+  const hasComponents = Boolean(selectedCategory && acceptsComponent(selectedCategory))
 
   return (
     <Card className="p-4 md:p-6 bg-card border-border relative">
@@ -201,25 +202,27 @@ export function ActivityForm({ activity, index, onUpdate, onRemove, canRemove }:
             </div>
           )}
 
-          {/* Tipo de cable: solo Obra Eléctrica, y es opcional */}
-          {hasCableTypes && (
+          {/* Tercer selector: tipo de cable en Obra Eléctrica, componente en
+              Estructuras Menores. En las demás no aparece, y siempre es opcional. */}
+          {hasComponents && selectedCategory && (
             <div className="space-y-2">
               <Label className="text-xs md:text-sm font-medium text-foreground">
-                Tipo de Cable <span className="text-muted-foreground font-normal">(opcional)</span>
+                {componentLabel(selectedCategory)}{" "}
+                <span className="text-muted-foreground font-normal">(opcional)</span>
               </Label>
               <div className="flex flex-wrap gap-2">
-                {currentCategory?.cableTypes?.map((cable) => (
+                {currentCategory?.components?.map((option) => (
                   <button
-                    key={cable}
+                    key={option}
                     type="button"
-                    onClick={() => handleCableTypeSelect(cable)}
+                    onClick={() => handleComponentSelect(option)}
                     className={`px-3 py-1.5 text-xs rounded-lg border transition-all ${
-                      selectedCableType === cable
+                      selectedComponent === option
                         ? "border-primary bg-primary/10 text-primary font-medium"
                         : "border-border bg-muted/50 text-foreground hover:border-primary/50"
                     }`}
                   >
-                    {cable}
+                    {option}
                   </button>
                 ))}
               </div>

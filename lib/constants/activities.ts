@@ -12,9 +12,11 @@ import type { ActivityCategory } from "@/lib/types";
 // - La sub-actividad es obligatoria, salvo en las categorías que no tienen
 //   ninguna (`movilizacion`) y en la libre (`otras`).
 // - `otras` es la única de descripción y unidad libres.
-// - `obraElectrica` es la única que pide tipo de cable.
+// - Algunas categorías abren un tercer selector, que viaja en el campo
+//   `component`: Obra Eléctrica pide el tipo de cable y Estructuras Menores el
+//   componente. Cada una trae sus opciones y su etiqueta.
 
-/** Tipos de cable de Obra Eléctrica. Viajan en el campo `component`. */
+/** Opciones del tercer selector de Obra Eléctrica. */
 export const CABLE_TYPES = [
     "Cable BT/AC",
     "Cable BT/CC",
@@ -23,7 +25,16 @@ export const CABLE_TYPES = [
     "Cable PAT",
 ] as const;
 
+/** Opciones del tercer selector de Estructuras Menores. */
+export const STRUCTURE_COMPONENTS = [
+    "NCU",
+    "EMET",
+    "Pararrayos",
+    "Fundación Hinca",
+] as const;
+
 export type CableType = (typeof CABLE_TYPES)[number];
+export type StructureComponent = (typeof STRUCTURE_COMPONENTS)[number];
 
 export interface SubActivityConfig {
     label: string;
@@ -37,8 +48,10 @@ export interface ActivityCategoryConfig {
     subActivities?: SubActivityConfig[];
     /** Unidad fija, para las categorías sin sub-actividades. */
     unit?: string;
-    /** Solo Obra Eléctrica. */
-    cableTypes?: readonly string[];
+    /** Opciones del tercer selector, que viaja en el campo `component`. */
+    components?: readonly string[];
+    /** Cómo se llama ese selector en el formulario. */
+    componentsLabel?: string;
     /** Solo "Otras": el usuario escribe descripción y unidad. */
     isCustom?: boolean;
 }
@@ -134,7 +147,8 @@ export const ACTIVITY_CATEGORIES: Record<
             { label: "Tapado", unit: "m" },
             { label: "Terminales", unit: "ud" },
         ],
-        cableTypes: CABLE_TYPES,
+        components: CABLE_TYPES,
+        componentsLabel: "Tipo de Cable",
     },
     inversores: {
         id: "inversores",
@@ -172,6 +186,8 @@ export const ACTIVITY_CATEGORIES: Record<
     estructurasMenores: {
         id: "estructurasMenores",
         label: "Estructuras Menores",
+        components: STRUCTURE_COMPONENTS,
+        componentsLabel: "Componentes",
         subActivities: [
             { label: "Excavación", unit: "ud" },
             { label: "Armadura", unit: "ud" },
@@ -240,9 +256,19 @@ export function unitFor(
     return sub?.unit ?? cat.unit ?? "";
 }
 
-/** True si la categoría pide tipo de cable. */
-export function acceptsCableType(category: ActivityCategory): boolean {
-    return Boolean(ACTIVITY_CATEGORIES[category]?.cableTypes?.length);
+/** Opciones del tercer selector de una categoría (vacío si no tiene). */
+export function componentOptions(category: ActivityCategory): readonly string[] {
+    return ACTIVITY_CATEGORIES[category]?.components ?? [];
+}
+
+/** Cómo se llama el tercer selector de una categoría. */
+export function componentLabel(category: ActivityCategory): string {
+    return ACTIVITY_CATEGORIES[category]?.componentsLabel ?? "Componente";
+}
+
+/** True si la categoría abre el tercer selector. */
+export function acceptsComponent(category: ActivityCategory): boolean {
+    return componentOptions(category).length > 0;
 }
 
 // Lista de categorías para filtros y selectores
