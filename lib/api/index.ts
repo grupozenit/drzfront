@@ -3,7 +3,7 @@ export { apiClient, setTokenGetter, getAuthToken, isApiError, getErrorMessage } 
 
 // Servicios
 export { projectsService } from './projects';
-export { baselinesService } from './baselines';
+export { projectTotalsService } from './project-totals';
 export { reportsService } from './reports';
 export { machineryService } from './machinery';
 export { equipmentService } from './equipment';

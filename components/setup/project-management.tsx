@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useToast, ToastContainer } from "@/components/ui/toast"
 import { Loader2, Upload, X, PenLine } from "lucide-react"
-import { BaselineSetup } from "./baseline-setup"
+import { TotalsSetup } from "./totals-setup"
 import { TheoreticalCurveSetup } from "./theoretical-curve-setup"
 import { useProjects, usePermissions } from "@/lib/hooks"
 import { projectsService } from "@/lib/api"
@@ -16,7 +16,7 @@ import type { Project, CreateProjectDTO } from "@/lib/types"
 
 export function ProjectManagement() {
   const [showNewForm, setShowNewForm] = useState(false)
-  const [showBaselineForm, setShowBaselineForm] = useState<{ projectId: string; projectName: string } | null>(null)
+  const [showTotalsForm, setShowTotalsForm] = useState<{ projectId: string; projectName: string } | null>(null)
   const [showCurveForm, setShowCurveForm] = useState<{ projectId: string; projectName: string } | null>(null)
   const [editingProject, setEditingProject] = useState<Project | null>(null)
   const [isSaving, setIsSaving] = useState(false)
@@ -38,6 +38,7 @@ export function ProjectManagement() {
   const { projects, isLoading, loadProjects, addProject, updateProject, removeProject } = useProjects()
   const { can } = usePermissions()
   const canWrite = can("proyectos", "create")
+  const canWriteTotals = can("totales", "update")
   const canWriteAvances = can("avances", "update")
 
   useEffect(() => {
@@ -130,14 +131,14 @@ export function ProjectManagement() {
     setSignatureImagePreview(null)
   }
 
-  if (showBaselineForm) {
+  if (showTotalsForm) {
     return (
       <>
         <ToastContainer toasts={toasts} onClose={removeToast} />
-        <BaselineSetup
-          projectId={showBaselineForm.projectId}
-          projectName={showBaselineForm.projectName}
-          onBack={() => setShowBaselineForm(null)}
+        <TotalsSetup
+          projectId={showTotalsForm.projectId}
+          projectName={showTotalsForm.projectName}
+          onBack={() => setShowTotalsForm(null)}
         />
       </>
     )
@@ -385,9 +386,9 @@ export function ProjectManagement() {
                           Editar
                         </button>
                       )}
-                      {canWriteAvances && (
+                      {canWriteTotals && (
                         <button
-                          onClick={() => setShowBaselineForm({ projectId: project.id, projectName: project.name })}
+                          onClick={() => setShowTotalsForm({ projectId: project.id, projectName: project.name })}
                           className="px-3 py-1.5 text-xs font-medium rounded-md border border-[#d68f2d] text-[#d68f2d] bg-white hover:bg-[#d68f2d] hover:text-[#23190f] transition-colors dark:bg-transparent dark:border-[#d68f2d] dark:text-[#e8a94f] dark:hover:bg-[#d68f2d] dark:hover:text-[#23190f]"
                         >
                           Totales

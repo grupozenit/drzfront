@@ -30,7 +30,6 @@ export function formatDateLocal(
   return date.toLocaleDateString("es-ES", options)
 }
 
-// Re-exportar utilidades de cálculo
-export * from './calculations';
+// Re-exportar utilidades
 export * from './cuit';
 

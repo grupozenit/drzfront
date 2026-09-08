@@ -11,7 +11,6 @@ import type {
   Driver,
   DailyReport,
   DashboardSummary,
-  Baseline,
   MeResponse,
   PermissionResource,
   PermissionAction,
@@ -25,7 +24,6 @@ import {
   driverService,
   reportsService,
   dashboardService,
-  baselinesService,
   meService,
 } from '@/lib/api';
 
@@ -41,7 +39,6 @@ interface AppState {
   machinery: Machine[];
   equipment: Equipment[];
   drivers: Driver[];
-  baselines: Record<string, Baseline>; // projectId -> Baseline
   dashboardSummary: DashboardSummary | null;
   permissions: MeResponse | null;
 
@@ -100,8 +97,6 @@ interface AppContextValue extends AppState {
   removeDriver: (id: string) => void;
 
   // Acciones de Línea Base
-  loadBaseline: (projectId: string) => Promise<Baseline | null>;
-  setBaseline: (projectId: string, baseline: Baseline) => void;
 
   // Acciones de Dashboard
   loadDashboardSummary: () => Promise<void>;
@@ -154,7 +149,6 @@ export function AppProvider({ children, initialData }: AppProviderProps) {
     machinery: initialData?.machinery ?? [],
     equipment: [],
     drivers: [],
-    baselines: {},
     dashboardSummary: initialData?.dashboardSummary ?? null,
     permissions: null,
     isLoading: false,
@@ -407,44 +401,6 @@ export function AppProvider({ children, initialData }: AppProviderProps) {
   }, []);
 
   // ============================================
-  // LÍNEA BASE
-  // ============================================
-
-  const loadBaseline = useCallback(async (projectId: string): Promise<Baseline | null> => {
-    // Si ya la tenemos en cache, devolverla
-    if (state.baselines[projectId]) {
-      return state.baselines[projectId];
-    }
-
-    try {
-      const baseline = await baselinesService.getByProjectId(projectId);
-      if (baseline) {
-        setState(prev => ({
-          ...prev,
-          baselines: {
-            ...prev.baselines,
-            [projectId]: baseline,
-          },
-        }));
-      }
-      return baseline;
-    } catch (error) {
-      console.error('Error loading baseline:', error);
-      return null;
-    }
-  }, [state.baselines]);
-
-  const setBaseline = useCallback((projectId: string, baseline: Baseline) => {
-    setState(prev => ({
-      ...prev,
-      baselines: {
-        ...prev.baselines,
-        [projectId]: baseline,
-      },
-    }));
-  }, []);
-
-  // ============================================
   // DASHBOARD
   // ============================================
 
@@ -548,8 +504,6 @@ export function AppProvider({ children, initialData }: AppProviderProps) {
     addDriver,
     updateDriver: updateDriverState,
     removeDriver,
-    loadBaseline,
-    setBaseline,
     loadDashboardSummary,
     setSelectedProjectId,
     completeOnboarding,

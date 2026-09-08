@@ -77,7 +77,8 @@ export interface UpdateProjectAssignmentsDTO {
 // Espejo de src.core.permissions.Resource/Action en el backend.
 export type PermissionResource =
   | 'tablero' | 'avances' | 'reportes' | 'reportes_semanales' | 'flota'
-  | 'maquinaria' | 'equipos' | 'choferes' | 'proyectos' | 'usuarios' | 'configuracion';
+  | 'maquinaria' | 'equipos' | 'choferes' | 'proyectos' | 'totales'
+  | 'usuarios' | 'configuracion';
 
 export type PermissionAction = 'read' | 'create' | 'update' | 'delete';
 
@@ -184,50 +185,48 @@ export interface CreateTheoreticalCurveDTO {
 }
 
 // ============================================
-// LÍNEA BASE
+// TOTALES DEL PROYECTO (el alcance de obra)
 // ============================================
+// Reemplazan a la vieja línea base. Se cargan subiendo la plantilla Excel:
+// una fila por ítem del catálogo, con su cantidad contractual y si aplica.
 
-export interface TrackerComponent {
-  item: string;
-  unidad: string;
-  cantidad: number;
-}
-
-export interface TrackerData {
-  modelo: string;
-  cantidad: number;
-  componentes: TrackerComponent[];
-}
-
-export interface Baseline {
+export interface ProjectTotalItem {
   id: string;
+  category: ActivityCategory;
+  categoryLabel: string;
+  subActivity: string;
+  /** Tipo de cable o componente, según la categoría. "" si no lleva. */
+  component: string;
+  /** Nombre completo: "Obra Eléctrica - Tendido de Cable MT". */
+  label: string;
+  unit: string;
+  totalQuantity: number;
+  applies: boolean;
+}
+
+export interface ProjectTotals {
   projectId: string;
-  trackers: TrackerData;
-  modulos: number;
-  potenciaModulos: number; // Wp
-  potenciaTotal: number; // MWp
-  cts: number;
-  inversores: number;
-  cableBTAC: number; // metros
-  cableBTCC: number; // metros
-  cableMT: number; // metros
-  createdAt: string;
-  updatedAt: string;
+  hasTotals: boolean;
+  updatedAt: string | null;
+  items: ProjectTotalItem[];
 }
 
-export interface CreateBaselineDTO {
-  trackers: TrackerData;
-  modulos: number;
-  potenciaModulos: number;
-  potenciaTotal: number;
-  cts: number;
-  inversores: number;
-  cableBTAC: number;
-  cableBTCC: number;
-  cableMT: number;
+export interface TotalsImportResult {
+  projectId: string;
+  rowsRead: number;
+  importedItems: number;
+  notApplicable: number;
+  missingItems: number;
 }
 
-export type UpdateBaselineDTO = Partial<CreateBaselineDTO>;
+/** Una fila del Excel que el backend no pudo leer. */
+export interface TotalsImportError {
+  row: number;
+  column: string;
+  code: string;
+  message: string;
+  value?: string;
+}
 
 // ============================================
 // ACTIVIDADES

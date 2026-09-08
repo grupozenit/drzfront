@@ -620,7 +620,9 @@ function ProjectCard({
               <BarChart3 className="w-4 h-4 text-primary" />
               <h4 className="text-sm font-medium text-foreground">Avance por Actividad</h4>
             </div>
-            <div className="h-48 md:h-56">
+            {/* Alto proporcional: el alcance ahora puede traer hasta 16
+                categorías, y con alto fijo las barras se aplastan. */}
+            <div style={{ height: Math.max(192, activityChartData.length * 26 + 40) }}>
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart
                   data={activityChartData}

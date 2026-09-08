@@ -10,10 +10,15 @@ import { useDashboard } from "@/lib/hooks/useDashboard"
 import { ACTIVITY_CATEGORIES } from "@/lib/constants/activities"
 import type { ProjectWorkProgress } from "@/lib/types"
 
-// Actividades disponibles para filtrar (las mismas del formulario de nuevo reporte)
+// Actividades disponibles para filtrar (las mismas del formulario de nuevo
+// reporte). Se filtra por ID y se muestra el label: el ID es estable, el label
+// puede cambiar y dejaría el filtro sin matchear en silencio.
 const allActivities = Object.values(ACTIVITY_CATEGORIES)
   .filter(cat => !cat.isCustom)
-  .map(cat => cat.label)
+  .map(cat => ({ id: cat.id, label: cat.label }))
+
+const activityLabel = (id: string) =>
+  allActivities.find(a => a.id === id)?.label ?? id
 
 export function DashboardOverview() {
   const [selectedProject, setSelectedProject] = useState<string>("all")
@@ -227,16 +232,16 @@ export function DashboardOverview() {
             </button>
             {allActivities.map((activity) => (
               <button
-                key={activity}
+                key={activity.id}
                 type="button"
-                onClick={() => setSelectedActivity(activity)}
+                onClick={() => setSelectedActivity(activity.id)}
                 className={`px-3 py-2 text-xs md:text-sm rounded-lg border-2 transition-all ${
-                  selectedActivity === activity
+                  selectedActivity === activity.id
                     ? "border-primary bg-primary/10 text-primary font-medium"
                     : "border-border bg-background text-foreground hover:border-primary/50"
                 }`}
               >
-                {activity}
+                {activity.label}
               </button>
             ))}
           </div>

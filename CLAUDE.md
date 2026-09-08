@@ -161,11 +161,20 @@ const lastReport = await reportsService.getLatestByProject(projectId)
 - **`useOfflineReports`**: use in forms that create/edit reports. Offline-aware: queues to IndexedDB when offline, syncs on reconnect.
 - **`useReports`**: use in read-only views (history, dashboard). No offline queue.
 
+## Project Totals (the work scope)
+
+`components/setup/totals-setup.tsx` replaced the manual baseline form. The scope is loaded **by uploading an Excel template only** — download it with `projectTotalsService.downloadTemplate()`, upload the filled copy, then adjust quantities inline. It's mounted from `project-management.tsx`, gated by `can("totales", "update")`.
+
+- `validateSpreadsheetFile()` in `lib/utils/sanitize.ts` is a **usability filter, not a control** — the backend revalidates extension, MIME, magic bytes and ZIP structure. Never treat a client-side check as the defense.
+- A rejected import returns 422 with `errors[]` (row, column, value, message). Render them: the file is all-or-nothing, so the user needs to know exactly what to fix.
+- Re-uploading replaces the whole scope **and discards manual quantity edits** — confirm before doing it.
+- Only items with `applies: true` are shown; the rest aren't part of the project's scope.
+
+`Baseline`, `baselinesService`, `useBaseline`, `lib/utils/calculations.ts` and `lib/constants/weights.ts` were all deleted. The last two were dead code that duplicated the backend's now-obsolete weights.
+
 ## "Línea Base" is called "Totales" in the UI
 
-Every string the user reads says **Totales**. The code still says `baseline` — `BaselineSetup`, `useBaseline`, `baselinesService`, `project.hasBaseline`, `/api/v1/baselines`. That's deliberate: the rename is copy-only, so the API and the backend model stay put.
-
-When editing user-visible copy, write "Totales". When editing code, keep `baseline`.
+The product name changed and so did the model. `project.hasBaseline` kept its name — it's already in the API contract and renaming it buys nothing.
 
 ## Activity Catalog
 
