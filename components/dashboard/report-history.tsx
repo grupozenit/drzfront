@@ -127,12 +127,14 @@ export function ReportHistory() {
       year: "numeric",
     })
     
-    // Obtener número de reporte (simulado basado en ID o fecha)
-    // En producción, esto vendría del backend
-    const reportNumber = Math.abs(report.id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0) % 1000) + 1
-    
+    // Correlativo por proyecto, asignado y persistido por el backend
+    // (daily_reports.report_number). Un borrador todavía no tiene número.
+    const numberLabel = report.reportNumber
+      ? ` N°${report.reportNumber.toString().padStart(3, '0')}`
+      : ''
+
     // Construir mensaje completo con toda la información
-    let message = `*REPORTE DIARIO DE OBRA N°${reportNumber.toString().padStart(3, '0')}*\n\n`
+    let message = `*REPORTE DIARIO DE OBRA${numberLabel}*\n\n`
     message += `*Proyecto:* ${projectName}\n`
     message += `*Fecha:* ${date}\n\n`
     

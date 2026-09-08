@@ -284,6 +284,8 @@ export interface DailyReport {
   tomorrowTasks: string[];
   images: string[]; // URLs de imágenes
   status: ReportStatus;
+  /** Correlativo por proyecto (1, 2, 3...). Null mientras sea borrador. */
+  reportNumber: number | null;
   createdAt: string;
   updatedAt: string;
   createdBy: string;
