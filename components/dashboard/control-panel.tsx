@@ -19,6 +19,7 @@ import {
 import { Truck, Users, BarChart3, Clock, FolderKanban, Loader2, TrendingUp, HardHat } from "lucide-react"
 import { useProjects, useMachinery } from "@/lib/hooks"
 import { useDashboard } from "@/lib/hooks/useDashboard"
+import { ACTIVITY_CATEGORIES } from "@/lib/constants/activities"
 import type {
   ProjectProgress,
   ProjectPersonnelHistory,
@@ -330,26 +331,12 @@ const CATEGORY_COLORS: Record<string, string> = {
   otras: "#9E9E9E",
 }
 
-// Etiquetas cortas para los gráficos. Las largas viven en ACTIVITY_CATEGORIES.
-const CATEGORY_LABELS: Record<string, string> = {
-  movilizacion: "Movilización",
-  cercoPerimetral: "Cerco Perim.",
-  desconsolidacion: "Desconsolid.",
-  preparacionTerreno: "Prep. Terreno",
-  caminos: "Caminos",
-  hincado: "Hincado",
-  trackers: "Trackers",
-  modulos: "Módulos",
-  obraElectrica: "Obra Eléctrica",
-  inversores: "Inversores",
-  ensayos: "Ensayos",
-  cts: "CTs",
-  estructurasMenores: "Estruct. Menores",
-  cmm: "CMM",
-  lamt: "LAMT",
-  comisionado: "Comisionado",
-  otras: "Otras",
-}
+// Etiquetas de la leyenda de los gráficos. Salen del catálogo en vez de estar
+// escritas otra vez acá: cuando estaban duplicadas se abreviaban distinto
+// ("Cerco Perim.") y se desincronizaban del nombre real de la categoría.
+const CATEGORY_LABELS: Record<string, string> = Object.fromEntries(
+  Object.values(ACTIVITY_CATEGORIES).map((cat) => [cat.id, cat.label]),
+)
 
 // Formatea horas hombre con separador de miles y sin decimales innecesarios
 function formatManHours(value: number): string {
