@@ -161,13 +161,19 @@ const lastReport = await reportsService.getLatestByProject(projectId)
 - **`useOfflineReports`**: use in forms that create/edit reports. Offline-aware: queues to IndexedDB when offline, syncs on reconnect.
 - **`useReports`**: use in read-only views (history, dashboard). No offline queue.
 
+## "Línea Base" is called "Totales" in the UI
+
+Every string the user reads says **Totales**. The code still says `baseline` — `BaselineSetup`, `useBaseline`, `baselinesService`, `project.hasBaseline`, `/api/v1/baselines`. That's deliberate: the rename is copy-only, so the API and the backend model stay put.
+
+When editing user-visible copy, write "Totales". When editing code, keep `baseline`.
+
 ## Activity Catalog
 
 `lib/constants/activities.ts` holds `ACTIVITY_CATEGORIES` — the 17 categories, their sub-activities and the unit each sub-activity is reported in. It's the mirror of `src/core/activity_catalog.py` in the backend, which **validates against it and returns 422** on mismatch, so the two files must say exactly the same thing. The backend test `tests/test_activity_catalog.py` parses this file and fails if they drift — run the backend suite after touching it.
 
-- `subActivityLabels()`, `unitFor()` and `acceptsCableType()` are the accessors; don't reach into the record directly.
+- `subActivityLabels()`, `unitFor()`, `componentOptions()`, `componentLabel()` and `acceptsComponent()` are the accessors; don't reach into the record directly.
 - Sub-activity is required, except for `movilizacion` (no sub-activities, fixed unit `%`) and `otras` (free description + unit).
-- `component` carries the **cable type** and only for `obraElectrica`. It no longer holds tracker components.
+- `component` carries a **third selector**, offered only by the categories that define one: `obraElectrica` (label "Tipo de Cable", options `CABLE_TYPES`) and `estructurasMenores` (label "Componentes", options `STRUCTURE_COMPONENTS`). Read them with `componentOptions()` / `componentLabel()` / `acceptsComponent()` — never hardcode either list. It's optional, and the two lists don't cross: the backend returns 422 for a cable on a structure or vice versa.
 - `ActivityForm` renders straight from the catalog — it has no local copy any more.
 - `BASELINE_ACTIVITY_MAPPING` in the same file still points at the old taxonomy and is unused; it gets rewired with the progress engine.
 

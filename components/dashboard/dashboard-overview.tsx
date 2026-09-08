@@ -4,11 +4,10 @@ import { useState, useEffect, useMemo } from "react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { DateRangePicker } from "@/components/ui/date-range-picker"
-import { ChevronDown, Loader2, BarChart3, Settings } from "lucide-react"
+import { ChevronDown, Loader2, BarChart3 } from "lucide-react"
 import { useProjects } from "@/lib/hooks"
 import { useDashboard } from "@/lib/hooks/useDashboard"
 import { ACTIVITY_CATEGORIES } from "@/lib/constants/activities"
-import { BaselineSetup } from "@/components/setup/baseline-setup"
 import type { ProjectWorkProgress } from "@/lib/types"
 
 // Actividades disponibles para filtrar (las mismas del formulario de nuevo reporte)
@@ -24,7 +23,6 @@ export function DashboardOverview() {
   const [viewMode, setViewMode] = useState<"percentage" | "units">("units")
   const [showProjectFilter, setShowProjectFilter] = useState(false)
   const [showActivityFilter, setShowActivityFilter] = useState(false)
-  const [showBaselineForm, setShowBaselineForm] = useState<{ projectId: string; projectName: string } | null>(null)
 
   // Hooks de datos
   const { projects, isLoading: isLoadingProjects, loadProjects } = useProjects()
@@ -68,17 +66,6 @@ export function DashboardOverview() {
   }
 
   const isLoading = isLoadingProjects || isLoadingProgress
-
-  // Si se está mostrando el formulario de baseline, renderizar solo ese componente
-  if (showBaselineForm) {
-    return (
-      <BaselineSetup
-        projectId={showBaselineForm.projectId}
-        projectName={showBaselineForm.projectName}
-        onBack={() => setShowBaselineForm(null)}
-      />
-    )
-  }
 
   return (
     <div className="container px-4 md:px-6 py-6 md:py-8 space-y-6">
@@ -291,16 +278,6 @@ export function DashboardOverview() {
                     Progreso general: {project.overallProgress ?? getAverageProgress(project.stages)}%
                   </p>
                 </div>
-                <Button
-                  onClick={() => setShowBaselineForm({ projectId: project.id, projectName: project.name })}
-                  variant="outline"
-                  size="sm"
-                  className="ml-4 text-xs flex items-center gap-1.5 whitespace-nowrap hover:bg-primary hover:text-primary-foreground transition-colors"
-                  title="Configurar Línea Base"
-                >
-                  <Settings className="w-3.5 h-3.5" />
-                  <span className="hidden sm:inline">Línea Base</span>
-                </Button>
               </div>
 
               <div className="space-y-6">
@@ -339,16 +316,6 @@ export function DashboardOverview() {
                 <h3 className="text-base md:text-lg font-semibold text-foreground">{project.name}</h3>
                 <p className="text-xs text-muted-foreground mt-1">Cantidades reportadas</p>
                 </div>
-                <Button
-                  onClick={() => setShowBaselineForm({ projectId: project.id, projectName: project.name })}
-                  variant="outline"
-                  size="sm"
-                  className="ml-4 text-xs flex items-center gap-1.5 whitespace-nowrap hover:bg-primary hover:text-primary-foreground transition-colors"
-                  title="Configurar Línea Base"
-                >
-                  <Settings className="w-3.5 h-3.5" />
-                  <span className="hidden sm:inline">Línea Base</span>
-                </Button>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">

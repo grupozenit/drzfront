@@ -79,13 +79,13 @@ export function BaselineSetup({ projectId, projectName, onBack }: BaselineSetupP
     setIsSaving(true)
     try {
       await saveBaseline(projectId, data)
-      success("Línea base guardada", "Los datos se han guardado correctamente")
+      success("Totales guardados", "Los datos se han guardado correctamente")
       setIsEditing(false)
       if (onBack) {
         setTimeout(() => onBack(), 1500)
       }
     } catch (err) {
-      showError("Error", "No se pudo guardar la línea base")
+      showError("Error", "No se pudieron guardar los totales")
     } finally {
       setIsSaving(false)
     }
@@ -122,7 +122,7 @@ export function BaselineSetup({ projectId, projectName, onBack }: BaselineSetupP
       <div className="container px-4 md:px-6 py-8 flex items-center justify-center min-h-[400px]">
         <div className="flex flex-col items-center gap-4">
           <Loader2 className="w-8 h-8 animate-spin text-primary" />
-          <p className="text-sm text-muted-foreground">Cargando línea base...</p>
+          <p className="text-sm text-muted-foreground">Cargando totales...</p>
         </div>
       </div>
     )
@@ -146,14 +146,14 @@ export function BaselineSetup({ projectId, projectName, onBack }: BaselineSetupP
             )}
             <div>
               <div className="flex items-center gap-2">
-                <h2 className="text-lg md:text-xl font-bold text-foreground">Línea Base - {projectName}</h2>
+                <h2 className="text-lg md:text-xl font-bold text-foreground">Totales - {projectName}</h2>
                 {hasBaseline && (
                   <CheckCircle className="w-5 h-5 text-green-500" />
                 )}
               </div>
               <p className="text-muted-foreground mt-1 text-sm">
                 {hasBaseline 
-                  ? "Línea base configurada. Puedes editarla si es necesario."
+                  ? "Totales configurados. Puedes editarlos si es necesario."
                   : "Define los componentes y cantidades del proyecto para calcular avances."
                 }
               </p>
@@ -164,7 +164,7 @@ export function BaselineSetup({ projectId, projectName, onBack }: BaselineSetupP
               onClick={() => setIsEditing(true)}
               className="w-full md:w-auto bg-primary hover:bg-primary/90 text-primary-foreground text-sm"
             >
-              {hasBaseline ? "Editar Línea Base" : "Configurar Línea Base"}
+              {hasBaseline ? "Editar Totales" : "Configurar Totales"}
             </Button>
           )}
         </div>

@@ -372,7 +372,7 @@ export function ProjectManagement() {
                       <h3 className="text-lg font-semibold text-foreground">{project.name}</h3>
                       {project.hasBaseline && (
                         <span className="inline-block mt-1 px-2 py-0.5 text-[10px] rounded-full bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300">
-                          Línea base configurada
+                          Totales configurados
                         </span>
                       )}
                     </div>
@@ -390,7 +390,7 @@ export function ProjectManagement() {
                           onClick={() => setShowBaselineForm({ projectId: project.id, projectName: project.name })}
                           className="px-3 py-1.5 text-xs font-medium rounded-md border border-[#d68f2d] text-[#d68f2d] bg-white hover:bg-[#d68f2d] hover:text-[#23190f] transition-colors dark:bg-transparent dark:border-[#d68f2d] dark:text-[#e8a94f] dark:hover:bg-[#d68f2d] dark:hover:text-[#23190f]"
                         >
-                          Linea Base
+                          Totales
                         </button>
                       )}
                       {canWriteAvances && (
