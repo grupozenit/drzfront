@@ -28,14 +28,14 @@ export function ReportHistory() {
   const [filterActivity, setFilterActivity] = useState("todas")
   const [filterStartDate, setFilterStartDate] = useState("")
   const [filterEndDate, setFilterEndDate] = useState("")
-  
+
   // Estados para diálogos
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [selectedReportForDelete, setSelectedReportForDelete] = useState<DailyReport | null>(null)
   const [reportToEdit, setReportToEdit] = useState<DailyReport | null>(null)
   const [showPreviewModal, setShowPreviewModal] = useState(false)
   const [selectedReportForPreview, setSelectedReportForPreview] = useState<DailyReport | null>(null)
-  
+
   // Toast
   const { toasts, success, error: showError, removeToast } = useToast()
 
@@ -64,7 +64,7 @@ export function ReportHistory() {
   // Recargar reportes cuando cambian los filtros
   useEffect(() => {
     const filters: ReportFilters = {}
-    
+
     if (filterProject !== "todos") {
       filters.projectId = filterProject
     }
@@ -126,7 +126,7 @@ export function ReportHistory() {
       month: "long",
       year: "numeric",
     })
-    
+
     // Correlativo por proyecto, asignado y persistido por el backend
     // (daily_reports.report_number). Un borrador todavía no tiene número.
     const numberLabel = report.reportNumber
@@ -137,18 +137,18 @@ export function ReportHistory() {
     let message = `*REPORTE DIARIO DE OBRA${numberLabel}*\n\n`
     message += `*Proyecto:* ${projectName}\n`
     message += `*Fecha:* ${date}\n\n`
-    
+
     // Información general
     message += `*HORARIO*\n`
     message += `• Entrada: ${report.entryTime}\n`
     message += `• Salida: ${report.exitTime}\n\n`
-    
+
     // Personal
     message += `*PERSONAL EN SITIO*\n`
     message += `• Personal Directo: ${report.directStaff}\n`
     message += `• Personal Indirecto: ${report.indirectStaff}\n`
     message += `• Total: ${report.directStaff + report.indirectStaff}\n\n`
-    
+
     // Clima
     const weatherEmojis: Record<string, string> = {
       sunny: "Soleado",
@@ -159,12 +159,12 @@ export function ReportHistory() {
       hail: "Granizo",
     }
     message += `*CLIMA:* ${weatherEmojis[report.weather] || report.weather}\n\n`
-    
+
     // Día feriado
     if (report.isHoliday) {
       message += `*Día Feriado*\n\n`
     }
-    
+
     // Horas suspendidas
     if (report.hasSuspendedHours) {
       message += `*HORAS SUSPENDIDAS*\n`
@@ -174,7 +174,7 @@ export function ReportHistory() {
       }
       message += `\n`
     }
-    
+
     // Accidentes
     if (report.hasAccident) {
       message += `*ACCIDENTE*\n`
@@ -184,7 +184,7 @@ export function ReportHistory() {
       }
       message += `\n`
     }
-    
+
     // Actividades
     if (report.activities && report.activities.length > 0) {
       message += `*ACTIVIDADES REALIZADAS* (${report.activities.length})\n`
@@ -207,7 +207,7 @@ export function ReportHistory() {
       })
       message += `\n`
     }
-    
+
     // Tareas para mañana
     if (report.tomorrowTasks && report.tomorrowTasks.length > 0) {
       message += `*TAREAS PARA MAÑANA*\n`
@@ -216,9 +216,9 @@ export function ReportHistory() {
       })
       message += `\n`
     }
-    
-    message += `_Reporte generado automáticamente por Grupo Zenit_`
-    
+
+    message += `_Reporte generado automáticamente por sistema de Grupo Zenit_`
+
     shareWhatsApp(report.id, message)
   }
 
@@ -240,7 +240,7 @@ export function ReportHistory() {
 
   const confirmDeleteReport = async () => {
     if (!selectedReportForDelete) return
-    
+
     try {
       await deleteReport(selectedReportForDelete.id)
       success("Reporte eliminado", "El reporte se ha eliminado correctamente")
@@ -256,13 +256,13 @@ export function ReportHistory() {
     return (
       <>
         <ToastContainer toasts={toasts} onClose={removeToast} />
-        <DailyReportForm 
+        <DailyReportForm
           existingReport={reportToEdit}
           onBack={() => {
             setShowNewReportForm(false)
             setReportToEdit(null)
             loadReports() // Recargar reportes al volver
-          }} 
+          }}
         />
       </>
     )
@@ -271,7 +271,7 @@ export function ReportHistory() {
   return (
     <>
       <ToastContainer toasts={toasts} onClose={removeToast} />
-      
+
       {/* Diálogo de confirmación de eliminación */}
       <Dialog
         isOpen={showDeleteDialog}
