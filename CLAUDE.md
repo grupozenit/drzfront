@@ -186,6 +186,12 @@ The product name changed and so did the model. `project.hasBaseline` kept its na
 - `ActivityForm` renders straight from the catalog — it has no local copy any more.
 - `BASELINE_ACTIVITY_MAPPING` in the same file still points at the old taxonomy and is unused; it gets rewired with the progress engine.
 
+## Daily Report — sending and validation
+
+`reportsService.create()` and `update()` **always** send `FormData` with a `data` field, with or without photos. The endpoint reads the report from a form field, so a plain JSON body leaves it empty and the backend answers "Se requiere campo 'data'". Photos are optional; sending zero of them is normal.
+
+Numbers are parsed with `Number()`, never `parseFloat()`. `parseFloat("45abc")` returns `45` and `parseFloat("abc")` returns `NaN`, which the old `|| 0` turned into a silent zero — a typo travelled to the backend as a quantity of zero and nobody noticed. `findNumericError()` in `daily-report-form.tsx` runs before both submit and draft, and its bounds mirror the backend's; an empty field still counts as 0, so nothing became newly required.
+
 ## Daily Report Form — Gotchas
 
 ### Local Activity type (not from lib/types)

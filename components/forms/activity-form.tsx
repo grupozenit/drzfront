@@ -238,6 +238,7 @@ export function ActivityForm({ activity, index, onUpdate, onRemove, canRemove }:
                 </Label>
                 <Textarea
                   id={`desc-${activity.id}`}
+                  maxLength={1000}
                   value={activity.description}
                   onChange={(e) => onUpdate(activity.id, "description", e.target.value)}
                   placeholder="Ej: Excavación de zanjas, Instalación de tuberías..."
@@ -252,6 +253,7 @@ export function ActivityForm({ activity, index, onUpdate, onRemove, canRemove }:
                 <Input
                   id={`unit-${activity.id}`}
                   type="text"
+                  maxLength={50}
                   value={activity.unit}
                   onChange={(e) => onUpdate(activity.id, "unit", e.target.value)}
                   placeholder="Ej: m³, m², unidades..."
@@ -278,11 +280,14 @@ export function ActivityForm({ activity, index, onUpdate, onRemove, canRemove }:
               </Label>
               <Input
                 id={`qty-${activity.id}`}
-                type="text"
+                type="number"
+                min="0"
+                step="any"
+                inputMode="decimal"
                 value={activity.quantity}
                 onChange={(e) => onUpdate(activity.id, "quantity", e.target.value)}
                 placeholder="Ej: 45"
-                className="bg-input border-border text-foreground text-sm"
+                className="bg-input border-border text-foreground text-sm no-arrows"
               />
             </div>
             <div className="space-y-2">
@@ -292,6 +297,7 @@ export function ActivityForm({ activity, index, onUpdate, onRemove, canRemove }:
               <Input
                 id={`loc-${activity.id}`}
                 type="text"
+                maxLength={255}
                 value={activity.location}
                 onChange={(e) => onUpdate(activity.id, "location", e.target.value)}
                 placeholder="Ej: Sector A, Piso 3..."
@@ -307,6 +313,10 @@ export function ActivityForm({ activity, index, onUpdate, onRemove, canRemove }:
             <Input
               id={`workers-${activity.id}`}
               type="number"
+              min="0"
+              max="10000"
+              step="1"
+              inputMode="numeric"
               value={activity.workers}
               onChange={(e) => onUpdate(activity.id, "workers", e.target.value)}
               placeholder="Ej: 8"
@@ -321,6 +331,7 @@ export function ActivityForm({ activity, index, onUpdate, onRemove, canRemove }:
             </Label>
             <Textarea
               id={`obs-${activity.id}`}
+              maxLength={1000}
               value={activity.observations}
               onChange={(e) => onUpdate(activity.id, "observations", e.target.value)}
               placeholder="Notas adicionales, incidencias, comentarios..."
