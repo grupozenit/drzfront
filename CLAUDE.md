@@ -161,6 +161,17 @@ const lastReport = await reportsService.getLatestByProject(projectId)
 - **`useOfflineReports`**: use in forms that create/edit reports. Offline-aware: queues to IndexedDB when offline, syncs on reconnect.
 - **`useReports`**: use in read-only views (history, dashboard). No offline queue.
 
+## Progress percentages
+
+The backend does all the maths; the frontend only renders. Two different numbers travel per category and it's easy to confuse them:
+
+- **`stage.progress`** — how far along that category is, 0-100, weighting its sub-activities with the client's ponderación. This is the bar next to the category name.
+- **`stage.weight`** — how much that category counts toward the project's overall figure, after redistributing over the scope actually loaded. The weights of all the stages add up to 100.
+
+Sub-activity rows stay a plain `reportado / total`; they are not weighted.
+
+Never recompute a weighted percentage in the client: the weights live in `src/core/activity_weights.py` on the server, generated from the client's spreadsheet. `getAverageProgress()` in `dashboard-overview.tsx` is only a fallback for when `overallProgress` is missing, and it's deliberately a simple mean rather than a half-right reimplementation.
+
 ## Project Totals (the work scope)
 
 `components/setup/totals-setup.tsx` replaced the manual baseline form. The scope is loaded **by uploading an Excel template only** — download it with `projectTotalsService.downloadTemplate()`, upload the filled copy, then adjust quantities inline. It's mounted from `project-management.tsx`, gated by `can("totales", "update")`.

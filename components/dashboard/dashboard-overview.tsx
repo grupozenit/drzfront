@@ -63,11 +63,13 @@ export function DashboardOverview() {
     return workProgress ? [workProgress] : []
   }, [selectedProject, allWorkProgress, workProgress])
 
+  // Fallback por si el backend no manda overallProgress. Es un promedio simple
+  // de las categorías, no el ponderado: el peso de cada una lo sabe el servidor
+  // y no tiene sentido reimplementarlo acá.
   const getAverageProgress = (stages: ProjectWorkProgress["stages"]) => {
-    const allSubStages = stages.flatMap(s => s.subStages)
-    if (allSubStages.length === 0) return 0
-    const total = allSubStages.reduce((acc, sub) => acc + sub.progress, 0)
-    return Math.round(total / allSubStages.length)
+    if (stages.length === 0) return 0
+    const total = stages.reduce((acc, stage) => acc + stage.progress, 0)
+    return Math.round(total / stages.length)
   }
 
   const isLoading = isLoadingProjects || isLoadingProgress

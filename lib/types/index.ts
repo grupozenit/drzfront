@@ -570,6 +570,8 @@ export interface ProjectSuspendedHours {
 }
 
 export interface ActivityProgress {
+  /** Cuánto pesa la categoría en el avance general de este proyecto. */
+  weight?: number;
   name: string;
   progress: number; // 0-100
   completed: number; // Cantidad completada
@@ -747,6 +749,10 @@ export interface SubStageProgress {
 
 export interface StageProgress {
   name: string;
+  /** Cuánto avanzó la categoría, 0-100, ponderando sus sub-actividades. */
+  progress: number;
+  /** Cuánto pesa la categoría en el avance general de este proyecto. */
+  weight: number;
   subStages: SubStageProgress[];
 }
 
