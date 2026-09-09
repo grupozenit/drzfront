@@ -1,14 +1,15 @@
 "use client"
 
-import { useState, useEffect, useMemo } from "react"
+import { useState, useEffect, useMemo, useRef } from "react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { DateRangePicker } from "@/components/ui/date-range-picker"
-import { ArrowLeft, Loader2, CheckCircle, X, Plus, AlertTriangle } from "lucide-react"
+import { ArrowLeft, Loader2, CheckCircle, X, Plus, AlertTriangle, Download, Upload } from "lucide-react"
 import { useToast, ToastContainer } from "@/components/ui/toast"
 import { theoreticalCurvesService, projectsService } from "@/lib/api"
+import { validateSpreadsheetFile } from "@/lib/utils/sanitize"
 import type { TheoreticalCurveDataPoint } from "@/lib/types"
 
 interface TheoreticalCurveSetupProps {
@@ -26,7 +27,56 @@ export function TheoreticalCurveSetup({ projectId, projectName, onBack }: Theore
   const [isSaving, setIsSaving] = useState(false)
   const [saveSuccess, setSaveSuccess] = useState(false)
 
+  const [isImporting, setIsImporting] = useState(false)
+  const [importErrors, setImportErrors] = useState<
+    Array<{ row: number; column: string; message: string; value?: string }>
+  >([])
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
   const { toasts, success, error: showError, removeToast } = useToast()
+
+  /**
+   * Importación desde Excel. Es el otro camino al mismo dato: lo que se
+   * importa queda en la tabla de abajo y se puede seguir editando a mano.
+   */
+  const handleFilePicked = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    event.target.value = ""
+    if (!file) return
+
+    const validation = validateSpreadsheetFile(file)
+    if (!validation.valid) {
+      showError("Archivo inválido", validation.error ?? "Revisá el archivo")
+      return
+    }
+
+    setIsImporting(true)
+    setImportErrors([])
+    try {
+      const result = await theoreticalCurvesService.importTemplate(projectId, file)
+      const curve = await theoreticalCurvesService.get(projectId)
+      if (curve) {
+        setCurveId(curve.id)
+        setCurvePoints(curve.dataPoints)
+      }
+      success(
+        "Curva importada",
+        `${result.weeks} semanas cargadas, hasta la semana ${result.totalWeeks}.`,
+      )
+    } catch (err: any) {
+      // El backend rechaza el archivo entero y devuelve qué filas corregir
+      const rows = err?.data?.errors ?? []
+      setImportErrors(rows)
+      showError(
+        "No se pudo importar",
+        rows.length
+          ? `El archivo tiene ${rows.length} fila(s) con problemas. No se importó nada.`
+          : err?.message ?? "Revisá el archivo e intentá de nuevo",
+      )
+    } finally {
+      setIsImporting(false)
+    }
+  }
 
   // Cargar curva existente y startDate del proyecto
   useEffect(() => {
@@ -209,6 +259,84 @@ export function TheoreticalCurveSetup({ projectId, projectName, onBack }: Theore
               />
             </div>
           </div>
+        </Card>
+
+        {/* Carga desde Excel. Convive con la carga manual de abajo: las dos
+            son válidas y guardan exactamente el mismo dato. */}
+        <Card className="p-4 md:p-6 bg-card border-border">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+            <div>
+              <Label className="text-xs md:text-sm font-medium text-foreground">
+                Cargar desde Excel
+              </Label>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Descargá la plantilla, completala y subila. Reemplaza la curva entera;
+                después podés seguir ajustándola a mano acá abajo.
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                variant="outline"
+                onClick={() => void theoreticalCurvesService.downloadTemplate()}
+                className="text-sm"
+              >
+                <Download className="w-4 h-4 mr-2" />
+                Descargar plantilla
+              </Button>
+              <Button
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isImporting}
+                className="bg-primary hover:bg-primary/90 text-primary-foreground text-sm"
+              >
+                {isImporting ? (
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                ) : (
+                  <Upload className="w-4 h-4 mr-2" />
+                )}
+                Importar
+              </Button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                onChange={handleFilePicked}
+                className="hidden"
+              />
+            </div>
+          </div>
+
+          {importErrors.length > 0 && (
+            <div className="mt-4 border-t border-border pt-4">
+              <div className="flex items-center gap-2 mb-2">
+                <AlertTriangle className="w-4 h-4 text-destructive" />
+                <p className="text-sm font-medium text-foreground">
+                  Filas a corregir ({importErrors.length})
+                </p>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="text-left text-muted-foreground">
+                      <th className="py-1.5 pr-4">Fila</th>
+                      <th className="py-1.5 pr-4">Columna</th>
+                      <th className="py-1.5 pr-4">Valor</th>
+                      <th className="py-1.5">Problema</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {importErrors.map((rowError, index) => (
+                      <tr key={index} className="border-t border-border">
+                        <td className="py-1.5 pr-4 font-medium">{rowError.row}</td>
+                        <td className="py-1.5 pr-4">{rowError.column}</td>
+                        <td className="py-1.5 pr-4 text-muted-foreground">{rowError.value || "—"}</td>
+                        <td className="py-1.5">{rowError.message}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
         </Card>
 
         {/* Tabla de curva teórica */}

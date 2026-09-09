@@ -161,6 +161,12 @@ const lastReport = await reportsService.getLatestByProject(projectId)
 - **`useOfflineReports`**: use in forms that create/edit reports. Offline-aware: queues to IndexedDB when offline, syncs on reconnect.
 - **`useReports`**: use in read-only views (history, dashboard). No offline queue.
 
+## Theoretical S curve — two ways in
+
+`theoretical-curve-setup.tsx` supports loading the curve by hand *and* by importing an Excel. Both are first-class and store exactly the same thing, so what gets imported stays editable in the table below. Don't drop either one.
+
+`validateSpreadsheetFile()` is reused for the upload — a usability filter, not a control; the backend revalidates everything. A rejected import comes back 422 with `errors[]` (row, column, value, message); render them, because the file is all-or-nothing.
+
 ## Progress percentages
 
 The backend does all the maths; the frontend only renders. Two different numbers travel per category and it's easy to confuse them:

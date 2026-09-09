@@ -179,6 +179,15 @@ export interface TheoreticalCurve {
   updatedAt: string;
 }
 
+export interface CurveImportResult {
+  projectId: string;
+  /** Semanas con avance cargado. */
+  weeks: number;
+  /** Última semana de la curva. */
+  totalWeeks: number;
+  rowsRead: number;
+}
+
 export interface CreateTheoreticalCurveDTO {
   dataPoints: TheoreticalCurveDataPoint[];
   totalWeeks?: number | null;
