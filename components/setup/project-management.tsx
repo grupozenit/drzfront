@@ -38,8 +38,9 @@ export function ProjectManagement() {
   const { projects, isLoading, loadProjects, addProject, updateProject, removeProject } = useProjects()
   const { can } = usePermissions()
   const canWrite = can("proyectos", "create")
+  // Totales y Curva S son las dos piezas del onboarding del proyecto: las
+  // carga Tecnología, no quien reporta el avance.
   const canWriteTotals = can("totales", "update")
-  const canWriteAvances = can("avances", "update")
 
   useEffect(() => {
     loadProjects()
@@ -394,7 +395,7 @@ export function ProjectManagement() {
                           Totales
                         </button>
                       )}
-                      {canWriteAvances && (
+                      {canWriteTotals && (
                         <button
                           onClick={() => setShowCurveForm({ projectId: project.id, projectName: project.name })}
                           className="px-3 py-1.5 text-xs font-medium rounded-md border border-[#d68f2d] text-[#d68f2d] bg-white hover:bg-[#d68f2d] hover:text-[#23190f] transition-colors dark:bg-transparent dark:border-[#d68f2d] dark:text-[#e8a94f] dark:hover:bg-[#d68f2d] dark:hover:text-[#23190f]"
