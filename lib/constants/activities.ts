@@ -52,6 +52,12 @@ export interface ActivityCategoryConfig {
     components?: readonly string[];
     /** Cómo se llama ese selector en el formulario. */
     componentsLabel?: string;
+    /**
+     * Pares [sub-actividad, componente] que NO existen, aunque la categoría
+     * tenga esa sub-actividad y ese componente. Por defecto se ofrece el
+     * producto cartesiano; esto le saca lo que en obra no se da nunca.
+     */
+    excludedCombinations?: ReadonlyArray<readonly [string, string]>;
     /** Solo "Otras": el usuario escribe descripción y unidad. */
     isCustom?: boolean;
 }
@@ -149,6 +155,11 @@ export const ACTIVITY_CATEGORIES: Record<
         ],
         components: CABLE_TYPES,
         componentsLabel: "Tipo de Cable",
+        // El BT/CC no se excava ni se tapa: va por bandeja, no enterrado.
+        excludedCombinations: [
+            ["Excavación", "Cable BT/CC"],
+            ["Tapado", "Cable BT/CC"],
+        ],
     },
     inversores: {
         id: "inversores",
@@ -256,9 +267,27 @@ export function unitFor(
     return sub?.unit ?? cat.unit ?? "";
 }
 
-/** Opciones del tercer selector de una categoría (vacío si no tiene). */
-export function componentOptions(category: ActivityCategory): readonly string[] {
-    return ACTIVITY_CATEGORIES[category]?.components ?? [];
+/**
+ * Opciones del tercer selector, para una categoría o para una de sus
+ * sub-actividades.
+ *
+ * Sin `subActivity` devuelve todas las opciones de la categoría. Con ella,
+ * saca las combinaciones excluidas.
+ */
+export function componentOptions(
+    category: ActivityCategory,
+    subActivity?: string,
+): readonly string[] {
+    const cat = ACTIVITY_CATEGORIES[category];
+    const options = cat?.components ?? [];
+    if (!subActivity || !cat?.excludedCombinations?.length) return options;
+
+    const excluded = new Set(
+        cat.excludedCombinations
+            .filter(([sub]) => sub === subActivity)
+            .map(([, component]) => component),
+    );
+    return options.filter((option) => !excluded.has(option));
 }
 
 /** Cómo se llama el tercer selector de una categoría. */

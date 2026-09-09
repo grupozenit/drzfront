@@ -10,6 +10,7 @@ import {
   ACTIVITY_CATEGORIES,
   acceptsComponent,
   componentLabel,
+  componentOptions,
   unitFor,
 } from "@/lib/constants/activities"
 import type { ActivityCategory } from "@/lib/types"
@@ -96,8 +97,18 @@ export function ActivityForm({ activity, index, onUpdate, onRemove, canRemove }:
     if (!selectedCategory) return
     setSelectedSubActivity(subActivity)
 
+    // El componente que estaba elegido puede no aplicar a la sub-actividad
+    // nueva (hay combinaciones que el catálogo no ofrece): se limpia, o el
+    // backend rechazaría el reporte con un error que el usuario no entendería.
+    const stillValid =
+      selectedComponent &&
+      componentOptions(selectedCategory, subActivity).includes(selectedComponent)
+    const component = stillValid ? selectedComponent : null
+    if (!stillValid) setSelectedComponent(null)
+
     onUpdate(activity.id, "subActivity", subActivity)
-    onUpdate(activity.id, "description", buildDescription(selectedCategory, subActivity, selectedComponent))
+    onUpdate(activity.id, "component", component ?? "")
+    onUpdate(activity.id, "description", buildDescription(selectedCategory, subActivity, component))
     onUpdate(activity.id, "unit", unitFor(selectedCategory, subActivity))
   }
 
@@ -116,6 +127,9 @@ export function ActivityForm({ activity, index, onUpdate, onRemove, canRemove }:
   const currentCategory = selectedCategory ? ACTIVITY_CATEGORIES[selectedCategory] : null
   const hasSubActivities = Boolean(currentCategory?.subActivities?.length)
   const hasComponents = Boolean(selectedCategory && acceptsComponent(selectedCategory))
+  const availableComponents = selectedCategory
+    ? componentOptions(selectedCategory, selectedSubActivity ?? undefined)
+    : []
 
   return (
     <Card className="p-4 md:p-6 bg-card border-border relative">
@@ -211,7 +225,7 @@ export function ActivityForm({ activity, index, onUpdate, onRemove, canRemove }:
                 <span className="text-muted-foreground font-normal">(opcional)</span>
               </Label>
               <div className="flex flex-wrap gap-2">
-                {currentCategory?.components?.map((option) => (
+                {availableComponents.map((option) => (
                   <button
                     key={option}
                     type="button"

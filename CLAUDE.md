@@ -183,6 +183,7 @@ The product name changed and so did the model. `project.hasBaseline` kept its na
 - `subActivityLabels()`, `unitFor()`, `componentOptions()`, `componentLabel()` and `acceptsComponent()` are the accessors; don't reach into the record directly.
 - Sub-activity is required, except for `movilizacion` (no sub-activities, fixed unit `%`) and `otras` (free description + unit).
 - `component` carries a **third selector**, offered only by the categories that define one: `obraElectrica` (label "Tipo de Cable", options `CABLE_TYPES`) and `estructurasMenores` (label "Componentes", options `STRUCTURE_COMPONENTS`). Read them with `componentOptions()` / `componentLabel()` / `acceptsComponent()` — never hardcode either list. It's optional, and the two lists don't cross: the backend returns 422 for a cable on a structure or vice versa.
+- **Pass the sub-activity to `componentOptions(category, subActivity)`.** Some pairs don't exist (`excludedCombinations`; e.g. Cable BT/CC is never dug or covered), and the backend rejects them with "no aplica a". Reading `cat.components` directly would offer an option the server refuses. `ActivityForm` also clears the chosen component when the new sub-activity doesn't accept it.
 - `ActivityForm` renders straight from the catalog — it has no local copy any more.
 - `BASELINE_ACTIVITY_MAPPING` in the same file still points at the old taxonomy and is unused; it gets rewired with the progress engine.
 
