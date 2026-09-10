@@ -178,6 +178,14 @@ Sub-activity rows stay a plain `reportado / total`; they are not weighted.
 
 Never recompute a weighted percentage in the client: the weights live in `src/core/activity_weights.py` on the server, generated from the client's spreadsheet. `getAverageProgress()` in `dashboard-overview.tsx` is only a fallback for when `overallProgress` is missing, and it's deliberately a simple mean rather than a half-right reimplementation.
 
+## Weekly report
+
+`weekly-report-history.tsx` lists, generates, downloads and exports. The PDF and the Excel are built entirely on the server — the frontend never assembles report content, it only picks a project and a week.
+
+- **`reportNumber` is what identifies the report**, not `weekNumber`. The first is the correlative of the informe (1, 2, 3…) and has no gaps; the second is the *project* week and does — a week with no report has no number. Show the correlative as the badge and keep the week as context.
+- **`EXCEL_SECTIONS` mirrors `ALL_SECTIONS` in `weekly_excel_generator.py`.** The backend silently ignores an unknown section, so a stale key doesn't break the download — it just quietly stops producing that sheet, which is worse. Update both together.
+- Manual generation posts the Monday and Sunday of the week; regenerating passes `force` and **keeps the same report number**.
+
 ## Project Totals (the work scope)
 
 `components/setup/totals-setup.tsx` replaced the manual baseline form. The scope is loaded **by uploading an Excel template only** — download it with `projectTotalsService.downloadTemplate()`, upload the filled copy, then adjust quantities inline. It's mounted from `project-management.tsx`, gated by `can("totales", "update")`.

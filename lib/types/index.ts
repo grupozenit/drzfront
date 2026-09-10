@@ -136,6 +136,9 @@ export interface WeeklyReport {
   projectId: string;
   projectName: string;
   companyId: string;
+  // Correlativo del informe dentro del proyecto (1, 2, 3...), sin huecos.
+  // Distinto de weekNumber, que es la semana de proyecto y sí los tiene.
+  reportNumber: number | null;
   weekNumber: number;
   year: number;
   startDate: string;

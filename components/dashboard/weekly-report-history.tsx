@@ -17,15 +17,18 @@ import type { WeeklyReport, WeeklyReportFilters } from "@/lib/types"
 
 // ─── Secciones de Excel ──────────────────────────────────────────────────────
 
+// Tienen que coincidir con ALL_SECTIONS de src/services/weekly_excel_generator.py:
+// el backend ignora una sección desconocida, así que un nombre viejo no rompe
+// la descarga, simplemente no trae esa hoja.
 const EXCEL_SECTIONS = [
   { key: "resumen", label: "Resumen General" },
   { key: "curva_s", label: "Curva S" },
-  { key: "actividades_semanales", label: "Actividades Semanales" },
-  { key: "actividades_diarias", label: "Actividades Diarias" },
-  { key: "trackers", label: "Trackers" },
-  { key: "modulos", label: "Módulos" },
+  { key: "actividades", label: "Avance por Actividad" },
+  { key: "items", label: "Detalle por Ítem" },
   { key: "personal", label: "Personal" },
+  { key: "horas", label: "Horas Trabajadas" },
   { key: "maquinaria", label: "Maquinaria" },
+  { key: "equipos", label: "Equipos" },
 ] as const
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -250,6 +253,7 @@ export function WeeklyReportHistory() {
           <div className="bg-card border border-border rounded-xl shadow-xl p-6 w-full max-w-md mx-4" onClick={e => e.stopPropagation()}>
             <h3 className="text-base font-semibold text-foreground mb-1">Exportar a Excel</h3>
             <p className="text-xs text-muted-foreground mb-4">
+              {exportReport.reportNumber != null ? `Informe N° ${String(exportReport.reportNumber).padStart(3, "0")} · ` : ""}
               Sem {exportReport.weekNumber} / {exportReport.year} — {exportReport.projectName}
             </p>
             <div className="space-y-2 mb-4">
@@ -426,6 +430,7 @@ export function WeeklyReportHistory() {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-border bg-muted/30">
+                      <th className="text-left py-3 px-4 text-xs font-medium text-muted-foreground">N° Informe</th>
                       <th className="text-left py-3 px-4 text-xs font-medium text-muted-foreground">Semana</th>
                       <th className="text-left py-3 px-4 text-xs font-medium text-muted-foreground">Período</th>
                       <th className="text-left py-3 px-4 text-xs font-medium text-muted-foreground">Proyecto</th>
@@ -440,6 +445,13 @@ export function WeeklyReportHistory() {
                         key={report.id}
                         className="border-b border-border/60 hover:bg-muted/30 transition-colors"
                       >
+                        <td className="py-3 px-4">
+                          <span className="inline-flex items-center rounded-md bg-primary px-2 py-0.5 text-xs font-semibold text-primary-foreground">
+                            {report.reportNumber != null
+                              ? `N° ${String(report.reportNumber).padStart(3, "0")}`
+                              : "s/n"}
+                          </span>
+                        </td>
                         <td className="py-3 px-4 font-medium text-foreground">
                           Sem {report.weekNumber} / {report.year}
                         </td>
@@ -512,6 +524,11 @@ export function WeeklyReportHistory() {
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
+                        <span className="inline-flex items-center rounded-md bg-primary px-2 py-0.5 text-xs font-semibold text-primary-foreground">
+                          {report.reportNumber != null
+                            ? `N° ${String(report.reportNumber).padStart(3, "0")}`
+                            : "s/n"}
+                        </span>
                         <span className="text-sm font-semibold text-foreground">
                           Semana {report.weekNumber} / {report.year}
                         </span>
