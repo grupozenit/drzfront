@@ -323,8 +323,6 @@ export const MACHINE_TYPES = [
     "Combi",
     "Minicargador",
     "Rodillo Compactador",
-    "Generador",
-    "Compresor",
     "Otro",
 ] as const;
 

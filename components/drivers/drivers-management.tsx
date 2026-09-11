@@ -421,7 +421,14 @@ export function DriversManagement() {
       tieneCertificacion?: boolean
       vencimientoCertificacion?: string | null
     },
-    onChange: (field: string, value: string | boolean | null) => void,
+    // Recibe un parche, no un (campo, valor): elegir "No" toca los dos campos
+    // de certificación a la vez, y dos setState seguidos desde el mismo closure
+    // se pisan entre sí — el segundo revierte al primero y el par queda trabado.
+    onPatch: (patch: {
+      vencimientoLicencia?: string | null
+      tieneCertificacion?: boolean
+      vencimientoCertificacion?: string | null
+    }) => void,
   ) => {
     const requiere = licenseRequiresCertification(values.tipoLicencia)
     return (
@@ -430,7 +437,7 @@ export function DriversManagement() {
           <Label className="text-xs md:text-sm font-medium text-foreground">Venc. Licencia</Label>
           <DatePicker
             value={values.vencimientoLicencia || ""}
-            onChange={(v) => onChange("vencimientoLicencia", v)}
+            onChange={(v) => onPatch({ vencimientoLicencia: v })}
           />
         </div>
 
@@ -447,12 +454,16 @@ export function DriversManagement() {
                 <button
                   key={opt.label}
                   type="button"
-                  onClick={() => {
-                    onChange("tieneCertificacion", opt.value)
-                    // "No" limpia la fecha: el par es excluyente, igual que en
-                    // el backend, y no queda una fecha huérfana en el form.
-                    if (!opt.value) onChange("vencimientoCertificacion", "")
-                  }}
+                  onClick={() =>
+                    // "No" limpia la fecha en el mismo parche: el par es
+                    // excluyente, igual que en el backend, y no queda una fecha
+                    // huérfana en el formulario.
+                    onPatch(
+                      opt.value
+                        ? { tieneCertificacion: true }
+                        : { tieneCertificacion: false, vencimientoCertificacion: "" },
+                    )
+                  }
                   className={`px-4 py-2 text-xs md:text-sm rounded-lg border-2 transition-all ${
                     !!values.tieneCertificacion === opt.value
                       ? "border-primary bg-primary/10 text-primary font-medium"
@@ -470,7 +481,7 @@ export function DriversManagement() {
                   </Label>
                   <DatePicker
                     value={values.vencimientoCertificacion || ""}
-                    onChange={(v) => onChange("vencimientoCertificacion", v)}
+                    onChange={(v) => onPatch({ vencimientoCertificacion: v })}
                   />
                 </div>
               )}
@@ -597,8 +608,8 @@ export function DriversManagement() {
                   />
                 </div>
 
-                {renderLicenseFields(newDriver, (field, value) =>
-                  setNewDriver({ ...newDriver, [field]: value }),
+                {renderLicenseFields(newDriver, (patch) =>
+                  setNewDriver({ ...newDriver, ...patch }),
                 )}
               </div>
 
@@ -699,8 +710,8 @@ export function DriversManagement() {
                   />
                 </div>
 
-                {renderLicenseFields(editingDriver, (field, value) =>
-                  setEditingDriver({ ...editingDriver, [field]: value }),
+                {renderLicenseFields(editingDriver, (patch) =>
+                  setEditingDriver({ ...editingDriver, ...patch }),
                 )}
               </div>
 

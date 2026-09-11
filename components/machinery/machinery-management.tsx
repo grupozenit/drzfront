@@ -546,7 +546,10 @@ export function MachineryManagement() {
   const renderCertificationFields = (
     requiere: boolean,
     values: { tieneCertificacion?: boolean; vencimientoCertificacion?: string | null },
-    onChange: (field: string, value: string | boolean | null) => void,
+    // Recibe un parche, no un (campo, valor): elegir "No" toca los dos campos
+    // a la vez, y dos setState seguidos desde el mismo closure se pisan entre
+    // sí — el segundo revierte al primero y el par queda trabado.
+    onPatch: (patch: { tieneCertificacion?: boolean; vencimientoCertificacion?: string | null }) => void,
   ) => {
     if (!requiere) return null
     return (
@@ -560,12 +563,15 @@ export function MachineryManagement() {
             <button
               key={opt.label}
               type="button"
-              onClick={() => {
-                onChange("tieneCertificacion", opt.value)
-                // "No" limpia la fecha: el par es excluyente, igual que en el
-                // backend, y no queda una fecha huérfana en el formulario.
-                if (!opt.value) onChange("vencimientoCertificacion", null)
-              }}
+              onClick={() =>
+                // "No" limpia la fecha en el mismo parche: el par es excluyente,
+                // igual que en el backend, y no queda una fecha huérfana.
+                onPatch(
+                  opt.value
+                    ? { tieneCertificacion: true }
+                    : { tieneCertificacion: false, vencimientoCertificacion: null },
+                )
+              }
               className={`px-4 py-2 text-xs md:text-sm rounded-lg border-2 transition-all ${
                 !!values.tieneCertificacion === opt.value
                   ? "border-primary bg-primary/10 text-primary font-medium"
@@ -583,7 +589,7 @@ export function MachineryManagement() {
               </Label>
               <DatePicker
                 value={values.vencimientoCertificacion || ""}
-                onChange={(v) => onChange("vencimientoCertificacion", v)}
+                onChange={(v) => onPatch({ vencimientoCertificacion: v })}
               />
             </div>
           )}
@@ -812,8 +818,8 @@ export function MachineryManagement() {
                   setNewMachine({ ...newMachine, [field]: value })
                 )}
 
-                {renderCertificationFields(requiereCertNuevo, newMachine, (field, value) =>
-                  setNewMachine({ ...newMachine, [field]: value })
+                {renderCertificationFields(requiereCertNuevo, newMachine, (patch) =>
+                  setNewMachine({ ...newMachine, ...patch })
                 )}
 
                 <div className="space-y-2">
@@ -991,8 +997,8 @@ export function MachineryManagement() {
                   setEditingMachine({ ...editingMachine, [field]: value })
                 )}
 
-                {renderCertificationFields(requiereCertEditando, editingMachine, (field, value) =>
-                  setEditingMachine({ ...editingMachine, [field]: value })
+                {renderCertificationFields(requiereCertEditando, editingMachine, (patch) =>
+                  setEditingMachine({ ...editingMachine, ...patch })
                 )}
 
                 <div className="space-y-2">
