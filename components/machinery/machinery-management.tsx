@@ -41,7 +41,7 @@ import Link from "next/link"
 import { useProjects, useMachinery, useDrivers, usePermissions } from "@/lib/hooks"
 import { useViewMode } from "@/lib/hooks/useViewMode"
 import { machineryService } from "@/lib/api"
-import { MACHINE_TYPES, isVehicleType } from "@/lib/constants/activities"
+import { MACHINE_TYPES, isVehicleType, requiresCertification } from "@/lib/constants/activities"
 import { formatDateLocal } from "@/lib/utils"
 import type { Machine, CreateMachineDTO, UpdateMachineDTO, MachineOwnership, EventLogEntry } from "@/lib/types"
 
@@ -83,18 +83,44 @@ function formatDateTime(iso: string) {
   })
 }
 
-function RtoBadge({ machine }: { machine: Machine }) {
-  if (!machine.rtoEstado || machine.rtoEstado === "vigente") return null
-  if (machine.rtoEstado === "vencido") {
+/**
+ * Chip de un vencimiento próximo o cumplido. Devuelve null si está vigente o
+ * si no hay fecha cargada: solo se muestra lo que pide atención.
+ */
+function ExpirationBadge({
+  label,
+  estado,
+  diasRestantes,
+}: {
+  label: string
+  estado?: string | null
+  diasRestantes?: number | null
+}) {
+  if (!estado || estado === "vigente") return null
+  if (estado === "vencido") {
     return (
       <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-destructive/10 text-destructive whitespace-nowrap">
-        RTO vencido
+        {label}: vencido
       </span>
     )
   }
   return (
     <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400 whitespace-nowrap">
-      RTO en {machine.rtoDiasRestantes}d
+      {label}: en {diasRestantes}d
+    </span>
+  )
+}
+
+/** RTO/VTV y certificación habilitante de una máquina, juntos. */
+function RtoBadge({ machine }: { machine: Machine }) {
+  return (
+    <span className="inline-flex flex-wrap items-center gap-1">
+      <ExpirationBadge label="RTO" estado={machine.rtoEstado} diasRestantes={machine.rtoDiasRestantes} />
+      <ExpirationBadge
+        label="Certif."
+        estado={machine.certificacionEstado}
+        diasRestantes={machine.certificacionDiasRestantes}
+      />
     </span>
   )
 }
@@ -272,6 +298,8 @@ export function MachineryManagement() {
     vencimientoRto: "",
     tieneGps: false,
     tieneTelepase: false,
+    tieneCertificacion: false,
+    vencimientoCertificacion: "",
     ultimoService: "",
   }
 
@@ -296,6 +324,11 @@ export function MachineryManagement() {
 
   const esVehiculoNuevo = isVehicleType(newMachine.tipo)
   const esVehiculoEditando = editingMachine ? isVehicleType(editingMachine.tipo) : false
+
+  // Certificación habilitante: solo la piden Camión Pluma y Manipulador
+  // Telescópico. Espejo de la regla del backend, que igual normaliza el par.
+  const requiereCertNuevo = requiresCertification(newMachine.tipo)
+  const requiereCertEditando = editingMachine ? requiresCertification(editingMachine.tipo) : false
 
   // Filtrar maquinaria
   const filteredMachines = useMemo(() => {
@@ -339,6 +372,11 @@ export function MachineryManagement() {
       showError("Error", "El número de chasis es obligatorio para este tipo de maquinaria")
       return
     }
+    const nuevoCertificado = requiereCertNuevo && !!newMachine.tieneCertificacion
+    if (nuevoCertificado && !newMachine.vencimientoCertificacion) {
+      showError("Error", "Indicá la fecha de vencimiento de la certificación")
+      return
+    }
 
     setIsSaving(true)
     try {
@@ -357,6 +395,8 @@ export function MachineryManagement() {
         vencimientoRto: esVehiculoNuevo ? newMachine.vencimientoRto || null : null,
         tieneGps: esVehiculoNuevo ? !!newMachine.tieneGps : false,
         tieneTelepase: esVehiculoNuevo ? !!newMachine.tieneTelepase : false,
+        tieneCertificacion: nuevoCertificado,
+        vencimientoCertificacion: nuevoCertificado ? newMachine.vencimientoCertificacion || null : null,
         ultimoService: newMachine.ultimoService || null,
       })
       addMachine(machine)
@@ -381,6 +421,11 @@ export function MachineryManagement() {
       showError("Error", "El número de chasis es obligatorio para este tipo de maquinaria")
       return
     }
+    const editCertificado = requiereCertEditando && !!editingMachine.tieneCertificacion
+    if (editCertificado && !editingMachine.vencimientoCertificacion) {
+      showError("Error", "Indicá la fecha de vencimiento de la certificación")
+      return
+    }
 
     setIsSaving(true)
     try {
@@ -398,6 +443,8 @@ export function MachineryManagement() {
         vencimientoRto: esVehiculoEditando ? editingMachine.vencimientoRto : null,
         tieneGps: esVehiculoEditando ? editingMachine.tieneGps : false,
         tieneTelepase: esVehiculoEditando ? editingMachine.tieneTelepase : false,
+        tieneCertificacion: editCertificado,
+        vencimientoCertificacion: editCertificado ? editingMachine.vencimientoCertificacion || null : null,
         ultimoService: editingMachine.ultimoService,
       })
       updateMachine(editingMachine.id, updated)
@@ -490,6 +537,59 @@ export function MachineryManagement() {
     if (!currentId || activeDrivers.some((d) => d.id === currentId)) return activeDrivers
     const current = drivers.find((d) => d.id === currentId)
     return current ? [current, ...activeDrivers] : activeDrivers
+  }
+
+  /**
+   * Par excluyente Certificación Sí/No + su vencimiento, ofrecido solo por los
+   * tipos que la requieren. Compartido entre el alta y la edición.
+   */
+  const renderCertificationFields = (
+    requiere: boolean,
+    values: { tieneCertificacion?: boolean; vencimientoCertificacion?: string | null },
+    onChange: (field: string, value: string | boolean | null) => void,
+  ) => {
+    if (!requiere) return null
+    return (
+      <div className="space-y-2 md:col-span-2 lg:col-span-3">
+        <Label className="text-xs md:text-sm font-medium text-foreground">Certificación *</Label>
+        <div className="flex flex-wrap items-center gap-2">
+          {[
+            { value: true, label: "Sí" },
+            { value: false, label: "No" },
+          ].map((opt) => (
+            <button
+              key={opt.label}
+              type="button"
+              onClick={() => {
+                onChange("tieneCertificacion", opt.value)
+                // "No" limpia la fecha: el par es excluyente, igual que en el
+                // backend, y no queda una fecha huérfana en el formulario.
+                if (!opt.value) onChange("vencimientoCertificacion", null)
+              }}
+              className={`px-4 py-2 text-xs md:text-sm rounded-lg border-2 transition-all ${
+                !!values.tieneCertificacion === opt.value
+                  ? "border-primary bg-primary/10 text-primary font-medium"
+                  : "border-border bg-background text-foreground hover:border-primary/50"
+              }`}
+            >
+              {opt.label}
+            </button>
+          ))}
+
+          {values.tieneCertificacion && (
+            <div className="flex items-center gap-2">
+              <Label className="text-xs md:text-sm font-medium text-foreground whitespace-nowrap">
+                Venc. Certificación *
+              </Label>
+              <DatePicker
+                value={values.vencimientoCertificacion || ""}
+                onChange={(v) => onChange("vencimientoCertificacion", v)}
+              />
+            </div>
+          )}
+        </div>
+      </div>
+    )
   }
 
   // ─── Bloque de identificador condicional (compartido entre alta y edición) ──
@@ -650,6 +750,9 @@ export function MachineryManagement() {
                         ...(isVehicleType(value)
                           ? { numeroChasis: "" }
                           : { patente: "", choferId: null, vencimientoRto: "", tieneGps: false, tieneTelepase: false }),
+                        ...(requiresCertification(value)
+                          ? {}
+                          : { tieneCertificacion: false, vencimientoCertificacion: "" }),
                       })
                     }
                   >
@@ -706,6 +809,10 @@ export function MachineryManagement() {
                 </div>
 
                 {renderIdentifierFields(esVehiculoNuevo, newMachine, (field, value) =>
+                  setNewMachine({ ...newMachine, [field]: value })
+                )}
+
+                {renderCertificationFields(requiereCertNuevo, newMachine, (field, value) =>
                   setNewMachine({ ...newMachine, [field]: value })
                 )}
 
@@ -834,6 +941,9 @@ export function MachineryManagement() {
                         ...(isVehicleType(value)
                           ? { numeroChasis: null }
                           : { patente: null, choferId: null, vencimientoRto: null, tieneGps: false, tieneTelepase: false }),
+                        ...(requiresCertification(value)
+                          ? {}
+                          : { tieneCertificacion: false, vencimientoCertificacion: null }),
                       })
                     }
                   >
@@ -878,6 +988,10 @@ export function MachineryManagement() {
                 </div>
 
                 {renderIdentifierFields(esVehiculoEditando, editingMachine, (field, value) =>
+                  setEditingMachine({ ...editingMachine, [field]: value })
+                )}
+
+                {renderCertificationFields(requiereCertEditando, editingMachine, (field, value) =>
                   setEditingMachine({ ...editingMachine, [field]: value })
                 )}
 
@@ -1083,7 +1197,7 @@ export function MachineryManagement() {
                   <th className="text-left font-medium px-4 py-3">Chofer</th>
                   <th className="text-left font-medium px-4 py-3">Proyecto</th>
                   <th className="text-left font-medium px-4 py-3">Último Service</th>
-                  <th className="text-left font-medium px-4 py-3">RTO/VTV</th>
+                  <th className="text-left font-medium px-4 py-3">Vencimientos</th>
                   <th className="text-left font-medium px-4 py-3">Incidencias</th>
                   <th className="text-left font-medium px-4 py-3">Estado</th>
                   <th className="text-left font-medium px-4 py-3">Acciones</th>

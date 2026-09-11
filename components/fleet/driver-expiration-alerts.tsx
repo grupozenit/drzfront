@@ -3,21 +3,27 @@
 import { useState, useEffect } from "react"
 import { Card } from "@/components/ui/card"
 import { AlertTriangle, Loader2 } from "lucide-react"
-import { machineryService } from "@/lib/api"
+import { driverService } from "@/lib/api"
 import { formatDateLocal } from "@/lib/utils"
-import type { MachineryExpirationAlert, MachineryExpirationKind } from "@/lib/types"
+import type { DriverExpirationAlert, DriverExpirationKind } from "@/lib/types"
 
-const KIND_LABELS: Record<MachineryExpirationKind, string> = {
-  rto: "RTO/VTV",
+const KIND_LABELS: Record<DriverExpirationKind, string> = {
+  licencia: "Licencia",
   certificacion: "Certificación",
 }
 
-interface ExpirationAlertsProps {
-  alerts?: MachineryExpirationAlert[]
+interface DriverExpirationAlertsProps {
+  /** Alertas ya cargadas; si se omite, el componente las pide al montar. */
+  alerts?: DriverExpirationAlert[]
+  days?: number
 }
 
-export function ExpirationAlerts({ alerts: initialAlerts }: ExpirationAlertsProps) {
-  const [alerts, setAlerts] = useState<MachineryExpirationAlert[]>(initialAlerts || [])
+/**
+ * Vencimientos de licencia y certificación de choferes/operadores, con el
+ * mismo formato que las alertas de RTO/VTV de la flota.
+ */
+export function DriverExpirationAlerts({ alerts: initialAlerts, days = 30 }: DriverExpirationAlertsProps) {
+  const [alerts, setAlerts] = useState<DriverExpirationAlert[]>(initialAlerts || [])
   const [loading, setLoading] = useState(!initialAlerts)
 
   useEffect(() => {
@@ -25,13 +31,23 @@ export function ExpirationAlerts({ alerts: initialAlerts }: ExpirationAlertsProp
       setAlerts(initialAlerts)
       return
     }
+    let cancelled = false
     setLoading(true)
-    machineryService
-      .getExpirationAlerts(30)
-      .then(setAlerts)
-      .catch(() => setAlerts([]))
-      .finally(() => setLoading(false))
-  }, [initialAlerts])
+    driverService
+      .getExpirationAlerts(days)
+      .then((data) => {
+        if (!cancelled) setAlerts(data)
+      })
+      .catch(() => {
+        if (!cancelled) setAlerts([])
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [initialAlerts, days])
 
   if (loading) {
     return (
@@ -48,26 +64,21 @@ export function ExpirationAlerts({ alerts: initialAlerts }: ExpirationAlertsProp
       <div className="flex items-center gap-2 mb-4">
         <AlertTriangle className="w-5 h-5 text-amber-600" />
         <h3 className="text-sm md:text-base font-semibold text-foreground">
-          Próximos Vencimientos de Maquinaria
+          Próximos Vencimientos de Choferes/Operadores
         </h3>
       </div>
       <div className="space-y-2">
         {alerts.map((alert) => (
-          // Una misma máquina puede traer una fila por vencimiento: la clave
+          // Un mismo chofer puede traer una fila por vencimiento: la clave
           // estable es (id, tipoVencimiento), no el id solo.
           <div
             key={`${alert.id}-${alert.tipoVencimiento}`}
             className="flex items-center justify-between gap-3 p-3 rounded-lg bg-muted/50 border border-border"
           >
             <div className="min-w-0">
-              <p className="text-sm font-medium text-foreground truncate">
-                {alert.codigoInterno ? `${alert.codigoInterno} — ` : ""}
-                {alert.tipo} {alert.patente ? `(${alert.patente})` : ""}
-              </p>
+              <p className="text-sm font-medium text-foreground truncate">{alert.nombreCompleto}</p>
               <p className="text-xs text-muted-foreground truncate">
-                {KIND_LABELS[alert.tipoVencimiento]}
-                {alert.choferResponsable ? ` · ${alert.choferResponsable}` : ""}
-                {` · ${alert.proyectoName || "Sin asignar"}`}
+                {KIND_LABELS[alert.tipoVencimiento]} · Licencia {alert.tipoLicencia}
               </p>
             </div>
             <div className="flex-shrink-0 text-right">
@@ -80,9 +91,7 @@ export function ExpirationAlerts({ alerts: initialAlerts }: ExpirationAlertsProp
               >
                 {alert.estado === "vencido" ? "Vencido" : `En ${alert.diasRestantes} días`}
               </span>
-              {alert.vencimiento && (
-                <p className="text-[10px] text-muted-foreground mt-1">{formatDateLocal(alert.vencimiento)}</p>
-              )}
+              <p className="text-[10px] text-muted-foreground mt-1">{formatDateLocal(alert.vencimiento)}</p>
             </div>
           </div>
         ))}

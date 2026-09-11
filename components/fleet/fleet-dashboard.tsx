@@ -14,8 +14,10 @@ import {
 import { Truck, Wrench, AlertTriangle, Navigation, Nfc, Loader2 } from "lucide-react"
 import { DatePicker } from "@/components/ui/date-picker"
 import { ExpirationAlerts } from "./expiration-alerts"
+import { DriverExpirationAlerts } from "./driver-expiration-alerts"
 import { AssetNotesModal } from "./asset-notes-modal"
 import { machineryService, equipmentService } from "@/lib/api"
+import { usePermissions } from "@/lib/hooks"
 import { formatDateLocal } from "@/lib/utils"
 import type { FleetDashboard as FleetDashboardData, FleetMaintenanceEntry, FleetOpenIncident } from "@/lib/types"
 
@@ -38,6 +40,8 @@ export function FleetDashboard({ data, isLoading }: FleetDashboardProps) {
   const [incidentNote, setIncidentNote] = useState<FleetOpenIncident | null>(null)
   const [savingId, setSavingId] = useState<string | null>(null);
   const [localMaintenance, setLocalMaintenance] = useState<Record<string, string>>({})
+  const { can } = usePermissions()
+  const canReadDrivers = can("choferes", "read")
 
   const maquinariaPorTipo = useMemo(
     () => (data?.porTipo.maquinaria || []).map((t) => ({ name: t.tipo, cantidad: t.cantidad })),
@@ -134,8 +138,13 @@ export function FleetDashboard({ data, isLoading }: FleetDashboardProps) {
         </Card>
       </div>
 
-      {/* RTO alerts */}
+      {/* Vencimientos de maquinaria (RTO/VTV y certificación) */}
       <ExpirationAlerts alerts={data.rtoAlerts} />
+
+      {/* Vencimientos de choferes/operadores. Se pide aparte porque vive bajo
+          el permiso de Choferes, no bajo el de Flota: un rol con acceso al
+          tablero pero no al módulo no debe verlos. */}
+      {canReadDrivers && <DriverExpirationAlerts />}
 
       {/* Mantenimiento pendiente */}
       <Card className="p-4 md:p-6 bg-card border-border overflow-x-auto">

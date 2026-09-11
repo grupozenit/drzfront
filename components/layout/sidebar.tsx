@@ -48,7 +48,7 @@ export function Sidebar({ isOpen, onToggle }: SidebarProps) {
     { href: "/reporte", label: "Reportes Diarios", icon: ReportIcon },
     { href: "/reporte-semanal", label: "Reportes Semanales", icon: CalendarCheck },
     { href: "/flota", label: "Flota", icon: Truck },
-    { href: "/choferes", label: "Choferes", icon: UserRound },
+    { href: "/choferes", label: "Choferes/Operadores", icon: UserRound },
     { href: "/maquinaria", label: "Maquinaria", icon: MachineryIcon },
     { href: "/equipos", label: "Equipos", icon: Wrench },
     { href: "/configuracion", label: "Configuración", icon: Settings },

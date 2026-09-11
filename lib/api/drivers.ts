@@ -5,6 +5,7 @@ import type {
   UpdateDriverDTO,
   DriverFilters,
   DriverEventLogEntry,
+  DriverExpirationAlert,
 } from '@/lib/types';
 
 const ENDPOINT = '/drivers';
@@ -76,6 +77,13 @@ export const driverService = {
    */
   async getHistory(id: string): Promise<DriverEventLogEntry[]> {
     return apiClient.get<DriverEventLogEntry[]>(`${ENDPOINT}/${id}/history`);
+  },
+
+  /**
+   * Choferes/operadores con licencia o certificación vencida o próxima a vencer
+   */
+  async getExpirationAlerts(days: number = 30): Promise<DriverExpirationAlert[]> {
+    return apiClient.get<DriverExpirationAlert[]>(`${ENDPOINT}/alerts/expirations`, { days });
   },
 
   /**

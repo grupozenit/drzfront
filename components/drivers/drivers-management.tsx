@@ -14,6 +14,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Dialog } from "@/components/ui/dialog"
+import { DatePicker } from "@/components/ui/date-picker"
 import { AnchoredPopover } from "@/components/ui/anchored-popover"
 import { useToast, ToastContainer } from "@/components/ui/toast"
 import {
@@ -28,13 +29,25 @@ import {
   Clock,
   Search,
   Truck,
+  AlertTriangle,
 } from "lucide-react"
 import { useDrivers, usePermissions } from "@/lib/hooks"
 import { useViewMode } from "@/lib/hooks/useViewMode"
 import { driverService } from "@/lib/api"
-import { LICENSE_TYPES, LICENSE_LABELS, licenseLabel } from "@/lib/constants/activities"
-import { cuitError, formatCuit } from "@/lib/utils"
-import type { Driver, CreateDriverDTO, DriverEventLogEntry } from "@/lib/types"
+import {
+  LICENSE_TYPES,
+  LICENSE_LABELS,
+  licenseLabel,
+  licenseRequiresCertification,
+} from "@/lib/constants/activities"
+import { cuitError, formatCuit, formatDateLocal } from "@/lib/utils"
+import { DriverExpirationAlerts } from "@/components/fleet/driver-expiration-alerts"
+import type {
+  Driver,
+  CreateDriverDTO,
+  DriverEventLogEntry,
+  DriverExpirationAlert,
+} from "@/lib/types"
 
 // ─── Event labels & colors ────────────────────────────────────────────────────
 
@@ -74,6 +87,39 @@ const LICENSE_FAMILIES: { value: string; label: string }[] = [
   { value: "E", label: "E — Maquinaria especial" },
   { value: "G", label: "G — Agrícola" },
 ]
+
+/**
+ * Chip de estado de un vencimiento (licencia o certificación). Devuelve null
+ * cuando no hay fecha cargada o cuando todavía falta más que la ventana de
+ * aviso: solo se muestra lo que pide atención.
+ */
+function ExpirationBadge({
+  label,
+  estado,
+  diasRestantes,
+  fecha,
+}: {
+  label: string
+  estado?: string | null
+  diasRestantes?: number | null
+  fecha?: string | null
+}) {
+  if (!estado || estado === "vigente") return null
+  const vencido = estado === "vencido"
+  return (
+    <span
+      title={fecha ? `${label}: ${formatDateLocal(fecha)}` : label}
+      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium whitespace-nowrap ${
+        vencido
+          ? "bg-destructive/10 text-destructive"
+          : "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400"
+      }`}
+    >
+      <AlertTriangle className="w-3 h-3" />
+      {label}: {vencido ? "vencido" : `en ${diasRestantes}d`}
+    </span>
+  )
+}
 
 // ─── History Modal ─────────────────────────────────────────────────────────────
 
@@ -167,6 +213,9 @@ export function DriversManagement() {
     tipoLicencia: "",
     cuit: "",
     email: "",
+    vencimientoLicencia: "",
+    tieneCertificacion: false,
+    vencimientoCertificacion: "",
   }
 
   const [newDriver, setNewDriver] = useState<Partial<CreateDriverDTO>>(emptyForm)
@@ -200,6 +249,49 @@ export function DriversManagement() {
   const nuevoCuitError = cuitError(newDriver.cuit || "")
   const editCuitError = editingDriver ? cuitError(editingDriver.cuit || "") : null
 
+  // La certificación solo existe para las licencias que la habilitan (E2).
+  // Espejo de la regla del backend, que igual normaliza el par al guardar.
+  const nuevoRequiereCert = licenseRequiresCertification(newDriver.tipoLicencia)
+  const editRequiereCert = editingDriver ? licenseRequiresCertification(editingDriver.tipoLicencia) : false
+
+  /**
+   * Filas de alerta derivadas de los choferes ya cargados: el estado y los
+   * días restantes vienen calculados del backend en cada chofer, así que acá
+   * solo se reagrupan. Evita una segunda request y, sobre todo, mantiene la
+   * tarjeta en sincronía después de editar un vencimiento.
+   */
+  const expirationAlerts = useMemo<DriverExpirationAlert[]>(() => {
+    const rows: DriverExpirationAlert[] = []
+    for (const d of drivers) {
+      if (d.estado !== "activo") continue
+      const base = {
+        id: d.id,
+        nombreCompleto: d.nombreCompleto,
+        tipoLicencia: d.tipoLicencia,
+        cuit: d.cuit,
+      }
+      if (d.licenciaEstado && d.licenciaEstado !== "vigente" && d.vencimientoLicencia) {
+        rows.push({
+          ...base,
+          tipoVencimiento: "licencia",
+          vencimiento: d.vencimientoLicencia,
+          estado: d.licenciaEstado,
+          diasRestantes: d.licenciaDiasRestantes ?? 0,
+        })
+      }
+      if (d.certificacionEstado && d.certificacionEstado !== "vigente" && d.vencimientoCertificacion) {
+        rows.push({
+          ...base,
+          tipoVencimiento: "certificacion",
+          vencimiento: d.vencimientoCertificacion,
+          estado: d.certificacionEstado,
+          diasRestantes: d.certificacionDiasRestantes ?? 0,
+        })
+      }
+    }
+    return rows.sort((a, b) => a.vencimiento.localeCompare(b.vencimiento))
+  }, [drivers])
+
   const stats = useMemo(() => {
     const activos = drivers.filter((d) => d.estado === "activo")
     const bajas = drivers.filter((d) => d.estado === "baja")
@@ -215,6 +307,11 @@ export function DriversManagement() {
       showError("CUIT inválido", nuevoCuitError)
       return
     }
+    const nuevoCertificado = nuevoRequiereCert && !!newDriver.tieneCertificacion
+    if (nuevoCertificado && !newDriver.vencimientoCertificacion) {
+      showError("Error", "Indicá la fecha de vencimiento de la certificación")
+      return
+    }
 
     setIsSaving(true)
     try {
@@ -224,12 +321,15 @@ export function DriversManagement() {
         tipoLicencia: newDriver.tipoLicencia || "",
         cuit: newDriver.cuit || "",
         email: newDriver.email || null,
+        vencimientoLicencia: newDriver.vencimientoLicencia || null,
+        tieneCertificacion: nuevoCertificado,
+        vencimientoCertificacion: nuevoCertificado ? newDriver.vencimientoCertificacion || null : null,
       })
       addDriver(driver)
       resetForm()
-      success("Chofer registrado", "El chofer se ha registrado correctamente")
+      success("Registrado", "El chofer/operador se ha registrado correctamente")
     } catch (err: any) {
-      showError("Error", err?.message || "No se pudo registrar el chofer")
+      showError("Error", err?.message || "No se pudo registrar el chofer/operador")
     } finally {
       setIsSaving(false)
     }
@@ -246,6 +346,11 @@ export function DriversManagement() {
       showError("CUIT inválido", editCuitError)
       return
     }
+    const editCertificado = editRequiereCert && !!editingDriver.tieneCertificacion
+    if (editCertificado && !editingDriver.vencimientoCertificacion) {
+      showError("Error", "Indicá la fecha de vencimiento de la certificación")
+      return
+    }
 
     setIsSaving(true)
     try {
@@ -255,6 +360,9 @@ export function DriversManagement() {
         tipoLicencia: editingDriver.tipoLicencia,
         cuit: editingDriver.cuit,
         email: editingDriver.email || null,
+        vencimientoLicencia: editingDriver.vencimientoLicencia || null,
+        tieneCertificacion: editCertificado,
+        vencimientoCertificacion: editCertificado ? editingDriver.vencimientoCertificacion || null : null,
       })
       updateDriver(editingDriver.id, updated)
       setEditingDriver(null)
@@ -301,6 +409,78 @@ export function DriversManagement() {
     setShowNewForm(false)
   }
 
+  /**
+   * Vencimiento de licencia y, solo para las clases que la habilitan (E2), el
+   * par excluyente Certificación Sí/No + su vencimiento. Compartido entre el
+   * alta y la edición para que las dos pantallas no se separen.
+   */
+  const renderLicenseFields = (
+    values: {
+      tipoLicencia?: string
+      vencimientoLicencia?: string | null
+      tieneCertificacion?: boolean
+      vencimientoCertificacion?: string | null
+    },
+    onChange: (field: string, value: string | boolean | null) => void,
+  ) => {
+    const requiere = licenseRequiresCertification(values.tipoLicencia)
+    return (
+      <>
+        <div className="space-y-2">
+          <Label className="text-xs md:text-sm font-medium text-foreground">Venc. Licencia</Label>
+          <DatePicker
+            value={values.vencimientoLicencia || ""}
+            onChange={(v) => onChange("vencimientoLicencia", v)}
+          />
+        </div>
+
+        {requiere && (
+          <div className="space-y-2 md:col-span-2 lg:col-span-3">
+            <Label className="text-xs md:text-sm font-medium text-foreground">
+              Certificación (licencia E2) *
+            </Label>
+            <div className="flex flex-wrap items-center gap-2">
+              {[
+                { value: true, label: "Sí" },
+                { value: false, label: "No" },
+              ].map((opt) => (
+                <button
+                  key={opt.label}
+                  type="button"
+                  onClick={() => {
+                    onChange("tieneCertificacion", opt.value)
+                    // "No" limpia la fecha: el par es excluyente, igual que en
+                    // el backend, y no queda una fecha huérfana en el form.
+                    if (!opt.value) onChange("vencimientoCertificacion", "")
+                  }}
+                  className={`px-4 py-2 text-xs md:text-sm rounded-lg border-2 transition-all ${
+                    !!values.tieneCertificacion === opt.value
+                      ? "border-primary bg-primary/10 text-primary font-medium"
+                      : "border-border bg-background text-foreground hover:border-primary/50"
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+
+              {values.tieneCertificacion && (
+                <div className="flex items-center gap-2">
+                  <Label className="text-xs md:text-sm font-medium text-foreground whitespace-nowrap">
+                    Venc. Certificación *
+                  </Label>
+                  <DatePicker
+                    value={values.vencimientoCertificacion || ""}
+                    onChange={(v) => onChange("vencimientoCertificacion", v)}
+                  />
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </>
+    )
+  }
+
   return (
     <>
       <ToastContainer toasts={toasts} onClose={removeToast} />
@@ -310,9 +490,9 @@ export function DriversManagement() {
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div className="hidden md:block">
-            <h2 className="text-lg md:text-xl font-bold text-foreground">Choferes</h2>
+            <h2 className="text-lg md:text-xl font-bold text-foreground">Choferes/Operadores</h2>
             <p className="text-muted-foreground mt-1 text-sm">
-              {stats.activos.length} choferes activos • {stats.bajas.length} dados de baja
+              {stats.activos.length} activos • {stats.bajas.length} dados de baja
             </p>
           </div>
           {canWrite && (
@@ -320,7 +500,7 @@ export function DriversManagement() {
               onClick={() => setShowNewForm(true)}
               className="w-full md:w-auto bg-primary hover:bg-primary/90 text-primary-foreground text-sm"
             >
-              + Nuevo Chofer
+              + Nuevo Chofer/Operador
             </Button>
           )}
         </div>
@@ -330,7 +510,7 @@ export function DriversManagement() {
           <Card className="p-6 md:p-8 bg-card border-border">
             <div className="space-y-6">
               <div className="flex items-center justify-between">
-                <h3 className="text-base md:text-lg font-semibold text-foreground">Registrar Nuevo Chofer</h3>
+                <h3 className="text-base md:text-lg font-semibold text-foreground">Registrar Nuevo Chofer/Operador</h3>
                 <button onClick={resetForm} className="p-1 hover:bg-muted rounded-lg transition-colors">
                   <X className="w-5 h-5 text-muted-foreground" />
                 </button>
@@ -416,6 +596,10 @@ export function DriversManagement() {
                     className="bg-input border-border text-foreground text-sm"
                   />
                 </div>
+
+                {renderLicenseFields(newDriver, (field, value) =>
+                  setNewDriver({ ...newDriver, [field]: value }),
+                )}
               </div>
 
               <div className="flex gap-3 pt-4 border-t border-border">
@@ -430,7 +614,7 @@ export function DriversManagement() {
                       Guardando...
                     </>
                   ) : (
-                    "Registrar Chofer"
+                    "Registrar Chofer/Operador"
                   )}
                 </Button>
                 <Button onClick={resetForm} variant="outline" className="text-sm">
@@ -446,7 +630,7 @@ export function DriversManagement() {
           <Card className="p-6 md:p-8 bg-card border-border">
             <div className="space-y-6">
               <div className="flex items-center justify-between">
-                <h3 className="text-base md:text-lg font-semibold text-foreground">Editar Chofer</h3>
+                <h3 className="text-base md:text-lg font-semibold text-foreground">Editar Chofer/Operador</h3>
                 <button onClick={() => setEditingDriver(null)} className="p-1 hover:bg-muted rounded-lg transition-colors">
                   <X className="w-5 h-5 text-muted-foreground" />
                 </button>
@@ -514,6 +698,10 @@ export function DriversManagement() {
                     className="bg-input border-border text-foreground text-sm"
                   />
                 </div>
+
+                {renderLicenseFields(editingDriver, (field, value) =>
+                  setEditingDriver({ ...editingDriver, [field]: value }),
+                )}
               </div>
 
               <div className="flex gap-3 pt-4 border-t border-border">
@@ -538,6 +726,9 @@ export function DriversManagement() {
             </div>
           </Card>
         )}
+
+        {/* Vencimientos de licencia y certificación */}
+        <DriverExpirationAlerts alerts={expirationAlerts} />
 
         {/* Filters */}
         <Card className="p-4 md:p-6 bg-card border-border">
@@ -614,6 +805,7 @@ export function DriversManagement() {
                   <th className="text-left font-medium px-4 py-3">Licencia</th>
                   <th className="text-left font-medium px-4 py-3">CUIT</th>
                   <th className="text-left font-medium px-4 py-3">Email</th>
+                  <th className="text-left font-medium px-4 py-3">Vencimientos</th>
                   <th className="text-left font-medium px-4 py-3">Vehículos</th>
                   <th className="text-left font-medium px-4 py-3">Estado</th>
                   <th className="text-left font-medium px-4 py-3">Acciones</th>
@@ -638,6 +830,25 @@ export function DriversManagement() {
                     </td>
                     <td className="px-4 py-3 text-foreground whitespace-nowrap">{driver.cuit}</td>
                     <td className="px-4 py-3 text-muted-foreground whitespace-nowrap">{driver.email || "—"}</td>
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      <div className="flex flex-wrap items-center gap-1">
+                        <ExpirationBadge
+                          label="Licencia"
+                          estado={driver.licenciaEstado}
+                          diasRestantes={driver.licenciaDiasRestantes}
+                          fecha={driver.vencimientoLicencia}
+                        />
+                        <ExpirationBadge
+                          label="Certif."
+                          estado={driver.certificacionEstado}
+                          diasRestantes={driver.certificacionDiasRestantes}
+                          fecha={driver.vencimientoCertificacion}
+                        />
+                        {!driver.licenciaEstado && !driver.certificacionEstado && (
+                          <span className="text-muted-foreground">—</span>
+                        )}
+                      </div>
+                    </td>
                     <td className="px-4 py-3 whitespace-nowrap">
                       {driver.vehiculosAsignados > 0 ? (
                         <span className="inline-flex items-center gap-1 text-foreground">
@@ -685,7 +896,7 @@ export function DriversManagement() {
             </table>
             {filteredDrivers.length === 0 && (
               <div className="text-center py-8">
-                <p className="text-sm text-muted-foreground">No hay choferes que coincidan con los filtros seleccionados.</p>
+                <p className="text-sm text-muted-foreground">No hay choferes/operadores que coincidan con los filtros seleccionados.</p>
               </div>
             )}
           </Card>
@@ -761,6 +972,23 @@ export function DriversManagement() {
                   )}
                 </div>
 
+                {(driver.licenciaEstado || driver.certificacionEstado) && (
+                  <div className="mt-3 flex flex-wrap items-center gap-1">
+                    <ExpirationBadge
+                      label="Licencia"
+                      estado={driver.licenciaEstado}
+                      diasRestantes={driver.licenciaDiasRestantes}
+                      fecha={driver.vencimientoLicencia}
+                    />
+                    <ExpirationBadge
+                      label="Certif."
+                      estado={driver.certificacionEstado}
+                      diasRestantes={driver.certificacionDiasRestantes}
+                      fecha={driver.vencimientoCertificacion}
+                    />
+                  </div>
+                )}
+
                 <div className="mt-3 pt-3 border-t border-border">
                   {driver.estado === "baja" ? (
                     <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-destructive/10 text-destructive">
@@ -781,9 +1009,9 @@ export function DriversManagement() {
           <Card className="p-8 bg-card border-border">
             <div className="text-center">
               <UserRound className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-              <h3 className="text-lg font-semibold text-foreground mb-2">Sin choferes</h3>
+              <h3 className="text-lg font-semibold text-foreground mb-2">Sin choferes/operadores</h3>
               <p className="text-sm text-muted-foreground">
-                No hay choferes que coincidan con los filtros seleccionados.
+                No hay choferes/operadores que coincidan con los filtros seleccionados.
               </p>
             </div>
           </Card>
@@ -798,7 +1026,7 @@ export function DriversManagement() {
           }}
           onConfirm={handleDeactivateDriver}
           type="confirm"
-          title="Dar de baja chofer"
+          title="Dar de baja chofer/operador"
           message={
             selectedDriver?.vehiculosAsignados
               ? `"${selectedDriver.nombreCompleto}" tiene ${selectedDriver.vehiculosAsignados} vehículo(s) asignado(s). Al darlo de baja seguirán asignados, pero no podrás elegirlo para nuevos vehículos. ¿Continuar?`

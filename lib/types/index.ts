@@ -379,6 +379,11 @@ export interface Machine {
   rtoEstado?: RtoEstado | null;
   rtoDiasRestantes?: number | null;
   incidenciasAbiertas: number;
+  requiereCertificacion: boolean;
+  tieneCertificacion: boolean;
+  vencimientoCertificacion?: string | null;
+  certificacionEstado?: RtoEstado | null;
+  certificacionDiasRestantes?: number | null;
 }
 
 export interface CreateMachineDTO {
@@ -396,6 +401,8 @@ export interface CreateMachineDTO {
   vencimientoRto?: string | null;
   tieneGps?: boolean;
   tieneTelepase?: boolean;
+  tieneCertificacion?: boolean;
+  vencimientoCertificacion?: string | null;
   ultimoService?: string | null;
 }
 
@@ -434,6 +441,8 @@ export interface UpdateNoteDTO extends Partial<Omit<CreateNoteDTO, 'parentId'>> 
   estado?: NoteEstado;
 }
 
+export type MachineryExpirationKind = 'rto' | 'certificacion';
+
 export interface MachineryExpirationAlert {
   id: string;
   codigoInterno?: string | null;
@@ -443,6 +452,9 @@ export interface MachineryExpirationAlert {
   patente?: string | null;
   choferId?: string | null;
   choferResponsable?: string | null;
+  tipoVencimiento: MachineryExpirationKind;
+  vencimiento: string;
+  /** Solo poblado en las filas de RTO. Para mostrar la fecha usá `vencimiento`. */
   vencimientoRto?: string | null;
   estado: RtoEstado;
   diasRestantes: number;
@@ -468,6 +480,14 @@ export interface Driver {
   companyId: string;
   createdAt: string;
   updatedAt: string;
+  vencimientoLicencia?: string | null;
+  licenciaEstado?: RtoEstado | null;
+  licenciaDiasRestantes?: number | null;
+  requiereCertificacion: boolean;
+  tieneCertificacion: boolean;
+  vencimientoCertificacion?: string | null;
+  certificacionEstado?: RtoEstado | null;
+  certificacionDiasRestantes?: number | null;
 }
 
 export interface CreateDriverDTO {
@@ -476,6 +496,9 @@ export interface CreateDriverDTO {
   tipoLicencia: string;
   cuit: string;
   email?: string | null;
+  vencimientoLicencia?: string | null;
+  tieneCertificacion?: boolean;
+  vencimientoCertificacion?: string | null;
 }
 
 export interface UpdateDriverDTO extends Partial<CreateDriverDTO> {}
@@ -483,6 +506,19 @@ export interface UpdateDriverDTO extends Partial<CreateDriverDTO> {}
 export interface DriverFilters {
   status?: DriverStatus | 'all';
   licenseType?: string | 'all';
+}
+
+export type DriverExpirationKind = 'licencia' | 'certificacion';
+
+export interface DriverExpirationAlert {
+  id: string;
+  nombreCompleto: string;
+  tipoLicencia: string;
+  cuit: string;
+  tipoVencimiento: DriverExpirationKind;
+  vencimiento: string;
+  estado: RtoEstado;
+  diasRestantes: number;
 }
 
 export interface DriverEventLogEntry {

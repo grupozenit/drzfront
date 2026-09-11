@@ -314,6 +314,7 @@ export const REPORT_FILTER_CATEGORIES = ACTIVITY_CATEGORY_LIST.filter(
 
 export const MACHINE_TYPES = [
     "Manipulador Telescópico",
+    "Camión Pluma",
     "Grúa",
     "Excavadora",
     "Retroexcavadora",
@@ -338,6 +339,39 @@ export function isVehicleType(tipo?: string | null): boolean {
     if (!tipo) return false;
     const tipoLower = tipo.toLowerCase();
     return VEHICLE_KEYWORDS.some((k) => tipoLower.includes(k));
+}
+
+/**
+ * Normaliza una etiqueta para comparar tipos: minúsculas, sin acentos y con
+ * espacios colapsados. Espejo de `normalize_label` en el backend
+ * (src/services/expirations.py).
+ */
+function normalizeLabel(value?: string | null): string {
+    return (value || "")
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .toLowerCase()
+        .trim()
+        .split(/\s+/)
+        .join(" ");
+}
+
+// Tipos de maquinaria que piden certificación habilitante (Sí/No + fecha de
+// vencimiento). Espejo de CERTIFIABLE_TYPES en el backend.
+const CERTIFIABLE_MACHINE_TYPES = ["camion pluma", "manipulador telescopico"];
+
+/** True si el tipo de maquinaria ofrece el par Certificación Sí/No + vencimiento. */
+export function requiresCertification(tipo?: string | null): boolean {
+    return CERTIFIABLE_MACHINE_TYPES.includes(normalizeLabel(tipo));
+}
+
+// Clases de licencia que habilitan maquinaria especial y piden certificación.
+// Espejo de CERTIFIABLE_LICENSE_TYPES en el backend.
+const CERTIFIABLE_LICENSE_TYPES = ["e2"];
+
+/** True si el tipo de licencia ofrece el par Certificación Sí/No + vencimiento. */
+export function licenseRequiresCertification(tipoLicencia?: string | null): boolean {
+    return CERTIFIABLE_LICENSE_TYPES.includes(normalizeLabel(tipoLicencia));
 }
 
 // ============================================
