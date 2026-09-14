@@ -203,7 +203,7 @@ The product name changed and so did the model. `project.hasBaseline` kept its na
 
 ## Activity Catalog
 
-`lib/constants/activities.ts` holds `ACTIVITY_CATEGORIES` — the 17 categories, their sub-activities and the unit each sub-activity is reported in. It's the mirror of `src/core/activity_catalog.py` in the backend, which **validates against it and returns 422** on mismatch, so the two files must say exactly the same thing. The backend test `tests/test_activity_catalog.py` parses this file and fails if they drift — run the backend suite after touching it.
+`lib/constants/activities.ts` holds `ACTIVITY_CATEGORIES` — the 18 categories, their sub-activities and the unit each sub-activity is reported in. It's the mirror of `src/core/activity_catalog.py` in the backend, which **validates against it and returns 422** on mismatch, so the two files must say exactly the same thing. The backend test `tests/test_activity_catalog.py` parses this file and fails if they drift — run the backend suite after touching it.
 
 - `subActivityLabels()`, `unitFor()`, `componentOptions()`, `componentLabel()` and `acceptsComponent()` are the accessors; don't reach into the record directly.
 - Sub-activity is required, except for `movilizacion` (no sub-activities, fixed unit `%`) and `otras` (free description + unit).

@@ -259,6 +259,7 @@ export type ActivityCategory =
   | 'inversores'
   | 'ensayos'
   | 'cts'
+  | 'cctv'
   | 'estructurasMenores'
   | 'cmm'
   | 'lamt'

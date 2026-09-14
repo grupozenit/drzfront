@@ -324,6 +324,7 @@ const CATEGORY_COLORS: Record<string, string> = {
   inversores: "#607D8B",
   ensayos: "#00897B",
   cts: "#E91E63",
+  cctv: "#546E7A",
   estructurasMenores: "#9C27B0",
   cmm: "#3949AB",
   lamt: "#00BCD4",

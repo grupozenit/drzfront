@@ -194,6 +194,17 @@ export const ACTIVITY_CATEGORIES: Record<
             { label: "Conexionado MT", unit: "ud" },
         ],
     },
+    cctv: {
+        id: "cctv",
+        label: "CCTV",
+        subActivities: [
+            { label: "Fundaciones", unit: "ud" },
+            { label: "Montaje", unit: "ud" },
+            { label: "Tendido FO", unit: "m" },
+            { label: "Tendido Potencia", unit: "m" },
+            { label: "Conexionado", unit: "ud" },
+        ],
+    },
     estructurasMenores: {
         id: "estructurasMenores",
         label: "Estructuras Menores",
