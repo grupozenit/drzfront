@@ -69,7 +69,7 @@ const withPWA = withPWAInit({
 
 // Frontend API de la instancia de producción de Clerk.
 // Clerk lo expone como clerk.<dominio de la app>; en desarrollo se usa *.clerk.accounts.dev.
-const CLERK_FRONTEND_API = 'https://clerk.reportes.grupozenit.com';
+const CLERK_FRONTEND_API = 'https://clerk.obras.grupozenit.com';
 
 // Clerk sirve el desafío de bot protection a través de Cloudflare Turnstile.
 const TURNSTILE = 'https://challenges.cloudflare.com';
