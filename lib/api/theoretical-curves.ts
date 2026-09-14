@@ -8,7 +8,11 @@ import type {
 const ENDPOINT = '/theoretical-curves';
 
 /**
- * Servicio de Curva Teórica de Avance
+ * Servicio de Curva Teórica de Avance.
+ *
+ * Lo que se guarda es el plan POR ACTIVIDAD. La curva del proyecto la deriva el
+ * backend ponderando ese plan con el peso de cada actividad en el alcance, y
+ * viaja en `dataPoints` de solo lectura: mandarla no la guarda.
  */
 export const theoreticalCurvesService = {
   /**
@@ -24,14 +28,15 @@ export const theoreticalCurvesService = {
   },
 
   /**
-   * Crea o reemplaza la curva teórica de un proyecto.
+   * Crea o reemplaza el plan teórico de un proyecto. Reemplaza el anterior
+   * entero: nunca se fusiona.
    */
   async create(projectId: string, data: CreateTheoreticalCurveDTO): Promise<TheoreticalCurve> {
     return apiClient.post<TheoreticalCurve>(`${ENDPOINT}/${projectId}`, data);
   },
 
   /**
-   * Actualiza la curva teórica de un proyecto.
+   * Reemplaza el plan teórico de un proyecto ya existente.
    */
   async update(projectId: string, data: Partial<CreateTheoreticalCurveDTO>): Promise<TheoreticalCurve> {
     return apiClient.put<TheoreticalCurve>(`${ENDPOINT}/${projectId}`, data);

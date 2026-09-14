@@ -161,9 +161,13 @@ const lastReport = await reportsService.getLatestByProject(projectId)
 - **`useOfflineReports`**: use in forms that create/edit reports. Offline-aware: queues to IndexedDB when offline, syncs on reconnect.
 - **`useReports`**: use in read-only views (history, dashboard). No offline queue.
 
-## Theoretical S curve — two ways in
+## Theoretical S curve — loaded per activity
 
-`theoretical-curve-setup.tsx` supports loading the curve by hand *and* by importing an Excel. Both are first-class and store exactly the same thing, so what gets imported stays editable in the table below. Don't drop either one.
+What the user loads is **one cumulative series per activity**, not a project curve: `theoretical-curve-setup.tsx` is a grid of activity (rows, from `ACTIVITY_CATEGORIES` minus `isCustom`) × week (columns). The project's S curve is **derived by the backend**, weighting each activity by its weight in the loaded scope, and arrives in `dataPoints` read-only — sending it does nothing. Post only `activities`.
+
+- **Two ways in, both first-class**: by hand in the grid *and* by importing the Excel (same shape: a row per activity, a column per week). They store exactly the same thing, so what gets imported stays editable. Don't drop either one.
+- **Surface the coverage.** `hasTotals: false` means the project has no scope yet and there is no curve to compute — the plan still saves. `coverage < 100` with `uncoveredActivities` means part of the scope has no plan, so the theoretical curve never reaches 100 and every deviation reads better than it is. Both warnings are rendered in the setup screen, and the Tablero repeats the second one under the chart.
+- **Client-side validation mirrors the server's** (each activity non-decreasing and ending at 100) so the user sees the problem in the grid instead of a 422 — but it is a convenience, never the control.
 
 `validateSpreadsheetFile()` is reused for the upload — a usability filter, not a control; the backend revalidates everything. A rejected import comes back 422 with `errors[]` (row, column, value, message); render them, because the file is all-or-nothing.
 

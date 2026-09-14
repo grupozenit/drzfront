@@ -608,6 +608,20 @@ function ProjectCard({
                 </LineChart>
               </ResponsiveContainer>
             </div>
+            {/* La teórica se pondera con el plan por actividad: si alguna del
+                alcance quedó sin plan, la curva no llega a 100 y el desvío se
+                lee mejor de lo que es. Decirlo acá evita leerla mal. */}
+            {sCurveData.theoretical && sCurveData.theoreticalCoverage < 99.9 && (
+              <p className="mt-2 text-[11px] text-muted-foreground">
+                Solo el {sCurveData.theoreticalCoverage.toFixed(0)}% del peso del proyecto
+                tiene curva teórica cargada, así que la teórica no llega a 100%.
+              </p>
+            )}
+            {!sCurveData.theoretical && (
+              <p className="mt-2 text-[11px] text-muted-foreground">
+                Sin curva teórica: cargá el plan por actividad en Configuración → Curva S.
+              </p>
+            )}
           </div>
         )
       })()}

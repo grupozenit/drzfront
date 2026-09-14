@@ -168,32 +168,64 @@ export interface WeeklyReportFilters {
 }
 
 // Curva Teórica
+//
+// Lo que se carga es el plan POR ACTIVIDAD: cuánto debería llevar avanzada cada
+// una al final de cada semana. La curva S del proyecto NO se carga: el backend
+// la deriva ponderando esas series con el peso de cada actividad en el alcance
+// (el mismo peso con el que se mide el avance real) y la devuelve en
+// `dataPoints`, de solo lectura.
 export interface TheoreticalCurveDataPoint {
   weekNumber: number;
   cumulativeProgress: number;
 }
 
+/** El plan de una actividad, con su nombre y su peso ya resueltos. */
+export interface TheoreticalActivityCurve {
+  category: ActivityCategory;
+  name: string;
+  /** Cuánto pesa la actividad en este proyecto (%). Lo calcula el backend. */
+  weight: number;
+  points: TheoreticalCurveDataPoint[];
+}
+
+/** Actividad del alcance que quedó sin plan teórico. */
+export interface UncoveredActivity {
+  category: ActivityCategory;
+  name: string;
+  weight: number;
+}
+
 export interface TheoreticalCurve {
   id: string;
   projectId: string;
+  activities: TheoreticalActivityCurve[];
+  /** Curva del proyecto, derivada. No se puede escribir. */
   dataPoints: TheoreticalCurveDataPoint[];
   totalWeeks: number | null;
+  /** % del peso del proyecto que tiene plan cargado. */
+  coverage: number;
+  uncoveredActivities: UncoveredActivity[];
+  /** Sin Totales cargados no hay con qué ponderar y `dataPoints` viene vacío. */
+  hasTotals: boolean;
   createdAt: string;
   updatedAt: string;
 }
 
 export interface CurveImportResult {
   projectId: string;
-  /** Semanas con avance cargado. */
-  weeks: number;
-  /** Última semana de la curva. */
+  /** Actividades con plan cargado. */
+  activities: number;
+  /** Última semana planificada. */
   totalWeeks: number;
   rowsRead: number;
+  cellsRead: number;
 }
 
 export interface CreateTheoreticalCurveDTO {
-  dataPoints: TheoreticalCurveDataPoint[];
-  totalWeeks?: number | null;
+  activities: Array<{
+    category: ActivityCategory;
+    points: TheoreticalCurveDataPoint[];
+  }>;
 }
 
 // ============================================
@@ -781,7 +813,11 @@ export interface ProjectSCurve {
   projectId: string;
   projectName: string;
   real: SCurvePoint[];
+  /** Derivada del plan por actividad. Null si no hay plan o no hay Totales. */
   theoretical: TheoreticalCurveDataPoint[] | null;
+  /** % del peso del proyecto con plan cargado: por debajo de 100 la teórica
+   *  no llega a 100 y el desvío se lee mejor de lo que es. */
+  theoreticalCoverage: number;
 }
 
 // ============================================
