@@ -182,5 +182,4 @@ Para preguntas sobre:
 ---
 
 **Versión:** 1.0  
-**Última actualización:** Diciembre 2024
-
+**Última actualización:** Septiembre de 2026
