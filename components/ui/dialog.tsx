@@ -59,7 +59,9 @@ export function Dialog({
             <p className="text-sm text-muted-foreground">{message}</p>
           </div>
         )}
-        {children}
+        {/* El contenido custom lleva el mismo padding que el mensaje; si ya hubo
+            mensaje arriba, solo se agrega el inferior para no duplicarlo. */}
+        {children && <div className={message ? "px-6 pb-6" : "p-6"}>{children}</div>}
 
         {/* Footer */}
         <div className="flex items-center justify-end gap-3 p-6 border-t border-border">

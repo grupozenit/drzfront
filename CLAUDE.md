@@ -38,13 +38,23 @@ Server-side requests also read `API_URL` (internal network URL) with fallback to
 - Each user must belong to a Clerk Organization (`orgId`). The organization maps to a company in the backend.
 - `OrganizationProvider` (`components/providers/organization-provider.tsx`) auto-activates the user's first organization if none is active.
 - `ClerkApiConfig` (`lib/api/clerk-config.tsx`) injects `getToken` into the API client singleton at app startup.
-- Onboarding is complete when the org has at least one project. `app/page.tsx` is the onboarding gate: routes to `/tablero` if ready, shows `FirstProjectModal` for org admins, or shows error states for non-admins.
+- Onboarding is complete when the org has at least one project. `app/page.tsx` is the onboarding gate: routes to the user's role landing (see Roles & Permissions below) if ready, shows `FirstProjectModal` for org admins, or shows error states for non-admins.
+
+### Roles & Permissions
+
+- **Backend is the only source of truth.** The frontend never reimplements the permission matrix — it fetches `GET /me` (via `meService`, wired into `AppContext`) and exposes it through `usePermissions()`.
+- `usePermissions()` (from `lib/contexts/AppContext.tsx`, re-exported via `lib/hooks`) returns `{ role, scope, projectIds, landing, can(resource, action), canAccessProject(id) }`. `can()` returns `false` for everything until `/me` has actually loaded — never assume access by default.
+- **Route ↔ resource mapping** lives in one place: `lib/permissions/route-access.ts` (`isNavItemVisible` for the sidebar, `checkRouteAccess` for the layout guard). Update it there, not per-component, if a route's resource changes.
+- `components/layout/sidebar.tsx` filters `navItems` through `isNavItemVisible` — a role with no read access to a resource never sees it in the menu, not even greyed out.
+- `app/(dashboard)/layout.tsx` waits for permissions to load before rendering (avoids a flash of the full sidebar), redirects to `landing` when the current route isn't in the user's `can()`, and renders a dedicated "pendiente de asignación" screen for role `sin_rol` instead of an empty dashboard.
+- Six roles: `tecnologia | gerente_general | gerente_proyecto | jefe_obra | compras | sin_rol`. `gerente_proyecto` and `jefe_obra` have `scope: "assigned"` — every list they see (projects, reports, machinery…) is already filtered server-side to their assigned projects; the frontend does not filter again.
+- Role/project assignment UI is in `components/setup/team-management.tsx` (`AppRoleEditor`), gated behind `can('usuarios', 'update')` — only `tecnologia` sees it. Uses `teamService.changeRole` / `teamService.updateProjectAssignments`, distinct from the Clerk-identity invite flow in the same file (`organization.inviteMember`).
 
 ### Data Flow
 
-Initial data is loaded in the **root Server Component** (`app/layout.tsx`) via `lib/api/server.ts` using Clerk's server-side `auth()`. This pre-populates `AppProvider` to avoid client-side waterfalls.
+Initial data is loaded in the **root Server Component** (`app/layout.tsx`) via `lib/api/server.ts` using Clerk's server-side `auth()`. This pre-populates `AppProvider` to avoid client-side waterfalls. `permissions` (from `GET /me`) has no server-side preload — `AppProvider` fetches it client-side unconditionally on mount, independent of whether `initialData` was provided (see the dedicated `useEffect` for it in `AppContext.tsx`).
 
-`AppContext` (`lib/contexts/AppContext.tsx`) is the single global state store (React Context + useState). It holds company, projects, team, machinery, baselines, and dashboard summary. Convenience hooks are exported from the same file: `useProjects`, `useCompany`, `useTeam`, `useMachinery`, `useSelectedProject`.
+`AppContext` (`lib/contexts/AppContext.tsx`) is the single global state store (React Context + useState). It holds company, projects, team, machinery, baselines, dashboard summary, and permissions. Convenience hooks are exported from the same file: `useProjects`, `useCompany`, `useTeam`, `useMachinery`, `useSelectedProject`, `usePermissions`.
 
 ### API Client
 
@@ -106,6 +116,22 @@ The backend is a separate FastAPI service (not in this repo). Critical conventio
 - UUIDs as **strings**
 - Backend docs are in `docs/API_BACKEND.md`, `docs/BACKEND_SETUP.md`, `docs/FRONTEND.md`
 
+## Brand Colors
+
+Two accent colors, defined once as tokens in `app/globals.css` (light and dark):
+
+| Token | Color | Role |
+|---|---|---|
+| `--primary`, `--ring`, `--sidebar-primary` | `#d68f2d` | Primary emphasis: confirm, submit, main action |
+| `--secondary`, `--accent`, `--sidebar-accent` | `#a1948b` | Secondary action, item hover |
+| `--chart-1..5` | `#d68f2d`, `#a1948b`, `#a55b00`, `#e1c188`, `#76675e` | Chart series, alternating the two accents |
+
+Both accents are **light** colors: white text on them lands at ~2.7:1, well below WCAG AA. That's why `--primary-foreground` / `--secondary-foreground` / `--accent-foreground` are a dark brown (`oklch(0.18 0.015 60)`, ≈7:1), not white. Never pair `bg-primary` with `text-white` — use `text-primary-foreground`.
+
+Use the tokens, not raw hexes. The few hardcoded spots that can't (Clerk's `appearance` in `app/layout.tsx`, the PWA `theme_color` in `app/manifest.ts`, Recharts `fill`/`stroke`) carry the hex literal with a comment.
+
+**Not** part of this palette: categorical status colors — role badges in `team-management.tsx`, machinery/equipment event colors, fleet note types, toast variants, and `CATEGORY_COLORS` for activities. Those encode meaning, so they keep their own blue/cyan/purple/green/amber scale. The backend PDFs mirror the same two accents (`BRAND_PRIMARY` in `src/services/*pdf_generator.py`).
+
 ## API Client — Error Handling
 
 `ApiError` shape: `{ message: string, code: string, details?: unknown }` where `code` is the HTTP status as a string. To check for a 404:
@@ -134,6 +160,67 @@ const lastReport = await reportsService.getLatestByProject(projectId)
 ### Hooks: useReports vs useOfflineReports
 - **`useOfflineReports`**: use in forms that create/edit reports. Offline-aware: queues to IndexedDB when offline, syncs on reconnect.
 - **`useReports`**: use in read-only views (history, dashboard). No offline queue.
+
+## Theoretical S curve — loaded per activity
+
+What the user loads is **one cumulative series per activity**, not a project curve: `theoretical-curve-setup.tsx` is a grid of activity (rows, from `ACTIVITY_CATEGORIES` minus `isCustom`) × week (columns). The project's S curve is **derived by the backend**, weighting each activity by its weight in the loaded scope, and arrives in `dataPoints` read-only — sending it does nothing. Post only `activities`.
+
+- **Two ways in, both first-class**: by hand in the grid *and* by importing the Excel (same shape: a row per activity, a column per week). They store exactly the same thing, so what gets imported stays editable. Don't drop either one.
+- **Surface the coverage.** `hasTotals: false` means the project has no scope yet and there is no curve to compute — the plan still saves. `coverage < 100` with `uncoveredActivities` means part of the scope has no plan, so the theoretical curve never reaches 100 and every deviation reads better than it is. Both warnings are rendered in the setup screen, and the Tablero repeats the second one under the chart.
+- **Client-side validation mirrors the server's** (each activity non-decreasing and ending at 100) so the user sees the problem in the grid instead of a 422 — but it is a convenience, never the control.
+
+`validateSpreadsheetFile()` is reused for the upload — a usability filter, not a control; the backend revalidates everything. A rejected import comes back 422 with `errors[]` (row, column, value, message); render them, because the file is all-or-nothing.
+
+## Progress percentages
+
+The backend does all the maths; the frontend only renders. Two different numbers travel per category and it's easy to confuse them:
+
+- **`stage.progress`** — how far along that category is, 0-100, weighting its sub-activities with the client's ponderación. This is the bar next to the category name.
+- **`stage.weight`** — how much that category counts toward the project's overall figure, after redistributing over the scope actually loaded. The weights of all the stages add up to 100.
+
+Sub-activity rows stay a plain `reportado / total`; they are not weighted.
+
+Never recompute a weighted percentage in the client: the weights live in `src/core/activity_weights.py` on the server, generated from the client's spreadsheet. `getAverageProgress()` in `dashboard-overview.tsx` is only a fallback for when `overallProgress` is missing, and it's deliberately a simple mean rather than a half-right reimplementation.
+
+## Weekly report
+
+`weekly-report-history.tsx` lists, generates, downloads and exports. The PDF and the Excel are built entirely on the server — the frontend never assembles report content, it only picks a project and a week.
+
+- **`reportNumber` is what identifies the report**, not `weekNumber`. The first is the correlative of the informe (1, 2, 3…) and has no gaps; the second is the *project* week and does — a week with no report has no number. Show the correlative as the badge and keep the week as context.
+- **`EXCEL_SECTIONS` mirrors `ALL_SECTIONS` in `weekly_excel_generator.py`.** The backend silently ignores an unknown section, so a stale key doesn't break the download — it just quietly stops producing that sheet, which is worse. Update both together.
+- Manual generation posts the Monday and Sunday of the week; regenerating passes `force` and **keeps the same report number**.
+
+## Project Totals (the work scope)
+
+`components/setup/totals-setup.tsx` replaced the manual baseline form. The scope is loaded **by uploading an Excel template only** — download it with `projectTotalsService.downloadTemplate()`, upload the filled copy, then adjust quantities inline. It's mounted from `project-management.tsx`, gated by `can("totales", "update")`.
+
+- `validateSpreadsheetFile()` in `lib/utils/sanitize.ts` is a **usability filter, not a control** — the backend revalidates extension, MIME, magic bytes and ZIP structure. Never treat a client-side check as the defense.
+- A rejected import returns 422 with `errors[]` (row, column, value, message). Render them: the file is all-or-nothing, so the user needs to know exactly what to fix.
+- Re-uploading replaces the whole scope **and discards manual quantity edits** — confirm before doing it.
+- Only items with `applies: true` are shown; the rest aren't part of the project's scope.
+
+`Baseline`, `baselinesService`, `useBaseline`, `lib/utils/calculations.ts` and `lib/constants/weights.ts` were all deleted. The last two were dead code that duplicated the backend's now-obsolete weights.
+
+## "Línea Base" is called "Totales" in the UI
+
+The product name changed and so did the model. `project.hasBaseline` kept its name — it's already in the API contract and renaming it buys nothing.
+
+## Activity Catalog
+
+`lib/constants/activities.ts` holds `ACTIVITY_CATEGORIES` — the 18 categories, their sub-activities and the unit each sub-activity is reported in. It's the mirror of `src/core/activity_catalog.py` in the backend, which **validates against it and returns 422** on mismatch, so the two files must say exactly the same thing. The backend test `tests/test_activity_catalog.py` parses this file and fails if they drift — run the backend suite after touching it.
+
+- `subActivityLabels()`, `unitFor()`, `componentOptions()`, `componentLabel()` and `acceptsComponent()` are the accessors; don't reach into the record directly.
+- Sub-activity is required, except for `movilizacion` (no sub-activities, fixed unit `%`) and `otras` (free description + unit).
+- `component` carries a **third selector**, offered only by the categories that define one: `obraElectrica` (label "Tipo de Cable", options `CABLE_TYPES`) and `estructurasMenores` (label "Componentes", options `STRUCTURE_COMPONENTS`). Read them with `componentOptions()` / `componentLabel()` / `acceptsComponent()` — never hardcode either list. It's optional, and the two lists don't cross: the backend returns 422 for a cable on a structure or vice versa.
+- **Pass the sub-activity to `componentOptions(category, subActivity)`.** Some pairs don't exist (`excludedCombinations`; e.g. Cable BT/CC is never dug or covered), and the backend rejects them with "no aplica a". Reading `cat.components` directly would offer an option the server refuses. `ActivityForm` also clears the chosen component when the new sub-activity doesn't accept it.
+- `ActivityForm` renders straight from the catalog — it has no local copy any more.
+- `BASELINE_ACTIVITY_MAPPING` in the same file still points at the old taxonomy and is unused; it gets rewired with the progress engine.
+
+## Daily Report — sending and validation
+
+`reportsService.create()` and `update()` **always** send `FormData` with a `data` field, with or without photos. The endpoint reads the report from a form field, so a plain JSON body leaves it empty and the backend answers "Se requiere campo 'data'". Photos are optional; sending zero of them is normal.
+
+Numbers are parsed with `Number()`, never `parseFloat()`. `parseFloat("45abc")` returns `45` and `parseFloat("abc")` returns `NaN`, which the old `|| 0` turned into a silent zero — a typo travelled to the backend as a quantity of zero and nobody noticed. `findNumericError()` in `daily-report-form.tsx` runs before both submit and draft, and its bounds mirror the backend's; an empty field still counts as 0, so nothing became newly required.
 
 ## Daily Report Form — Gotchas
 

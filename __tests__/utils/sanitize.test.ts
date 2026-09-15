@@ -8,6 +8,7 @@ import {
   validateFileSize,
   validateFileType,
   validateImageFile,
+  validateSpreadsheetFile,
 } from '@/lib/utils/sanitize';
 
 // ─── sanitizeTextInput ────────────────────────────────────────────────────────
@@ -157,5 +158,39 @@ describe('validateImageFile', () => {
   it('acepta HEIC y WebP', () => {
     expect(validateImageFile(makeImageFile(1 * 1024 * 1024, 'image/heic')).valid).toBe(true);
     expect(validateImageFile(makeImageFile(1 * 1024 * 1024, 'image/webp')).valid).toBe(true);
+  });
+});
+
+
+// ─── validateSpreadsheetFile ─────────────────────────────────────────────────
+// Es un filtro de usabilidad, no un control: el backend revalida extensión,
+// MIME, magic bytes y estructura del ZIP.
+
+function xlsx(name: string, sizeMB = 0.01) {
+  const file = new File(['x'], name, {
+    type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  });
+  Object.defineProperty(file, 'size', { value: sizeMB * 1024 * 1024 });
+  return file;
+}
+
+describe('validateSpreadsheetFile', () => {
+  it('acepta un .xlsx chico', () => {
+    expect(validateSpreadsheetFile(xlsx('Plantilla_Totales.xlsx')).valid).toBe(true);
+  });
+
+  it('rechaza otra extensión aunque el MIME sea el correcto', () => {
+    expect(validateSpreadsheetFile(xlsx('totales.xls')).valid).toBe(false);
+  });
+
+  it('rechaza un archivo que supera los 2 MB', () => {
+    const result = validateSpreadsheetFile(xlsx('totales.xlsx', 5));
+    expect(result.valid).toBe(false);
+    expect(result.error).toContain('2 MB');
+  });
+
+  it('rechaza un MIME que no es el de xlsx', () => {
+    const file = new File(['x'], 'totales.xlsx', { type: 'application/pdf' });
+    expect(validateSpreadsheetFile(file).valid).toBe(false);
   });
 });

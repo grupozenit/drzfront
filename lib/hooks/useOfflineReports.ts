@@ -91,6 +91,8 @@ export function useOfflineReports(options?: { projectId?: string; autoLoad?: boo
         tomorrowTasks: data.tomorrowTasks,
         images: [],
         status: data.status,
+        // El correlativo lo asigna el backend: un reporte offline todavía no tiene
+        reportNumber: null,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
         createdBy: '',

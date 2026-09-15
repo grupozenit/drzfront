@@ -3,14 +3,62 @@ import type { ActivityCategory } from "@/lib/types";
 // ============================================
 // CATEGORÍAS DE ACTIVIDADES
 // ============================================
+// Única fuente de verdad del frontend: qué categorías existen, qué
+// sub-actividades tiene cada una y en qué unidad se mide cada sub-actividad.
+// El backend tiene la copia espejo en `src/core/activity_catalog.py` y valida
+// contra ella, así que las dos tienen que decir exactamente lo mismo.
+//
+// Reglas:
+// - La sub-actividad es obligatoria, salvo en las categorías que no tienen
+//   ninguna (`movilizacion`) y en la libre (`otras`).
+// - `otras` es la única de descripción y unidad libres.
+// - Algunas categorías abren un tercer selector, que viaja en el campo
+//   `component`: Obra Eléctrica pide el tipo de cable y Estructuras Menores el
+//   componente. Cada una trae sus opciones y su etiqueta.
+
+/** Opciones del tercer selector de Obra Eléctrica. */
+export const CABLE_TYPES = [
+    "Cable BT/AC",
+    "Cable BT/CC",
+    "Cable MT",
+    "Cable FO",
+    "Cable PAT",
+] as const;
+
+/** Opciones del tercer selector de Estructuras Menores. */
+export const STRUCTURE_COMPONENTS = [
+    "NCU",
+    "EMET",
+    "Pararrayos",
+    "Fundación Hinca",
+] as const;
+
+export type CableType = (typeof CABLE_TYPES)[number];
+export type StructureComponent = (typeof STRUCTURE_COMPONENTS)[number];
+
+export interface SubActivityConfig {
+    label: string;
+    /** Unidad en la que se reporta la cantidad de esta sub-actividad. */
+    unit: string;
+}
 
 export interface ActivityCategoryConfig {
     id: ActivityCategory;
     label: string;
-    subActivities?: string[];
-    components?: string[];
+    subActivities?: SubActivityConfig[];
+    /** Unidad fija, para las categorías sin sub-actividades. */
     unit?: string;
-    getUnit?: (subActivity: string) => string;
+    /** Opciones del tercer selector, que viaja en el campo `component`. */
+    components?: readonly string[];
+    /** Cómo se llama ese selector en el formulario. */
+    componentsLabel?: string;
+    /**
+     * Pares [sub-actividad, componente] que NO existen, aunque la categoría
+     * tenga esa sub-actividad y ese componente. Por defecto se ofrece el
+     * producto cartesiano; esto le saca lo que en obra no se da nunca.
+     */
+    excludedCombinations?: ReadonlyArray<readonly [string, string]>;
+    /** Solo "Otras": el usuario escribe descripción y unidad. */
     isCustom?: boolean;
 }
 
@@ -18,121 +66,191 @@ export const ACTIVITY_CATEGORIES: Record<
     ActivityCategory,
     ActivityCategoryConfig
 > = {
-    hincas: {
-        id: "hincas",
-        label: "Hincas",
-        subActivities: ["Replanteo", "Distribución", "Hincado", "Pre-Drilling"],
-        unit: "unidades",
+    movilizacion: {
+        id: "movilizacion",
+        label: "Movilización",
+        unit: "%",
+    },
+    cercoPerimetral: {
+        id: "cercoPerimetral",
+        label: "Cerco Perimetral",
+        subActivities: [
+            { label: "Colocación de Postes", unit: "ud" },
+            { label: "Tendido de Malla", unit: "m" },
+        ],
+    },
+    desconsolidacion: {
+        id: "desconsolidacion",
+        label: "Desconsolidación",
+        subActivities: [
+            { label: "Hincas", unit: "camión" },
+            { label: "Trackers", unit: "camión" },
+            { label: "Módulos", unit: "camión" },
+            { label: "Inversores", unit: "camión" },
+            { label: "Bobinas", unit: "camión" },
+            { label: "CTs", unit: "camión" },
+            { label: "Otros", unit: "camión" },
+        ],
+    },
+    preparacionTerreno: {
+        id: "preparacionTerreno",
+        label: "Preparación de Terreno",
+        subActivities: [
+            { label: "Desbroce", unit: "ha" },
+            { label: "Nivelación de Terreno", unit: "ha" },
+        ],
+    },
+    caminos: {
+        id: "caminos",
+        label: "Caminos",
+        subActivities: [
+            { label: "Apertura de Traza", unit: "m" },
+            { label: "Subbase", unit: "m" },
+            { label: "Base", unit: "m" },
+            { label: "Drenajes", unit: "m" },
+        ],
+    },
+    hincado: {
+        id: "hincado",
+        label: "Hincado",
+        subActivities: [
+            { label: "Ponchado", unit: "ud" },
+            { label: "Distribución", unit: "ud" },
+            { label: "Hincado", unit: "ud" },
+            { label: "Calidad de Hincado", unit: "ud" },
+            { label: "POT", unit: "ud" },
+            { label: "Mecanizados", unit: "ud" },
+            { label: "Pre-Drilling", unit: "ud" },
+            { label: "Micropilote", unit: "ud" },
+        ],
     },
     trackers: {
         id: "trackers",
         label: "Trackers",
         subActivities: [
-            "Pre-Armado",
-            "Distribución",
-            "Montaje",
-            "Alineación",
-            "Torque",
+            { label: "Distribución de Tubos", unit: "trk" },
+            { label: "Montaje", unit: "trk" },
+            { label: "Torque de Estructura", unit: "trk" },
+            { label: "Machinado", unit: "trk" },
         ],
-        components: [
-            "Soportes",
-            "Rodamientos",
-            "Tubos",
-            "Purlins",
-            "Motor",
-            "Amortiguadores",
-            "TCU",
-        ],
-        unit: "unidades",
     },
     modulos: {
         id: "modulos",
         label: "Módulos",
         subActivities: [
-            "Distribución",
-            "Montaje",
-            "Torque",
-            "Seriado",
-            "Escaneado",
+            { label: "Distribución", unit: "trk" },
+            { label: "Montaje", unit: "trk" },
+            { label: "Torque de Módulos", unit: "trk" },
+            { label: "Seriado", unit: "trk" },
         ],
-        unit: "unidades",
-    },
-    calidad: {
-        id: "calidad",
-        label: "Calidad",
-        subActivities: [
-            "Revire",
-            "Limado",
-            "Galvanizado",
-            "Mecanizado",
-            "Pull Out Test",
-        ],
-        unit: "unidades",
     },
     obraElectrica: {
         id: "obraElectrica",
         label: "Obra Eléctrica",
         subActivities: [
-            "Replanteo",
-            "Excavación",
-            "Tendido",
-            "Tapado",
-            "Confección Terminales MC4",
+            { label: "Excavación", unit: "m" },
+            { label: "Tendido", unit: "m" },
+            { label: "Tapado", unit: "m" },
+            { label: "Terminales", unit: "ud" },
         ],
-        components: [
-            "Cable BT/AC",
-            "Cable BT/CC",
-            "Cable MT",
-            "Cable FO",
-            "Cable PAT",
+        components: CABLE_TYPES,
+        componentsLabel: "Tipo de Cable",
+        // El BT/CC no se excava ni se tapa: va por bandeja, no enterrado.
+        excludedCombinations: [
+            ["Excavación", "Cable BT/CC"],
+            ["Tapado", "Cable BT/CC"],
         ],
-        getUnit: (subActivity: string) => {
-            const metrosActivities = [
-                "Replanteo",
-                "Excavación",
-                "Tendido",
-                "Tapado",
-            ];
-            return metrosActivities.includes(subActivity)
-                ? "metros"
-                : "unidades";
-        },
+    },
+    inversores: {
+        id: "inversores",
+        label: "Inversores",
+        subActivities: [
+            { label: "Hincado", unit: "ud" },
+            { label: "Montaje", unit: "ud" },
+            { label: "Conexionado", unit: "ud" },
+        ],
     },
     ensayos: {
         id: "ensayos",
         label: "Ensayos",
         subActivities: [
-            "Continuidad",
-            "Polaridad",
-            "Megado",
-            "Medición de VOC",
+            { label: "Resistencia del Aislamiento", unit: "inv" },
+            { label: "VOC String", unit: "inv" },
+            { label: "VOC TCU", unit: "inv" },
+            { label: "VLF", unit: "fase" },
+            { label: "PAT", unit: "inv" },
         ],
-        unit: "unidades",
-    },
-    inversores: {
-        id: "inversores",
-        label: "Inversores",
-        subActivities: ["Replanteo", "Hincado", "Montaje", "Conexión"],
-        unit: "unidades",
     },
     cts: {
         id: "cts",
         label: "CTs",
         subActivities: [
-            "Replanteo",
-            "Excavación",
-            "Armadura",
-            "Encofrado",
-            "Hormigonado",
-            "Montaje",
+            { label: "Excavación", unit: "ud" },
+            { label: "Armadura", unit: "ud" },
+            { label: "Encofrado", unit: "ud" },
+            { label: "Hormigonado/Montaje Premoldeados", unit: "ud" },
+            { label: "Montaje", unit: "ud" },
+            { label: "Conexionado BT/CA", unit: "ud" },
+            { label: "Conexionado MT", unit: "ud" },
         ],
-        unit: "unidades",
     },
-    preComisionamiento: {
-        id: "preComisionamiento",
-        label: "Pre-Comisionamiento",
-        subActivities: ["Inversores", "CTs", "Trackers"],
-        unit: "unidades",
+    cctv: {
+        id: "cctv",
+        label: "CCTV",
+        subActivities: [
+            { label: "Fundaciones", unit: "ud" },
+            { label: "Montaje", unit: "ud" },
+            { label: "Tendido FO", unit: "m" },
+            { label: "Tendido Potencia", unit: "m" },
+            { label: "Conexionado", unit: "ud" },
+        ],
+    },
+    estructurasMenores: {
+        id: "estructurasMenores",
+        label: "Estructuras Menores",
+        components: STRUCTURE_COMPONENTS,
+        componentsLabel: "Componentes",
+        subActivities: [
+            { label: "Excavación", unit: "ud" },
+            { label: "Armadura", unit: "ud" },
+            { label: "Encofrado", unit: "ud" },
+            { label: "Hormigonado", unit: "ud" },
+            { label: "Montaje", unit: "ud" },
+            { label: "Conexionado", unit: "ud" },
+        ],
+    },
+    cmm: {
+        id: "cmm",
+        label: "CMM",
+        subActivities: [
+            { label: "Excavación", unit: "ud" },
+            { label: "Armadura", unit: "ud" },
+            { label: "Encofrado", unit: "ud" },
+            { label: "Hormigonado", unit: "ud" },
+            { label: "Montaje/Construcción de Edificio", unit: "ud" },
+            { label: "Montaje de Equipos/Tableros", unit: "ud" },
+            { label: "Conexionado", unit: "ud" },
+        ],
+    },
+    lamt: {
+        id: "lamt",
+        label: "LAMT",
+        subActivities: [
+            { label: "Fundaciones", unit: "ud" },
+            { label: "Montaje de Postes", unit: "ud" },
+            { label: "Tendido de Cable MT/CA", unit: "m" },
+        ],
+    },
+    comisionado: {
+        id: "comisionado",
+        label: "Comisionado",
+        subActivities: [
+            { label: "Precomisionado Trackers", unit: "ud" },
+            { label: "Precomisionado Inversores", unit: "ud" },
+            { label: "Precomisionado Centros de Transformación", unit: "ud" },
+            { label: "Precomisionado Sistema de 33 kV", unit: "gl" },
+            { label: "Comisionado CMM", unit: "gl" },
+        ],
     },
     otras: {
         id: "otras",
@@ -140,6 +258,58 @@ export const ACTIVITY_CATEGORIES: Record<
         isCustom: true,
     },
 };
+
+/** Sub-actividades válidas de una categoría (vacío si no tiene). */
+export function subActivityLabels(category: ActivityCategory): string[] {
+    return ACTIVITY_CATEGORIES[category]?.subActivities?.map((s) => s.label) ?? [];
+}
+
+/**
+ * Unidad que corresponde a una categoría/sub-actividad.
+ * Devuelve "" para "Otras", donde la unidad la escribe el usuario.
+ */
+export function unitFor(
+    category: ActivityCategory,
+    subActivity?: string,
+): string {
+    const cat = ACTIVITY_CATEGORIES[category];
+    if (!cat || cat.isCustom) return "";
+    const sub = cat.subActivities?.find((s) => s.label === subActivity);
+    return sub?.unit ?? cat.unit ?? "";
+}
+
+/**
+ * Opciones del tercer selector, para una categoría o para una de sus
+ * sub-actividades.
+ *
+ * Sin `subActivity` devuelve todas las opciones de la categoría. Con ella,
+ * saca las combinaciones excluidas.
+ */
+export function componentOptions(
+    category: ActivityCategory,
+    subActivity?: string,
+): readonly string[] {
+    const cat = ACTIVITY_CATEGORIES[category];
+    const options = cat?.components ?? [];
+    if (!subActivity || !cat?.excludedCombinations?.length) return options;
+
+    const excluded = new Set(
+        cat.excludedCombinations
+            .filter(([sub]) => sub === subActivity)
+            .map(([, component]) => component),
+    );
+    return options.filter((option) => !excluded.has(option));
+}
+
+/** Cómo se llama el tercer selector de una categoría. */
+export function componentLabel(category: ActivityCategory): string {
+    return ACTIVITY_CATEGORIES[category]?.componentsLabel ?? "Componente";
+}
+
+/** True si la categoría abre el tercer selector. */
+export function acceptsComponent(category: ActivityCategory): boolean {
+    return componentOptions(category).length > 0;
+}
 
 // Lista de categorías para filtros y selectores
 export const ACTIVITY_CATEGORY_LIST = Object.values(ACTIVITY_CATEGORIES);
@@ -150,139 +320,68 @@ export const REPORT_FILTER_CATEGORIES = ACTIVITY_CATEGORY_LIST.filter(
 );
 
 // ============================================
-// MAPEO DE ACTIVIDADES A VARIABLES DE LÍNEA BASE
-// Esto determina de qué campo de la línea base se obtiene el total
-// ============================================
-
-export interface BaselineActivityMapping {
-    categoria: string;
-    actividades: Array<{
-        actividad: string;
-        variable: string;
-        subcategorias?: Array<{
-            actividad: string;
-            variable: string;
-        }>;
-    }>;
-}
-
-export const BASELINE_ACTIVITY_MAPPING: BaselineActivityMapping[] = [
-    {
-        categoria: "Hincas",
-        actividades: [
-            { actividad: "Replanteo", variable: "Hincas" },
-            { actividad: "Distribución", variable: "Hincas" },
-            { actividad: "Hincado", variable: "Hincas" },
-        ],
-    },
-    {
-        categoria: "Trackers",
-        actividades: [
-            {
-                actividad: "Distribución",
-                variable: "Trackers",
-                subcategorias: [
-                    { actividad: "Soportes", variable: "Soportes" },
-                    { actividad: "Rodamientos", variable: "Rodamientos" },
-                    { actividad: "Tubos", variable: "Tubos" },
-                    { actividad: "Purlins", variable: "Purlins" },
-                    { actividad: "Motor", variable: "Motor" },
-                    { actividad: "Amortiguadores", variable: "Amortiguador" },
-                    { actividad: "TCU", variable: "TCU" },
-                ],
-            },
-            {
-                actividad: "Montaje",
-                variable: "Trackers",
-                subcategorias: [
-                    { actividad: "Soportes", variable: "Soportes" },
-                    { actividad: "Rodamientos", variable: "Rodamientos" },
-                    { actividad: "Tubos", variable: "Tubos" },
-                    { actividad: "Purlins", variable: "Purlins" },
-                    { actividad: "Motor", variable: "Motor" },
-                    { actividad: "Amortiguador", variable: "Amortiguador" },
-                    { actividad: "TCU", variable: "TCU" },
-                ],
-            },
-        ],
-    },
-    {
-        categoria: "Módulos",
-        actividades: [
-            { actividad: "Montaje", variable: "Módulos" },
-            { actividad: "Torque", variable: "Módulos" },
-            { actividad: "Seriado", variable: "Módulos" },
-            { actividad: "Escaneado", variable: "Módulos" },
-        ],
-    },
-    {
-        categoria: "Montaje Eléctrico",
-        actividades: [
-            { actividad: "Replanteo De Zanja BT/AC", variable: "Cable BT/AC" },
-            { actividad: "Replanteo De Zanja BT/CC", variable: "Cable BT/CC" },
-            { actividad: "Replanteo De Zanja MT", variable: "Cable MT" },
-            { actividad: "Excavación De Zanja BT/AC", variable: "Cable BT/AC" },
-            { actividad: "Excavación De Zanja BT/CC", variable: "Cable BT/CC" },
-            { actividad: "Excavación De Zanja MT", variable: "Cable MT" },
-            { actividad: "Tendido De Cable BT/AC", variable: "Cable BT/AC" },
-            { actividad: "Tendido De Cable BT/CC", variable: "Cable BT/CC" },
-            { actividad: "Tendido De Cable MT", variable: "Cable MT" },
-            { actividad: "Tendido De Cable Solar", variable: "Trackers" },
-            { actividad: "Tapado De Zanja BT/AC", variable: "Cable BT/AC" },
-            { actividad: "Tapado De Zanja BT/CC", variable: "Cable BT/CC" },
-            { actividad: "Tapado De Zanja MT", variable: "Cable MT" },
-            { actividad: "Instalación TCU", variable: "TCU" },
-        ],
-    },
-    {
-        categoria: "Inversores",
-        actividades: [
-            { actividad: "Replanteo", variable: "2*Inversores" },
-            { actividad: "Hincado", variable: "2*Inversores" },
-            { actividad: "Montaje", variable: "Inversores" },
-            { actividad: "Conexión", variable: "Inversores" },
-        ],
-    },
-    {
-        categoria: "CTs",
-        actividades: [
-            { actividad: "Replanteo", variable: "CTs" },
-            { actividad: "Excavación", variable: "CTs" },
-            { actividad: "Armadura", variable: "CTs" },
-            { actividad: "Encofrado", variable: "CTs" },
-            { actividad: "Hormigonado", variable: "CTs" },
-            { actividad: "Montaje", variable: "CTs" },
-        ],
-    },
-    {
-        categoria: "Pre-Comisionamiento",
-        actividades: [
-            { actividad: "Inversores", variable: "Inversores" },
-            { actividad: "CTs", variable: "CTs" },
-            { actividad: "Trackers", variable: "Trackers" },
-        ],
-    },
-];
-
-// ============================================
 // TIPOS DE MAQUINARIA
 // ============================================
 
 export const MACHINE_TYPES = [
     "Manipulador Telescópico",
+    "Camión Pluma",
     "Grúa",
     "Excavadora",
     "Retroexcavadora",
     "Camión",
     "Camioneta",
+    "Combi",
     "Minicargador",
     "Rodillo Compactador",
-    "Generador",
-    "Compresor",
     "Otro",
 ] as const;
 
 export type MachineType = (typeof MACHINE_TYPES)[number];
+
+// Tipos de maquinaria que son vehículos (piden patente, chofer y RTO/VTV)
+export const VEHICLE_MACHINE_TYPES = ["Camión", "Camioneta", "Combi"] as const;
+
+const VEHICLE_KEYWORDS = ["camion", "camión", "camioneta", "combi", "pickup", "utilitario"];
+
+export function isVehicleType(tipo?: string | null): boolean {
+    if (!tipo) return false;
+    const tipoLower = tipo.toLowerCase();
+    return VEHICLE_KEYWORDS.some((k) => tipoLower.includes(k));
+}
+
+/**
+ * Normaliza una etiqueta para comparar tipos: minúsculas, sin acentos y con
+ * espacios colapsados. Espejo de `normalize_label` en el backend
+ * (src/services/expirations.py).
+ */
+function normalizeLabel(value?: string | null): string {
+    return (value || "")
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .toLowerCase()
+        .trim()
+        .split(/\s+/)
+        .join(" ");
+}
+
+// Tipos de maquinaria que piden certificación habilitante (Sí/No + fecha de
+// vencimiento). Espejo de CERTIFIABLE_TYPES en el backend.
+const CERTIFIABLE_MACHINE_TYPES = ["camion pluma", "manipulador telescopico"];
+
+/** True si el tipo de maquinaria ofrece el par Certificación Sí/No + vencimiento. */
+export function requiresCertification(tipo?: string | null): boolean {
+    return CERTIFIABLE_MACHINE_TYPES.includes(normalizeLabel(tipo));
+}
+
+// Clases de licencia que habilitan maquinaria especial y piden certificación.
+// Espejo de CERTIFIABLE_LICENSE_TYPES en el backend.
+const CERTIFIABLE_LICENSE_TYPES = ["e2"];
+
+/** True si el tipo de licencia ofrece el par Certificación Sí/No + vencimiento. */
+export function licenseRequiresCertification(tipoLicencia?: string | null): boolean {
+    return CERTIFIABLE_LICENSE_TYPES.includes(normalizeLabel(tipoLicencia));
+}
 
 // ============================================
 // TIPOS DE EQUIPOS Y HERRAMIENTAS
@@ -302,10 +401,21 @@ export const EQUIPMENT_TYPES = [
     "Amoladora",
     "Sierra Circular",
     "Pistola de Calor",
+    "Equipo POT (Pull Out Test)",
     "Otro",
 ] as const;
 
 export type EquipmentType = (typeof EQUIPMENT_TYPES)[number];
+
+export const POT_EQUIPMENT_TYPE = "Equipo POT (Pull Out Test)";
+
+const POT_KEYWORDS = ["pot", "pull out test"];
+
+export function isPotEquipment(tipo?: string | null): boolean {
+    if (!tipo) return false;
+    const tipoLower = tipo.toLowerCase();
+    return POT_KEYWORDS.some((k) => tipoLower.includes(k));
+}
 
 // ============================================
 // ETIQUETAS DE CLIMA
@@ -339,3 +449,35 @@ export const REPORT_STATUS_LABELS: Record<string, string> = {
     borrador: "Borrador",
     archivado: "Archivado",
 };
+
+// ============================================
+// TIPOS DE LICENCIA DE CONDUCIR (choferes y operadores)
+// ============================================
+
+export const LICENSE_TYPES = [
+    "B1", "B2",
+    "C1", "C2", "C3",
+    "D1", "D2", "D3",
+    "E1", "E2",
+] as const;
+
+export type LicenseType = (typeof LICENSE_TYPES)[number];
+
+export const LICENSE_LABELS: Record<string, string> = {
+    B1: "B1 — Automóviles y camionetas",
+    B2: "B2 — Automóviles con acoplado",
+    C1: "C1 — Camiones sin acoplado",
+    C2: "C2 — Camiones con acoplado",
+    C3: "C3 — Camiones articulados",
+    D1: "D1 — Transporte de pasajeros hasta 8",
+    D2: "D2 — Transporte de pasajeros más de 8",
+    D3: "D3 — Servicios de emergencia",
+    E1: "E1 — Maquinaria especial no agrícola",
+    E2: "E2 — Maquinaria especial con acoplado",
+};
+
+/** Etiqueta legible de un tipo de licencia (o el propio código si no está mapeado). */
+export function licenseLabel(tipo?: string | null): string {
+    if (!tipo) return "—";
+    return LICENSE_LABELS[tipo] || tipo;
+}

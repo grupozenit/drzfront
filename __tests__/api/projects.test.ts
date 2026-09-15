@@ -19,8 +19,6 @@ const mockProject = {
   id: 'proj-001',
   name: 'Proyecto Solar Test',
   companyId: 'company-001',
-  team: [],
-  recipients: [],
   status: 'active',
 };
 
@@ -77,54 +75,6 @@ describe('projectsService.delete', () => {
     (apiClient.delete as Mock).mockResolvedValue(undefined);
     await projectsService.delete('proj-001');
     expect(apiClient.delete).toHaveBeenCalledWith('/projects/proj-001');
-  });
-});
-
-// ─── addTeamMembers ───────────────────────────────────────────────────────────
-
-describe('projectsService.addTeamMembers', () => {
-  it('llama a apiClient.post con el array de miembros', async () => {
-    (apiClient.post as Mock).mockResolvedValue(mockProject);
-    await projectsService.addTeamMembers('proj-001', ['user_abc', 'user_def']);
-    expect(apiClient.post).toHaveBeenCalledWith('/projects/proj-001/team', {
-      members: ['user_abc', 'user_def'],
-    });
-  });
-});
-
-// ─── removeTeamMember ─────────────────────────────────────────────────────────
-
-describe('projectsService.removeTeamMember', () => {
-  it('llama a apiClient.delete con el miembro codificado', async () => {
-    (apiClient.delete as Mock).mockResolvedValue(mockProject);
-    await projectsService.removeTeamMember('proj-001', 'user_abc');
-    expect(apiClient.delete).toHaveBeenCalledWith(
-      `/projects/proj-001/team/${encodeURIComponent('user_abc')}`,
-    );
-  });
-});
-
-// ─── addRecipients ────────────────────────────────────────────────────────────
-
-describe('projectsService.addRecipients', () => {
-  it('llama a apiClient.post con el array de emails', async () => {
-    (apiClient.post as Mock).mockResolvedValue(mockProject);
-    await projectsService.addRecipients('proj-001', ['user@example.com']);
-    expect(apiClient.post).toHaveBeenCalledWith('/projects/proj-001/recipients', {
-      emails: ['user@example.com'],
-    });
-  });
-});
-
-// ─── removeRecipient ──────────────────────────────────────────────────────────
-
-describe('projectsService.removeRecipient', () => {
-  it('llama a apiClient.delete con el email codificado', async () => {
-    (apiClient.delete as Mock).mockResolvedValue(mockProject);
-    await projectsService.removeRecipient('proj-001', 'user@example.com');
-    expect(apiClient.delete).toHaveBeenCalledWith(
-      `/projects/proj-001/recipients/${encodeURIComponent('user@example.com')}`,
-    );
   });
 });
 

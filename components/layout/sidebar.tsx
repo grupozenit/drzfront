@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useRef, useEffect } from "react"
-import { ChevronLeft, Settings, LogOut, ClipboardCheck, Wrench, CalendarCheck } from "lucide-react"
+import { ChevronLeft, Settings, LogOut, ClipboardCheck, Wrench, CalendarCheck, Truck, UserRound } from "lucide-react"
 import { SignedIn, SignedOut, SignInButton, UserButton, useUser, useClerk } from "@clerk/nextjs"
 import { usePathname } from "next/navigation"
 import Link from "next/link"
@@ -12,6 +12,8 @@ import { DashboardControlIcon } from "@/components/icons/dashboard-control-icon"
 import { MachineryIcon } from "@/components/icons/machinery-icon"
 import { ThemeToggle } from "./theme-toggle"
 import { UserIcon } from "@/components/icons/user-icon"
+import { usePermissions } from "@/lib/contexts/AppContext"
+import { isNavItemVisible } from "@/lib/permissions/route-access"
 
 interface SidebarProps {
   isOpen: boolean
@@ -38,16 +40,21 @@ function UserInfo() {
 
 export function Sidebar({ isOpen, onToggle }: SidebarProps) {
   const pathname = usePathname()
-  
-  const navItems = [
+  const { can } = usePermissions()
+
+  const allNavItems = [
     { href: "/tablero", label: "Tablero de Control", icon: DashboardControlIcon },
     { href: "/avances", label: "Avances de Obra", icon: ProgressIcon },
     { href: "/reporte", label: "Reportes Diarios", icon: ReportIcon },
     { href: "/reporte-semanal", label: "Reportes Semanales", icon: CalendarCheck },
+    { href: "/flota", label: "Flota", icon: Truck },
+    { href: "/choferes", label: "Choferes/Operadores", icon: UserRound },
     { href: "/maquinaria", label: "Maquinaria", icon: MachineryIcon },
     { href: "/equipos", label: "Equipos", icon: Wrench },
     { href: "/configuracion", label: "Configuración", icon: Settings },
   ] as const
+
+  const navItems = allNavItems.filter((item) => isNavItemVisible(item.href, can))
 
   const isActive = (href: string) => {
     if (href === "/configuracion") {

@@ -5,10 +5,10 @@ import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { DailyReportForm } from "@/components/forms/daily-report-form"
 import { DateRangePicker } from "@/components/ui/date-range-picker"
-import { ChevronDown, Loader2, FileText, Eye, Download, Share2, Mail, MessageCircle, Edit, Trash2 } from "lucide-react"
+import { ChevronDown, Loader2, FileText, Eye, Download, Share2, MessageCircle, Edit, Trash2 } from "lucide-react"
 import { ReportPreviewModal } from "@/components/dashboard/report-preview-modal"
 import { useReports } from "@/lib/hooks/useReports"
-import { useProjects } from "@/lib/hooks"
+import { useProjects, usePermissions } from "@/lib/hooks"
 import { useToast, ToastContainer } from "@/components/ui/toast"
 import { Dialog } from "@/components/ui/dialog"
 import { ACTIVITY_CATEGORIES, REPORT_STATUS_LABELS } from "@/lib/constants/activities"
@@ -28,16 +28,14 @@ export function ReportHistory() {
   const [filterActivity, setFilterActivity] = useState("todas")
   const [filterStartDate, setFilterStartDate] = useState("")
   const [filterEndDate, setFilterEndDate] = useState("")
-  
+
   // Estados para diálogos
-  const [showEmailDialog, setShowEmailDialog] = useState(false)
-  const [selectedReportForEmail, setSelectedReportForEmail] = useState<DailyReport | null>(null)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [selectedReportForDelete, setSelectedReportForDelete] = useState<DailyReport | null>(null)
   const [reportToEdit, setReportToEdit] = useState<DailyReport | null>(null)
   const [showPreviewModal, setShowPreviewModal] = useState(false)
   const [selectedReportForPreview, setSelectedReportForPreview] = useState<DailyReport | null>(null)
-  
+
   // Toast
   const { toasts, success, error: showError, removeToast } = useToast()
 
@@ -49,10 +47,13 @@ export function ReportHistory() {
     error,
     loadReports,
     generatePDF,
-    sendEmail,
     shareWhatsApp,
     deleteReport,
   } = useReports()
+  const { can } = usePermissions()
+  const canCreate = can("reportes", "create")
+  const canUpdate = can("reportes", "update")
+  const canDelete = can("reportes", "delete")
 
   // Cargar datos iniciales
   useEffect(() => {
@@ -63,7 +64,7 @@ export function ReportHistory() {
   // Recargar reportes cuando cambian los filtros
   useEffect(() => {
     const filters: ReportFilters = {}
-    
+
     if (filterProject !== "todos") {
       filters.projectId = filterProject
     }
@@ -125,27 +126,29 @@ export function ReportHistory() {
       month: "long",
       year: "numeric",
     })
-    
-    // Obtener número de reporte (simulado basado en ID o fecha)
-    // En producción, esto vendría del backend
-    const reportNumber = Math.abs(report.id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0) % 1000) + 1
-    
+
+    // Correlativo por proyecto, asignado y persistido por el backend
+    // (daily_reports.report_number). Un borrador todavía no tiene número.
+    const numberLabel = report.reportNumber
+      ? ` N°${report.reportNumber.toString().padStart(3, '0')}`
+      : ''
+
     // Construir mensaje completo con toda la información
-    let message = `*REPORTE DIARIO DE OBRA N°${reportNumber.toString().padStart(3, '0')}*\n\n`
+    let message = `*REPORTE DIARIO DE OBRA${numberLabel}*\n\n`
     message += `*Proyecto:* ${projectName}\n`
     message += `*Fecha:* ${date}\n\n`
-    
+
     // Información general
     message += `*HORARIO*\n`
     message += `• Entrada: ${report.entryTime}\n`
     message += `• Salida: ${report.exitTime}\n\n`
-    
+
     // Personal
     message += `*PERSONAL EN SITIO*\n`
     message += `• Personal Directo: ${report.directStaff}\n`
     message += `• Personal Indirecto: ${report.indirectStaff}\n`
     message += `• Total: ${report.directStaff + report.indirectStaff}\n\n`
-    
+
     // Clima
     const weatherEmojis: Record<string, string> = {
       sunny: "Soleado",
@@ -156,12 +159,12 @@ export function ReportHistory() {
       hail: "Granizo",
     }
     message += `*CLIMA:* ${weatherEmojis[report.weather] || report.weather}\n\n`
-    
+
     // Día feriado
     if (report.isHoliday) {
       message += `*Día Feriado*\n\n`
     }
-    
+
     // Horas suspendidas
     if (report.hasSuspendedHours) {
       message += `*HORAS SUSPENDIDAS*\n`
@@ -171,7 +174,7 @@ export function ReportHistory() {
       }
       message += `\n`
     }
-    
+
     // Accidentes
     if (report.hasAccident) {
       message += `*ACCIDENTE*\n`
@@ -181,7 +184,7 @@ export function ReportHistory() {
       }
       message += `\n`
     }
-    
+
     // Actividades
     if (report.activities && report.activities.length > 0) {
       message += `*ACTIVIDADES REALIZADAS* (${report.activities.length})\n`
@@ -204,7 +207,7 @@ export function ReportHistory() {
       })
       message += `\n`
     }
-    
+
     // Tareas para mañana
     if (report.tomorrowTasks && report.tomorrowTasks.length > 0) {
       message += `*TAREAS PARA MAÑANA*\n`
@@ -213,34 +216,17 @@ export function ReportHistory() {
       })
       message += `\n`
     }
-    
-    message += `_Reporte generado automáticamente por Grupo Zenit_`
-    
+
+    message += `_Reporte generado automáticamente por sistema de Grupo Zenit_`
+
     shareWhatsApp(report.id, message)
   }
 
-  const handleSendEmail = async (report: DailyReport) => {
-    setSelectedReportForEmail(report)
-    setShowEmailDialog(true)
-  }
-
-  const confirmSendEmail = async () => {
-    if (!selectedReportForEmail) return
-    
-    try {
-      await sendEmail(selectedReportForEmail.id)
-      success("Email enviado", "El reporte se ha enviado a los destinatarios del proyecto")
-      setShowEmailDialog(false)
-      setSelectedReportForEmail(null)
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : "No se pudo enviar el email"
-      if (errorMessage.includes("destinatarios")) {
-        showError("Error", "No hay destinatarios configurados en el proyecto. Configúralos en Configuración → Proyectos")
-      } else {
-        showError("Error", errorMessage)
-      }
-    }
-  }
+  // El envío de reportes por correo está desactivado: el endpoint
+  // POST /reports/{id}/email acepta destinatarios arbitrarios (sin allowlist),
+  // así que queda cerrado en el backend mientras la función no se use
+  // (settings.reports_email_enabled). `reportsService.sendEmail` sigue existiendo
+  // para cuando se reactive, con los destinatarios acotados a los del proyecto.
 
   const handleEditReport = (report: DailyReport) => {
     setReportToEdit(report)
@@ -254,7 +240,7 @@ export function ReportHistory() {
 
   const confirmDeleteReport = async () => {
     if (!selectedReportForDelete) return
-    
+
     try {
       await deleteReport(selectedReportForDelete.id)
       success("Reporte eliminado", "El reporte se ha eliminado correctamente")
@@ -270,13 +256,13 @@ export function ReportHistory() {
     return (
       <>
         <ToastContainer toasts={toasts} onClose={removeToast} />
-        <DailyReportForm 
+        <DailyReportForm
           existingReport={reportToEdit}
           onBack={() => {
             setShowNewReportForm(false)
             setReportToEdit(null)
             loadReports() // Recargar reportes al volver
-          }} 
+          }}
         />
       </>
     )
@@ -285,24 +271,6 @@ export function ReportHistory() {
   return (
     <>
       <ToastContainer toasts={toasts} onClose={removeToast} />
-      
-      {/* Diálogo de confirmación de email */}
-      <Dialog
-        isOpen={showEmailDialog}
-        onClose={() => {
-          setShowEmailDialog(false)
-          setSelectedReportForEmail(null)
-        }}
-        onConfirm={confirmSendEmail}
-        title="Enviar Reporte por Correo"
-        message={
-          selectedReportForEmail 
-            ? `¿Deseas enviar el reporte del ${formatDateLocal(selectedReportForEmail.date)} del proyecto "${selectedReportForEmail.projectName}" a los destinatarios configurados?\n\nEl reporte se enviará con el PDF adjunto a los correos configurados en Configuración → Proyectos.`
-            : ""
-        }
-        confirmText="Enviar"
-        cancelText="Cancelar"
-      />
 
       {/* Diálogo de confirmación de eliminación */}
       <Dialog
@@ -337,12 +305,14 @@ export function ReportHistory() {
               {filteredReports.length} reportes encontrados
             </p>
           </div>
-          <Button
-            onClick={() => setShowNewReportForm(true)}
-            className="w-full md:w-auto bg-primary hover:bg-primary/90 text-primary-foreground text-sm"
-          >
-            + Nuevo Reporte Diario
-          </Button>
+          {canCreate && (
+            <Button
+              onClick={() => setShowNewReportForm(true)}
+              className="w-full md:w-auto bg-primary hover:bg-primary/90 text-primary-foreground text-sm"
+            >
+              + Nuevo Reporte Diario
+            </Button>
+          )}
         </div>
 
         {/* Filters */}
@@ -507,9 +477,11 @@ export function ReportHistory() {
               <p className="text-sm text-muted-foreground mb-4">
                 No hay reportes que coincidan con los filtros seleccionados.
               </p>
-              <Button onClick={() => setShowNewReportForm(true)}>
-                Crear Primer Reporte
-              </Button>
+              {canCreate && (
+                <Button onClick={() => setShowNewReportForm(true)}>
+                  Crear Primer Reporte
+                </Button>
+              )}
             </div>
           </Card>
         )}
@@ -577,29 +549,26 @@ export function ReportHistory() {
                                 >
                                   <MessageCircle className="w-4 h-4" />
                                 </button>
-                                <button
-                                  onClick={() => handleSendEmail(report)}
-                                  className="p-1.5 rounded hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
-                                  title="Enviar por correo"
-                                >
-                                  <Mail className="w-4 h-4" />
-                                </button>
                               </>
                             )}
-                            <button
-                              onClick={() => handleEditReport(report)}
-                              className="p-1.5 rounded hover:bg-muted transition-colors text-blue-600 dark:text-blue-400"
-                              title="Editar reporte"
-                            >
-                              <Edit className="w-4 h-4" />
-                            </button>
-                            <button
-                              onClick={() => handleDeleteReport(report)}
-                              className="p-1.5 rounded hover:bg-muted transition-colors text-red-600 dark:text-red-400"
-                              title="Eliminar reporte"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
+                            {canUpdate && (
+                              <button
+                                onClick={() => handleEditReport(report)}
+                                className="p-1.5 rounded hover:bg-muted transition-colors text-primary"
+                                title="Editar reporte"
+                              >
+                                <Edit className="w-4 h-4" />
+                              </button>
+                            )}
+                            {canDelete && (
+                              <button
+                                onClick={() => handleDeleteReport(report)}
+                                className="p-1.5 rounded hover:bg-muted transition-colors text-red-600 dark:text-red-400"
+                                title="Eliminar reporte"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            )}
                           </div>
                         </td>
                       </tr>
@@ -660,29 +629,26 @@ export function ReportHistory() {
                       >
                         <MessageCircle className="w-4 h-4" />
                       </button>
-                      <button
-                        onClick={() => handleSendEmail(report)}
-                        className="p-1.5 rounded hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
-                        title="Enviar por correo"
-                      >
-                        <Mail className="w-4 h-4" />
-                      </button>
                     </>
                   )}
-                  <button
-                    onClick={() => handleEditReport(report)}
-                    className="p-1.5 rounded hover:bg-muted transition-colors text-blue-600 dark:text-blue-400"
-                    title="Editar reporte"
-                  >
-                    <Edit className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={() => handleDeleteReport(report)}
-                    className="p-1.5 rounded hover:bg-muted transition-colors text-red-600 dark:text-red-400"
-                    title="Eliminar reporte"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+                  {canUpdate && (
+                    <button
+                      onClick={() => handleEditReport(report)}
+                      className="p-1.5 rounded hover:bg-muted transition-colors text-primary"
+                      title="Editar reporte"
+                    >
+                      <Edit className="w-4 h-4" />
+                    </button>
+                  )}
+                  {canDelete && (
+                    <button
+                      onClick={() => handleDeleteReport(report)}
+                      className="p-1.5 rounded hover:bg-muted transition-colors text-red-600 dark:text-red-400"
+                      title="Eliminar reporte"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  )}
                 </div>
               </Card>
             ))}

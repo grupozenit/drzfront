@@ -25,8 +25,8 @@ import { validateImageFile, sanitizeTextInput } from "@/lib/utils/sanitize"
 import { useProjects } from "@/lib/hooks"
 import { useOfflineReports } from "@/lib/hooks/useOfflineReports"
 import { reportsService } from "@/lib/api"
-import type { CreateReportDTO, WeatherType, ActivityEntry, DailyReport } from "@/lib/types"
-import { WEATHER_LABELS } from "@/lib/constants/activities"
+import type { CreateReportDTO, WeatherType, ActivityEntry, ActivityCategory, DailyReport } from "@/lib/types"
+import { WEATHER_LABELS, ACTIVITY_CATEGORIES } from "@/lib/constants/activities"
 
 interface Activity {
   id: string
@@ -264,6 +264,79 @@ export function DailyReportForm({ onBack, existingReport }: DailyReportFormProps
     }
   }
 
+  // Number() y no parseFloat(): parseFloat("45abc") devuelve 45 y parseFloat("abc")
+  // devuelve NaN, que el `|| 0` de antes convertía en 0 en silencio. Así, un
+  // error de tipeo viajaba al backend como una cantidad cero y nadie se enteraba.
+  const toNumber = (value: string): number | null => {
+    const trimmed = (value ?? "").trim()
+    if (trimmed === "") return null
+    const parsed = Number(trimmed)
+    return Number.isFinite(parsed) ? parsed : null
+  }
+
+  /** Primer campo numérico mal cargado, o null si están todos bien. */
+  const findNumericError = (): { title: string; message: string } | null => {
+    const checks: Array<{ label: string; raw: string; max: number; integer?: boolean }> = [
+      { label: "Personal indirecto", raw: indirectStaff, max: 100000, integer: true },
+      { label: "Personal directo", raw: directStaff, max: 100000, integer: true },
+    ]
+    if (hasSuspendedHours) {
+      checks.push({ label: "Horas suspendidas", raw: suspendedHours, max: 24 })
+    }
+
+    for (const check of checks) {
+      // Un campo vacío se sigue tomando como 0, como venía siendo: acá lo que
+      // se busca es el texto que NO es un número, no volver obligatorio nada.
+      if (!check.raw?.trim()) continue
+      const value = toNumber(check.raw)
+      if (value === null) {
+        return { title: "Dato inválido", message: `${check.label}: ingresá un número.` }
+      }
+      if (value < 0) {
+        return { title: "Dato inválido", message: `${check.label}: no puede ser negativo.` }
+      }
+      if (value > check.max) {
+        return { title: "Dato inválido", message: `${check.label}: no puede superar ${check.max}.` }
+      }
+      if (check.integer && !Number.isInteger(value)) {
+        return { title: "Dato inválido", message: `${check.label}: tiene que ser un número entero.` }
+      }
+    }
+
+    const completed = activities.filter(a => a.description.trim() !== "")
+    for (const [index, activity] of completed.entries()) {
+      const quantity = activity.quantity?.trim() ? toNumber(activity.quantity) : 0
+      if (quantity === null) {
+        return {
+          title: "Cantidad inválida",
+          message: `Actividad ${index + 1}: "${activity.quantity}" no es un número.`,
+        }
+      }
+      if (quantity < 0) {
+        return {
+          title: "Cantidad inválida",
+          message: `Actividad ${index + 1}: la cantidad no puede ser negativa.`,
+        }
+      }
+      if (quantity > 1000000000) {
+        return {
+          title: "Cantidad inválida",
+          message: `Actividad ${index + 1}: la cantidad es demasiado grande.`,
+        }
+      }
+
+      const workers = activity.workers?.trim() ? toNumber(activity.workers) : 0
+      if (workers === null || workers < 0 || !Number.isInteger(workers) || workers > 10000) {
+        return {
+          title: "Dato inválido",
+          message: `Actividad ${index + 1}: los trabajadores tienen que ser un número entero entre 0 y 10.000.`,
+        }
+      }
+    }
+
+    return null
+  }
+
   // Preparar datos del reporte
   const prepareReportData = (status: 'enviado' | 'borrador'): CreateReportDTO => {
     const selectedProjectData = projects.find(p => p.id === selectedProject)
@@ -274,11 +347,11 @@ export function DailyReportForm({ onBack, existingReport }: DailyReportFormProps
       isHoliday: isHoliday === "yes",
       entryTime,
       exitTime,
-      indirectStaff: parseInt(indirectStaff) || 0,
-      directStaff: parseInt(directStaff) || 0,
+      indirectStaff: toNumber(indirectStaff) ?? 0,
+      directStaff: toNumber(directStaff) ?? 0,
       weather,
       hasSuspendedHours,
-      suspendedHours: hasSuspendedHours ? parseFloat(suspendedHours) || 0 : undefined,
+      suspendedHours: hasSuspendedHours ? toNumber(suspendedHours) ?? 0 : undefined,
       suspendedReason: hasSuspendedHours ? suspendedReason : undefined,
       hasAccident,
       accidentWithInjury: hasAccident ? accidentWithInjury === "yes" : undefined,
@@ -290,10 +363,10 @@ export function DailyReportForm({ onBack, existingReport }: DailyReportFormProps
           subActivity: a.subActivity || '',
           component: a.component,
           description: a.description,
-          quantity: parseFloat(a.quantity) || 0,
+          quantity: toNumber(a.quantity) ?? 0,
           unit: a.unit,
           location: a.location,
-          workers: parseInt(a.workers) || 0,
+          workers: toNumber(a.workers) ?? 0,
           observations: a.observations,
         })),
       tomorrowTasks,
@@ -310,13 +383,19 @@ export function DailyReportForm({ onBack, existingReport }: DailyReportFormProps
       return
     }
     
-    if (!directStaff || parseInt(directStaff) === 0) {
+    if (!directStaff || toNumber(directStaff) === 0) {
       showError("Campo requerido", "Debes ingresar la cantidad de personal directo")
       return
     }
-    
-    if (!indirectStaff || parseInt(indirectStaff) === 0) {
+
+    if (!indirectStaff || toNumber(indirectStaff) === 0) {
       showError("Campo requerido", "Debes ingresar la cantidad de personal indirecto")
+      return
+    }
+
+    const numericError = findNumericError()
+    if (numericError) {
+      showError(numericError.title, numericError.message)
       return
     }
     
@@ -329,9 +408,10 @@ export function DailyReportForm({ onBack, existingReport }: DailyReportFormProps
       let errorMessage = "Debes completar al menos una actividad para crear el reporte."
       
       if (firstActivity.category && !firstActivity.subActivity) {
-        errorMessage = `Has seleccionado la categoría "${firstActivity.category}" pero falta seleccionar una SUB-ACTIVIDAD. Por favor haz clic en una de las opciones que aparecen debajo (ej: Montaje, Pre-Armado, etc.).`
+        const categoryLabel = ACTIVITY_CATEGORIES[firstActivity.category as ActivityCategory]?.label ?? firstActivity.category
+        errorMessage = `Has seleccionado la categoría "${categoryLabel}" pero falta seleccionar una SUB-ACTIVIDAD. Por favor haz clic en una de las opciones que aparecen debajo.`
       } else if (!firstActivity.category) {
-        errorMessage = "Debes hacer clic en una CATEGORÍA (Hincas, Trackers, Módulos, etc.) y luego en una SUB-ACTIVIDAD para completar la actividad."
+        errorMessage = "Debes hacer clic en una CATEGORÍA (Hincado, Trackers, Módulos, etc.) y luego en una SUB-ACTIVIDAD para completar la actividad."
       }
       
       showError("Actividad Incompleta", errorMessage)
@@ -369,6 +449,13 @@ export function DailyReportForm({ onBack, existingReport }: DailyReportFormProps
   const handleSaveDraft = async () => {
     if (!selectedProject) {
       showError("Error", "Debes seleccionar un proyecto")
+      return
+    }
+
+    // También en el borrador: sin esto, un número mal cargado se guarda como 0
+    const numericError = findNumericError()
+    if (numericError) {
+      showError(numericError.title, numericError.message)
       return
     }
 
@@ -576,6 +663,9 @@ export function DailyReportForm({ onBack, existingReport }: DailyReportFormProps
                 id="indirect-staff"
                 type="number"
                 min={0}
+                max={100000}
+                step={1}
+                inputMode="numeric"
                 value={indirectStaff}
                 onChange={(e) => setIndirectStaff(e.target.value)}
                 className="bg-input border-border text-foreground text-sm no-arrows"
@@ -591,6 +681,9 @@ export function DailyReportForm({ onBack, existingReport }: DailyReportFormProps
                 id="direct-staff"
                 type="number"
                 min={0}
+                max={100000}
+                step={1}
+                inputMode="numeric"
                 value={directStaff}
                 onChange={(e) => setDirectStaff(e.target.value)}
                 className="bg-input border-border text-foreground text-sm no-arrows"
@@ -636,6 +729,7 @@ export function DailyReportForm({ onBack, existingReport }: DailyReportFormProps
                 <div className="space-y-2">
                   <Label className="text-xs md:text-sm font-medium text-foreground">Descripción del accidente</Label>
                   <Textarea
+                    maxLength={1000}
                     value={accidentDescription}
                     onChange={(e) => setAccidentDescription(e.target.value)}
                     placeholder="Describa lo ocurrido, circunstancias, personas involucradas..."
@@ -701,6 +795,7 @@ export function DailyReportForm({ onBack, existingReport }: DailyReportFormProps
                     placeholder="Cantidad"
                     className="w-24 bg-input border-border text-foreground text-sm no-arrows"
                     min="0"
+                    max="24"
                     step="0.5"
                   />
                   <span className="text-sm text-muted-foreground">horas</span>
@@ -711,6 +806,7 @@ export function DailyReportForm({ onBack, existingReport }: DailyReportFormProps
               <div className="mt-3">
                 <Label className="text-xs md:text-sm font-medium text-foreground">Motivo de la suspensión</Label>
                 <Textarea
+                  maxLength={500}
                   value={suspendedReason}
                   onChange={(e) => setSuspendedReason(e.target.value)}
                   placeholder="Ej: Lluvia intensa, corte de energía, falta de materiales..."
@@ -897,6 +993,7 @@ export function DailyReportForm({ onBack, existingReport }: DailyReportFormProps
           {/* Add new task */}
           <div className="flex gap-2">
             <Input
+              maxLength={500}
               value={newTask}
               onChange={(e) => setNewTask(e.target.value)}
               onKeyPress={(e) => e.key === "Enter" && (e.preventDefault(), addTomorrowTask())}

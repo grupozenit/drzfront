@@ -6,6 +6,10 @@ import type {
   MachineFilters,
   PaginatedResponse,
   EventLogEntry,
+  MachineryExpirationAlert,
+  AssetNote,
+  CreateNoteDTO,
+  UpdateNoteDTO,
 } from '@/lib/types';
 
 const ENDPOINT = '/machinery';
@@ -153,6 +157,41 @@ export const machineryService = {
       unassigned: unassigned.length,
       inactive: inactive.length,
     };
+  },
+
+  /**
+   * Obtiene las máquinas con RTO/VTV vencido o próximo a vencer
+   */
+  async getExpirationAlerts(days: number = 30): Promise<MachineryExpirationAlert[]> {
+    return apiClient.get<MachineryExpirationAlert[]>(`${ENDPOINT}/alerts/expirations`, { days });
+  },
+
+  /**
+   * Obtiene la bitácora de una máquina
+   */
+  async getNotes(machineId: string, estado?: 'abierta' | 'resuelta' | 'all'): Promise<AssetNote[]> {
+    return apiClient.get<AssetNote[]>(`${ENDPOINT}/${machineId}/notes`, estado ? { estado } : undefined);
+  },
+
+  /**
+   * Crea una entrada de bitácora (incidencia raíz o seguimiento)
+   */
+  async createNote(machineId: string, data: CreateNoteDTO): Promise<AssetNote> {
+    return apiClient.post<AssetNote>(`${ENDPOINT}/${machineId}/notes`, data);
+  },
+
+  /**
+   * Actualiza una entrada de bitácora
+   */
+  async updateNote(machineId: string, noteId: string, data: UpdateNoteDTO): Promise<AssetNote> {
+    return apiClient.put<AssetNote>(`${ENDPOINT}/${machineId}/notes/${noteId}`, data);
+  },
+
+  /**
+   * Elimina una entrada de bitácora
+   */
+  async deleteNote(machineId: string, noteId: string): Promise<void> {
+    return apiClient.delete(`${ENDPOINT}/${machineId}/notes/${noteId}`);
   },
 };
 

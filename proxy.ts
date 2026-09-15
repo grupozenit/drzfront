@@ -8,12 +8,23 @@ const isPublicRoute = createRouteMatcher([
   '/api/webhooks(.*)',
 ])
 
-// Rutas del dashboard que requieren organización y proyecto
+// Rutas del dashboard que requieren organización y proyecto.
+//
+// Tiene que listar TODAS las secciones bajo app/(dashboard): una ruta que falte
+// acá igual queda protegida por el chequeo de `userId` de más abajo, pero se
+// saltea la verificación de organización, así que un usuario sin org carga la
+// página y recibe 403 del backend en vez de ser redirigido limpiamente.
+// Al agregar una sección nueva en app/(dashboard), agregarla también acá.
+//
+// Nota: '/reporte(.*)' ya cubre '/reporte-semanal'.
 const isDashboardRoute = createRouteMatcher([
   '/tablero(.*)',
   '/avances(.*)',
   '/configuracion(.*)',
   '/maquinaria(.*)',
+  '/equipos(.*)',
+  '/flota(.*)',
+  '/choferes(.*)',
   '/reporte(.*)',
 ])
 

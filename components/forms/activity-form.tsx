@@ -6,6 +6,14 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { ChevronDown, ChevronUp } from "lucide-react"
+import {
+  ACTIVITY_CATEGORIES,
+  acceptsComponent,
+  componentLabel,
+  componentOptions,
+  unitFor,
+} from "@/lib/constants/activities"
+import type { ActivityCategory } from "@/lib/types"
 
 interface Activity {
   id: string
@@ -28,71 +36,6 @@ interface ActivityFormProps {
   canRemove: boolean
 }
 
-// Tipo para las actividades predefinidas
-type PredefinedActivityCategory = {
-  label: string;
-  subActivities?: string[];
-  components?: string[];
-  unit?: string;
-  getUnit?: (subActivity: string) => string;
-  isCustom?: boolean;
-}
-
-// Definición de actividades predefinidas
-const predefinedActivities: Record<string, PredefinedActivityCategory> = {
-  hincas: {
-    label: "Hincas",
-    subActivities: ["Replanteo", "Distribución", "Hincado", "Pre-Drilling"],
-    unit: "unidades",
-  },
-  trackers: {
-    label: "Trackers",
-    subActivities: ["Pre-Armado", "Distribución", "Montaje", "Alineación", "Torque"],
-    components: ["Soportes", "Rodamientos", "Tubos", "Purlins", "Motor", "Amortiguadores", "TCU"],
-    unit: "unidades",
-  },
-  modulos: {
-    label: "Módulos",
-    subActivities: ["Distribución", "Montaje", "Torque", "Seriado", "Escaneado"],
-    unit: "unidades",
-  },
-  calidad: {
-    label: "Calidad",
-    subActivities: ["Revire", "Limado", "Galvanizado", "Mecanizado", "Pull Out Test"],
-    unit: "unidades",
-  },
-  obraElectrica: {
-    label: "Obra Eléctrica",
-    subActivities: ["Replanteo", "Excavación", "Tendido", "Tapado", "Confección Terminales MC4"],
-    components: ["Cable BT/AC", "Cable BT/CC", "Cable MT", "Cable FO", "Cable PAT"],
-    getUnit: (subActivity: string) => {
-      const metrosActivities = ["Replanteo", "Excavación", "Tendido", "Tapado"]
-      return metrosActivities.includes(subActivity) ? "metros" : "unidades"
-    },
-  },
-  ensayos: {
-    label: "Ensayos",
-    subActivities: ["Continuidad", "Polaridad", "Megado", "Medición de VOC"],
-    unit: "unidades",
-  },
-  inversores: {
-    label: "Inversores",
-    subActivities: ["Replanteo", "Hincado", "Montaje", "Conexión"],
-    unit: "unidades",
-  },
-  cts: {
-    label: "CTs",
-    subActivities: ["Replanteo", "Excavación", "Armadura", "Encofrado", "Hormigonado", "Montaje"],
-    unit: "unidades",
-  },
-  otras: {
-    label: "Otras",
-    isCustom: true,
-  },
-}
-
-type ActivityCategory = keyof typeof predefinedActivities
-
 export function ActivityForm({ activity, index, onUpdate, onRemove, canRemove }: ActivityFormProps) {
   const [selectedCategory, setSelectedCategory] = useState<ActivityCategory | null>(null)
   const [selectedSubActivity, setSelectedSubActivity] = useState<string | null>(null)
@@ -101,7 +44,7 @@ export function ActivityForm({ activity, index, onUpdate, onRemove, canRemove }:
 
   // Inicializar estados locales con los valores de la actividad si existen (modo edición)
   useEffect(() => {
-    if (activity.category && activity.category in predefinedActivities) {
+    if (activity.category && activity.category in ACTIVITY_CATEGORIES) {
       setSelectedCategory(activity.category as ActivityCategory)
     }
     if (activity.subActivity) {
@@ -112,86 +55,81 @@ export function ActivityForm({ activity, index, onUpdate, onRemove, canRemove }:
     }
   }, [activity.id]) // Solo ejecutar cuando cambia el ID de la actividad
 
+  // La descripción se arma sola a partir de lo elegido; para "Otras" la escribe
+  // el usuario. El tipo de cable, cuando aplica, se anexa al final.
+  const buildDescription = (
+    category: ActivityCategory,
+    subActivity: string | null,
+    component: string | null,
+  ): string => {
+    const label = ACTIVITY_CATEGORIES[category].label
+    const base = subActivity ? `${label} - ${subActivity}` : label
+    return component ? `${base} de ${component}` : base
+  }
+
   const handleCategorySelect = (category: ActivityCategory) => {
     setSelectedCategory(category)
     setSelectedSubActivity(null)
     setSelectedComponent(null)
 
-    // Actualizar el campo category en el estado del padre
     onUpdate(activity.id, "category", category)
+    onUpdate(activity.id, "subActivity", "")
+    onUpdate(activity.id, "component", "")
 
     if (category === "otras") {
+      // Descripción y unidad libres: se limpian para que las cargue el usuario
       onUpdate(activity.id, "description", "")
       onUpdate(activity.id, "unit", "")
-      onUpdate(activity.id, "subActivity", "")
-      onUpdate(activity.id, "component", "")
+      return
+    }
+
+    // Las categorías sin sub-actividades (Movilización) ya quedan completas
+    if (!ACTIVITY_CATEGORIES[category].subActivities?.length) {
+      onUpdate(activity.id, "description", buildDescription(category, null, null))
+      onUpdate(activity.id, "unit", unitFor(category))
+    } else {
+      onUpdate(activity.id, "description", "")
+      onUpdate(activity.id, "unit", "")
     }
   }
 
   const handleSubActivitySelect = (subActivity: string) => {
+    if (!selectedCategory) return
     setSelectedSubActivity(subActivity)
-    
-    // Actualizar el campo subActivity en el estado del padre
+
+    // El componente que estaba elegido puede no aplicar a la sub-actividad
+    // nueva (hay combinaciones que el catálogo no ofrece): se limpia, o el
+    // backend rechazaría el reporte con un error que el usuario no entendería.
+    const stillValid =
+      selectedComponent &&
+      componentOptions(selectedCategory, subActivity).includes(selectedComponent)
+    const component = stillValid ? selectedComponent : null
+    if (!stillValid) setSelectedComponent(null)
+
     onUpdate(activity.id, "subActivity", subActivity)
-    
-    const categoryData = predefinedActivities[selectedCategory!]
-    let description = ""
-    let unit = "unidades"
-
-    if (selectedCategory === "obraElectrica") {
-      const obraData = categoryData as PredefinedActivityCategory & { getUnit: (subActivity: string) => string }
-      unit = obraData.getUnit(subActivity)
-      if (selectedComponent) {
-        description = `${categoryData.label} - ${subActivity} de ${selectedComponent}`
-      } else {
-        description = `${categoryData.label} - ${subActivity}`
-      }
-    } else if ("components" in categoryData && categoryData.components) {
-      if (selectedComponent) {
-        description = `${categoryData.label} - ${subActivity} de ${selectedComponent}`
-      } else {
-        description = `${categoryData.label} - ${subActivity}`
-      }
-      unit = categoryData.unit || "unidades"
-    } else {
-      description = `${categoryData.label} - ${subActivity}`
-      unit = categoryData.unit || "unidades"
-    }
-
-    onUpdate(activity.id, "description", description)
-    onUpdate(activity.id, "unit", unit)
+    onUpdate(activity.id, "component", component ?? "")
+    onUpdate(activity.id, "description", buildDescription(selectedCategory, subActivity, component))
+    onUpdate(activity.id, "unit", unitFor(selectedCategory, subActivity))
   }
 
   const handleComponentSelect = (component: string) => {
-    setSelectedComponent(component)
-    
-    // Actualizar el campo component en el estado del padre
-    onUpdate(activity.id, "component", component)
-    
-    const categoryData = predefinedActivities[selectedCategory!]
-    let description = ""
-    let unit = "unidades"
+    if (!selectedCategory) return
+    // Volver a tocar la misma opción la deselecciona: el campo es opcional
+    const next = selectedComponent === component ? null : component
+    setSelectedComponent(next)
 
-    if (selectedSubActivity) {
-      description = `${categoryData.label} - ${selectedSubActivity} de ${component}`
-      if (selectedCategory === "obraElectrica") {
-        const obraData = categoryData as PredefinedActivityCategory & { getUnit: (subActivity: string) => string }
-        unit = obraData.getUnit(selectedSubActivity)
-      } else {
-        unit = categoryData.unit || "unidades"
-      }
-    } else {
-      description = `${categoryData.label} - ${component}`
-      unit = categoryData.unit || "unidades"
-    }
-
-    onUpdate(activity.id, "description", description)
-    onUpdate(activity.id, "unit", unit)
+    onUpdate(activity.id, "component", next ?? "")
+    onUpdate(activity.id, "description", buildDescription(selectedCategory, selectedSubActivity, next))
+    onUpdate(activity.id, "unit", unitFor(selectedCategory, selectedSubActivity ?? undefined))
   }
 
   const isCustomActivity = selectedCategory === "otras"
-  const currentCategory = selectedCategory ? predefinedActivities[selectedCategory] : null
-  const hasComponents = currentCategory && "components" in currentCategory && currentCategory.components
+  const currentCategory = selectedCategory ? ACTIVITY_CATEGORIES[selectedCategory] : null
+  const hasSubActivities = Boolean(currentCategory?.subActivities?.length)
+  const hasComponents = Boolean(selectedCategory && acceptsComponent(selectedCategory))
+  const availableComponents = selectedCategory
+    ? componentOptions(selectedCategory, selectedSubActivity ?? undefined)
+    : []
 
   return (
     <Card className="p-4 md:p-6 bg-card border-border relative">
@@ -230,7 +168,7 @@ export function ActivityForm({ activity, index, onUpdate, onRemove, canRemove }:
           <div className="space-y-2">
             <Label className="text-xs md:text-sm font-medium text-foreground">Tipo de Actividad</Label>
             <div className="flex flex-wrap gap-2">
-              {(Object.keys(predefinedActivities) as ActivityCategory[]).map((key) => (
+              {(Object.keys(ACTIVITY_CATEGORIES) as ActivityCategory[]).map((key) => (
                 <button
                   key={key}
                   type="button"
@@ -241,35 +179,36 @@ export function ActivityForm({ activity, index, onUpdate, onRemove, canRemove }:
                       : "border-border bg-background text-foreground hover:border-primary/50"
                   }`}
                 >
-                  {predefinedActivities[key].label}
+                  {ACTIVITY_CATEGORIES[key].label}
                 </button>
               ))}
             </div>
           </div>
 
-          {/* Sub-activities */}
-          {selectedCategory && selectedCategory !== "otras" && currentCategory && "subActivities" in currentCategory && (
+          {/* Sub-actividades. Movilización no tiene, y "Otras" es libre. */}
+          {hasSubActivities && !isCustomActivity && (
             <div className="space-y-2">
               <Label className="text-xs md:text-sm font-medium text-foreground">
                 Sub-actividad <span className="text-destructive">*</span> (Requerido)
               </Label>
               <div className="flex flex-wrap gap-2">
-                {currentCategory.subActivities?.map((sub) => (
+                {currentCategory?.subActivities?.map((sub) => (
                   <button
-                    key={sub}
+                    key={sub.label}
                     type="button"
-                    onClick={() => handleSubActivitySelect(sub)}
+                    onClick={() => handleSubActivitySelect(sub.label)}
                     className={`px-3 py-1.5 text-xs rounded-lg border transition-all ${
-                      selectedSubActivity === sub
+                      selectedSubActivity === sub.label
                         ? "border-primary bg-primary/10 text-primary font-medium"
                         : "border-border bg-muted/50 text-foreground hover:border-primary/50"
                     }`}
                   >
-                    {sub}
+                    {sub.label}
+                    <span className="ml-1.5 text-[10px] text-muted-foreground">({sub.unit})</span>
                   </button>
                 ))}
               </div>
-              {selectedCategory && !selectedSubActivity && (
+              {!selectedSubActivity && (
                 <p className="text-xs text-destructive">
                   ⚠️ Debes hacer clic en una de las sub-actividades para continuar
                 </p>
@@ -277,23 +216,27 @@ export function ActivityForm({ activity, index, onUpdate, onRemove, canRemove }:
             </div>
           )}
 
-          {/* Components (for Trackers and Obra Eléctrica) */}
-          {hasComponents && (
+          {/* Tercer selector: tipo de cable en Obra Eléctrica, componente en
+              Estructuras Menores. En las demás no aparece, y siempre es opcional. */}
+          {hasComponents && selectedCategory && (
             <div className="space-y-2">
-              <Label className="text-xs md:text-sm font-medium text-foreground">Componente</Label>
+              <Label className="text-xs md:text-sm font-medium text-foreground">
+                {componentLabel(selectedCategory)}{" "}
+                <span className="text-muted-foreground font-normal">(opcional)</span>
+              </Label>
               <div className="flex flex-wrap gap-2">
-                {currentCategory.components?.map((comp) => (
+                {availableComponents.map((option) => (
                   <button
-                    key={comp}
+                    key={option}
                     type="button"
-                    onClick={() => handleComponentSelect(comp)}
+                    onClick={() => handleComponentSelect(option)}
                     className={`px-3 py-1.5 text-xs rounded-lg border transition-all ${
-                      selectedComponent === comp
+                      selectedComponent === option
                         ? "border-primary bg-primary/10 text-primary font-medium"
                         : "border-border bg-muted/50 text-foreground hover:border-primary/50"
                     }`}
                   >
-                    {comp}
+                    {option}
                   </button>
                 ))}
               </div>
@@ -309,6 +252,7 @@ export function ActivityForm({ activity, index, onUpdate, onRemove, canRemove }:
                 </Label>
                 <Textarea
                   id={`desc-${activity.id}`}
+                  maxLength={1000}
                   value={activity.description}
                   onChange={(e) => onUpdate(activity.id, "description", e.target.value)}
                   placeholder="Ej: Excavación de zanjas, Instalación de tuberías..."
@@ -323,6 +267,7 @@ export function ActivityForm({ activity, index, onUpdate, onRemove, canRemove }:
                 <Input
                   id={`unit-${activity.id}`}
                   type="text"
+                  maxLength={50}
                   value={activity.unit}
                   onChange={(e) => onUpdate(activity.id, "unit", e.target.value)}
                   placeholder="Ej: m³, m², unidades..."
@@ -349,11 +294,14 @@ export function ActivityForm({ activity, index, onUpdate, onRemove, canRemove }:
               </Label>
               <Input
                 id={`qty-${activity.id}`}
-                type="text"
+                type="number"
+                min="0"
+                step="any"
+                inputMode="decimal"
                 value={activity.quantity}
                 onChange={(e) => onUpdate(activity.id, "quantity", e.target.value)}
                 placeholder="Ej: 45"
-                className="bg-input border-border text-foreground text-sm"
+                className="bg-input border-border text-foreground text-sm no-arrows"
               />
             </div>
             <div className="space-y-2">
@@ -363,6 +311,7 @@ export function ActivityForm({ activity, index, onUpdate, onRemove, canRemove }:
               <Input
                 id={`loc-${activity.id}`}
                 type="text"
+                maxLength={255}
                 value={activity.location}
                 onChange={(e) => onUpdate(activity.id, "location", e.target.value)}
                 placeholder="Ej: Sector A, Piso 3..."
@@ -378,6 +327,10 @@ export function ActivityForm({ activity, index, onUpdate, onRemove, canRemove }:
             <Input
               id={`workers-${activity.id}`}
               type="number"
+              min="0"
+              max="10000"
+              step="1"
+              inputMode="numeric"
               value={activity.workers}
               onChange={(e) => onUpdate(activity.id, "workers", e.target.value)}
               placeholder="Ej: 8"
@@ -392,6 +345,7 @@ export function ActivityForm({ activity, index, onUpdate, onRemove, canRemove }:
             </Label>
             <Textarea
               id={`obs-${activity.id}`}
+              maxLength={1000}
               value={activity.observations}
               onChange={(e) => onUpdate(activity.id, "observations", e.target.value)}
               placeholder="Notas adicionales, incidencias, comentarios..."

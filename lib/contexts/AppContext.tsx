@@ -8,9 +8,12 @@ import type {
   TeamMember,
   Machine,
   Equipment,
+  Driver,
   DailyReport,
   DashboardSummary,
-  Baseline,
+  MeResponse,
+  PermissionResource,
+  PermissionAction,
 } from '@/lib/types';
 import {
   companyService,
@@ -18,9 +21,10 @@ import {
   teamService,
   machineryService,
   equipmentService,
+  driverService,
   reportsService,
   dashboardService,
-  baselinesService,
+  meService,
 } from '@/lib/api';
 
 // ============================================
@@ -34,8 +38,9 @@ interface AppState {
   team: TeamMember[];
   machinery: Machine[];
   equipment: Equipment[];
-  baselines: Record<string, Baseline>; // projectId -> Baseline
+  drivers: Driver[];
   dashboardSummary: DashboardSummary | null;
+  permissions: MeResponse | null;
 
   // Estados de carga
   isLoading: boolean;
@@ -44,6 +49,8 @@ interface AppState {
   isLoadingTeam: boolean;
   isLoadingMachinery: boolean;
   isLoadingEquipment: boolean;
+  isLoadingDrivers: boolean;
+  isLoadingPermissions: boolean;
 
   // Control de onboarding
   isOnboardingComplete: boolean;
@@ -53,6 +60,9 @@ interface AppState {
 }
 
 interface AppContextValue extends AppState {
+  // Acciones de Permisos
+  loadPermissions: () => Promise<void>;
+
   // Acciones de Empresa
   loadCompany: () => Promise<void>;
 
@@ -80,9 +90,13 @@ interface AppContextValue extends AppState {
   updateEquipment: (id: string, data: Partial<Equipment>) => void;
   removeEquipment: (id: string) => void;
 
+  // Acciones de Choferes
+  loadDrivers: () => Promise<void>;
+  addDriver: (driver: Driver) => void;
+  updateDriver: (id: string, data: Partial<Driver>) => void;
+  removeDriver: (id: string) => void;
+
   // Acciones de Línea Base
-  loadBaseline: (projectId: string) => Promise<Baseline | null>;
-  setBaseline: (projectId: string, baseline: Baseline) => void;
 
   // Acciones de Dashboard
   loadDashboardSummary: () => Promise<void>;
@@ -134,17 +148,35 @@ export function AppProvider({ children, initialData }: AppProviderProps) {
     team: initialData?.team ?? [],
     machinery: initialData?.machinery ?? [],
     equipment: [],
-    baselines: {},
+    drivers: [],
     dashboardSummary: initialData?.dashboardSummary ?? null,
+    permissions: null,
     isLoading: false,
     isLoadingCompany: false,
     isLoadingProjects: false,
     isLoadingTeam: false,
     isLoadingMachinery: false,
     isLoadingEquipment: false,
+    isLoadingDrivers: false,
+    isLoadingPermissions: false,
     isOnboardingComplete: isOnboardingCompleteInitial,
     selectedProjectId: null,
   });
+
+  // ============================================
+  // PERMISOS
+  // ============================================
+
+  const loadPermissions = useCallback(async () => {
+    setState(prev => ({ ...prev, isLoadingPermissions: true }));
+    try {
+      const permissions = await meService.get();
+      setState(prev => ({ ...prev, permissions, isLoadingPermissions: false }));
+    } catch (error) {
+      console.error('Error loading permissions:', error);
+      setState(prev => ({ ...prev, permissions: null, isLoadingPermissions: false }));
+    }
+  }, []);
 
   // ============================================
   // EMPRESA
@@ -331,40 +363,40 @@ export function AppProvider({ children, initialData }: AppProviderProps) {
   }, []);
 
   // ============================================
-  // LÍNEA BASE
+  // CHOFERES
   // ============================================
 
-  const loadBaseline = useCallback(async (projectId: string): Promise<Baseline | null> => {
-    // Si ya la tenemos en cache, devolverla
-    if (state.baselines[projectId]) {
-      return state.baselines[projectId];
-    }
-
+  const loadDrivers = useCallback(async () => {
+    setState(prev => ({ ...prev, isLoadingDrivers: true }));
     try {
-      const baseline = await baselinesService.getByProjectId(projectId);
-      if (baseline) {
-        setState(prev => ({
-          ...prev,
-          baselines: {
-            ...prev.baselines,
-            [projectId]: baseline,
-          },
-        }));
-      }
-      return baseline;
+      const drivers = await driverService.getAll({ status: 'all' });
+      setState(prev => ({ ...prev, drivers, isLoadingDrivers: false }));
     } catch (error) {
-      console.error('Error loading baseline:', error);
-      return null;
+      console.error('Error loading drivers:', error);
+      setState(prev => ({ ...prev, isLoadingDrivers: false }));
     }
-  }, [state.baselines]);
+  }, []);
 
-  const setBaseline = useCallback((projectId: string, baseline: Baseline) => {
+  const addDriver = useCallback((driver: Driver) => {
     setState(prev => ({
       ...prev,
-      baselines: {
-        ...prev.baselines,
-        [projectId]: baseline,
-      },
+      drivers: [...prev.drivers, driver],
+    }));
+  }, []);
+
+  const updateDriverState = useCallback((id: string, data: Partial<Driver>) => {
+    setState(prev => ({
+      ...prev,
+      drivers: prev.drivers.map(d =>
+        d.id === id ? { ...d, ...data } : d
+      ),
+    }));
+  }, []);
+
+  const removeDriver = useCallback((id: string) => {
+    setState(prev => ({
+      ...prev,
+      drivers: prev.drivers.filter(d => d.id !== id),
     }));
   }, []);
 
@@ -407,6 +439,7 @@ export function AppProvider({ children, initialData }: AppProviderProps) {
   const refreshAll = useCallback(async () => {
     setState(prev => ({ ...prev, isLoading: true }));
     await Promise.all([
+      loadPermissions(),
       loadCompany(),
       loadProjects(),
       loadTeam(),
@@ -414,7 +447,7 @@ export function AppProvider({ children, initialData }: AppProviderProps) {
       loadDashboardSummary(),
     ]);
     setState(prev => ({ ...prev, isLoading: false }));
-  }, [loadCompany, loadProjects, loadTeam, loadMachinery, loadDashboardSummary]);
+  }, [loadPermissions, loadCompany, loadProjects, loadTeam, loadMachinery, loadDashboardSummary]);
 
   // ============================================
   // CARGAR DATOS INICIALES
@@ -433,12 +466,23 @@ export function AppProvider({ children, initialData }: AppProviderProps) {
     }
   }, [isLoaded, userId, orgId, initialData, refreshAll, state.projects.length]);
 
+  // Los permisos no tienen precarga SSR (a diferencia de company/projects),
+  // así que el efecto de arriba los puede saltear por completo cuando el
+  // servidor sí trajo datos iniciales. Este efecto es incondicional a eso.
+  useEffect(() => {
+    if (!isLoaded || !userId || !orgId) {
+      return;
+    }
+    loadPermissions();
+  }, [isLoaded, userId, orgId, loadPermissions]);
+
   // ============================================
   // VALOR DEL CONTEXT
   // ============================================
 
   const value: AppContextValue = {
     ...state,
+    loadPermissions,
     loadCompany,
     loadProjects,
     addProject,
@@ -456,8 +500,10 @@ export function AppProvider({ children, initialData }: AppProviderProps) {
     addEquipment,
     updateEquipment: updateEquipmentState,
     removeEquipment,
-    loadBaseline,
-    setBaseline,
+    loadDrivers,
+    addDriver,
+    updateDriver: updateDriverState,
+    removeDriver,
     loadDashboardSummary,
     setSelectedProjectId,
     completeOnboarding,
@@ -512,9 +558,55 @@ export function useEquipment() {
   return { equipment, isLoading: isLoadingEquipment, loadEquipment, addEquipment, updateEquipment, removeEquipment };
 }
 
+export function useDrivers() {
+  const { drivers, isLoadingDrivers, loadDrivers, addDriver, updateDriver, removeDriver } = useApp();
+  return { drivers, isLoading: isLoadingDrivers, loadDrivers, addDriver, updateDriver, removeDriver };
+}
+
 export function useSelectedProject() {
   const { projects, selectedProjectId, setSelectedProjectId } = useApp();
   const selectedProject = projects.find(p => p.id === selectedProjectId) || null;
   return { selectedProject, selectedProjectId, setSelectedProjectId, projects };
+}
+
+/**
+ * Única fuente de verdad de la matriz de permisos en el cliente: consume
+ * `GET /me` (vía AppContext) en vez de reimplementar la matriz.
+ *
+ * Mientras `permissions` no cargó todavía (login recién hecho, primer
+ * render) `can()` devuelve `false` para todo — evita destellos de UI con
+ * permisos de más antes de que llegue la respuesta real del backend.
+ */
+export function usePermissions() {
+  const { permissions, isLoadingPermissions, loadPermissions } = useApp();
+
+  const can = useCallback(
+    (resource: PermissionResource, action: PermissionAction): boolean => {
+      if (!permissions) return false;
+      return permissions.permissions[resource]?.includes(action) ?? false;
+    },
+    [permissions]
+  );
+
+  const canAccessProject = useCallback(
+    (projectId: string | null): boolean => {
+      if (!permissions) return false;
+      if (permissions.scope === 'all') return true;
+      return (permissions.projectIds ?? []).includes(projectId ?? '');
+    },
+    [permissions]
+  );
+
+  return {
+    permissions,
+    isLoading: isLoadingPermissions,
+    loadPermissions,
+    role: permissions?.role ?? null,
+    scope: permissions?.scope ?? null,
+    projectIds: permissions?.projectIds ?? null,
+    landing: permissions?.landing ?? '/tablero',
+    can,
+    canAccessProject,
+  };
 }
 

@@ -4,17 +4,21 @@ import { useState, useEffect, useMemo } from "react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { DateRangePicker } from "@/components/ui/date-range-picker"
-import { ChevronDown, Loader2, BarChart3, Settings } from "lucide-react"
+import { ChevronDown, Loader2, BarChart3 } from "lucide-react"
 import { useProjects } from "@/lib/hooks"
 import { useDashboard } from "@/lib/hooks/useDashboard"
 import { ACTIVITY_CATEGORIES } from "@/lib/constants/activities"
-import { BaselineSetup } from "@/components/setup/baseline-setup"
 import type { ProjectWorkProgress } from "@/lib/types"
 
-// Actividades disponibles para filtrar (las mismas del formulario de nuevo reporte)
+// Actividades disponibles para filtrar (las mismas del formulario de nuevo
+// reporte). Se filtra por ID y se muestra el label: el ID es estable, el label
+// puede cambiar y dejaría el filtro sin matchear en silencio.
 const allActivities = Object.values(ACTIVITY_CATEGORIES)
   .filter(cat => !cat.isCustom)
-  .map(cat => cat.label)
+  .map(cat => ({ id: cat.id, label: cat.label }))
+
+const activityLabel = (id: string) =>
+  allActivities.find(a => a.id === id)?.label ?? id
 
 export function DashboardOverview() {
   const [selectedProject, setSelectedProject] = useState<string>("all")
@@ -24,7 +28,6 @@ export function DashboardOverview() {
   const [viewMode, setViewMode] = useState<"percentage" | "units">("units")
   const [showProjectFilter, setShowProjectFilter] = useState(false)
   const [showActivityFilter, setShowActivityFilter] = useState(false)
-  const [showBaselineForm, setShowBaselineForm] = useState<{ projectId: string; projectName: string } | null>(null)
 
   // Hooks de datos
   const { projects, isLoading: isLoadingProjects, loadProjects } = useProjects()
@@ -60,25 +63,16 @@ export function DashboardOverview() {
     return workProgress ? [workProgress] : []
   }, [selectedProject, allWorkProgress, workProgress])
 
+  // Fallback por si el backend no manda overallProgress. Es un promedio simple
+  // de las categorías, no el ponderado: el peso de cada una lo sabe el servidor
+  // y no tiene sentido reimplementarlo acá.
   const getAverageProgress = (stages: ProjectWorkProgress["stages"]) => {
-    const allSubStages = stages.flatMap(s => s.subStages)
-    if (allSubStages.length === 0) return 0
-    const total = allSubStages.reduce((acc, sub) => acc + sub.progress, 0)
-    return Math.round(total / allSubStages.length)
+    if (stages.length === 0) return 0
+    const total = stages.reduce((acc, stage) => acc + stage.progress, 0)
+    return Math.round(total / stages.length)
   }
 
   const isLoading = isLoadingProjects || isLoadingProgress
-
-  // Si se está mostrando el formulario de baseline, renderizar solo ese componente
-  if (showBaselineForm) {
-    return (
-      <BaselineSetup
-        projectId={showBaselineForm.projectId}
-        projectName={showBaselineForm.projectName}
-        onBack={() => setShowBaselineForm(null)}
-      />
-    )
-  }
 
   return (
     <div className="container px-4 md:px-6 py-6 md:py-8 space-y-6">
@@ -240,16 +234,16 @@ export function DashboardOverview() {
             </button>
             {allActivities.map((activity) => (
               <button
-                key={activity}
+                key={activity.id}
                 type="button"
-                onClick={() => setSelectedActivity(activity)}
+                onClick={() => setSelectedActivity(activity.id)}
                 className={`px-3 py-2 text-xs md:text-sm rounded-lg border-2 transition-all ${
-                  selectedActivity === activity
+                  selectedActivity === activity.id
                     ? "border-primary bg-primary/10 text-primary font-medium"
                     : "border-border bg-background text-foreground hover:border-primary/50"
                 }`}
               >
-                {activity}
+                {activity.label}
               </button>
             ))}
           </div>
@@ -291,16 +285,6 @@ export function DashboardOverview() {
                     Progreso general: {project.overallProgress ?? getAverageProgress(project.stages)}%
                   </p>
                 </div>
-                <Button
-                  onClick={() => setShowBaselineForm({ projectId: project.id, projectName: project.name })}
-                  variant="outline"
-                  size="sm"
-                  className="ml-4 text-xs flex items-center gap-1.5 whitespace-nowrap hover:bg-primary hover:text-primary-foreground transition-colors"
-                  title="Configurar Línea Base"
-                >
-                  <Settings className="w-3.5 h-3.5" />
-                  <span className="hidden sm:inline">Línea Base</span>
-                </Button>
               </div>
 
               <div className="space-y-6">
@@ -339,16 +323,6 @@ export function DashboardOverview() {
                 <h3 className="text-base md:text-lg font-semibold text-foreground">{project.name}</h3>
                 <p className="text-xs text-muted-foreground mt-1">Cantidades reportadas</p>
                 </div>
-                <Button
-                  onClick={() => setShowBaselineForm({ projectId: project.id, projectName: project.name })}
-                  variant="outline"
-                  size="sm"
-                  className="ml-4 text-xs flex items-center gap-1.5 whitespace-nowrap hover:bg-primary hover:text-primary-foreground transition-colors"
-                  title="Configurar Línea Base"
-                >
-                  <Settings className="w-3.5 h-3.5" />
-                  <span className="hidden sm:inline">Línea Base</span>
-                </Button>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">

@@ -9,6 +9,7 @@ import type {
   ProjectPersonnelHistory,
   ProjectSuspendedHours,
   ProjectMachinery,
+  FleetDashboard,
 } from '@/lib/types';
 
 // ============================================
@@ -179,6 +180,13 @@ export async function getServerAllSuspendedHours(
 export async function getServerAllProjectsMachinery(): Promise<ProjectMachinery[]> {
   const machinery = await serverFetch<ProjectMachinery[]>('/dashboard/machinery');
   return machinery || [];
+}
+
+/**
+ * Obtiene el payload consolidado del tablero de flota (maquinaria y equipos)
+ */
+export async function getServerFleetDashboard(): Promise<FleetDashboard | null> {
+  return serverFetch<FleetDashboard>('/dashboard/fleet');
 }
 
 /**

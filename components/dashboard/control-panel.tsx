@@ -19,6 +19,7 @@ import {
 import { Truck, Users, BarChart3, Clock, FolderKanban, Loader2, TrendingUp, HardHat } from "lucide-react"
 import { useProjects, useMachinery } from "@/lib/hooks"
 import { useDashboard } from "@/lib/hooks/useDashboard"
+import { ACTIVITY_CATEGORIES } from "@/lib/constants/activities"
 import type {
   ProjectProgress,
   ProjectPersonnelHistory,
@@ -308,32 +309,35 @@ export function ControlPanel() {
 // COMPONENTE DE TARJETA DE PROYECTO
 // ============================================
 
-// Colores consistentes por categoría de actividad
+// Colores consistentes por categoría de actividad. Son categóricos: cada uno
+// identifica una categoría, no son los acentos de marca.
 const CATEGORY_COLORS: Record<string, string> = {
-  hincas: "#FF6B35",
+  movilizacion: "#8D6E63",
+  cercoPerimetral: "#7CB342",
+  desconsolidacion: "#5E35B1",
+  preparacionTerreno: "#795548",
+  caminos: "#6D4C41",
+  hincado: "#FF6B35",
   trackers: "#2196F3",
   modulos: "#4CAF50",
-  calidad: "#9C27B0",
   obraElectrica: "#FF9800",
-  ensayos: "#795548",
   inversores: "#607D8B",
+  ensayos: "#00897B",
   cts: "#E91E63",
-  preComisionamiento: "#00BCD4",
+  cctv: "#546E7A",
+  estructurasMenores: "#9C27B0",
+  cmm: "#3949AB",
+  lamt: "#00BCD4",
+  comisionado: "#F4511E",
   otras: "#9E9E9E",
 }
 
-const CATEGORY_LABELS: Record<string, string> = {
-  hincas: "Hincas",
-  trackers: "Trackers",
-  modulos: "Módulos",
-  calidad: "Calidad",
-  obraElectrica: "Obra Eléctrica",
-  ensayos: "Ensayos",
-  inversores: "Inversores",
-  cts: "CTs",
-  preComisionamiento: "Pre-Com.",
-  otras: "Otras",
-}
+// Etiquetas de la leyenda de los gráficos. Salen del catálogo en vez de estar
+// escritas otra vez acá: cuando estaban duplicadas se abreviaban distinto
+// ("Cerco Perim.") y se desincronizaban del nombre real de la categoría.
+const CATEGORY_LABELS: Record<string, string> = Object.fromEntries(
+  Object.values(ACTIVITY_CATEGORIES).map((cat) => [cat.id, cat.label]),
+)
 
 // Formatea horas hombre con separador de miles y sin decimales innecesarios
 function formatManHours(value: number): string {
@@ -410,128 +414,6 @@ function ProjectCard({
         </div>
       )}
 
-      {/* Horas Hombre Trabajadas (acumulado mensual) */}
-      {manHoursData && manHoursData.history.length > 0 && (() => {
-        const currentMonthKey = (() => {
-          const now = new Date()
-          return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`
-        })()
-        const currentMonth = manHoursData.history.find((m) => m.month === currentMonthKey)
-        const chartData = manHoursData.history.map((m) => ({
-          name: m.monthLabel,
-          horas: m.manHours,
-        }))
-
-        return (
-          <div className="mb-6 p-4 rounded-lg bg-primary/5 border border-primary/20">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-primary/10">
-                  <HardHat className="w-5 h-5 text-primary" />
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Horas Hombre Trabajadas</p>
-                  <p className="text-2xl font-bold text-primary">
-                    {formatManHours(manHoursData.totalManHours)} <span className="text-sm font-medium">hs</span>
-                  </p>
-                </div>
-              </div>
-              <div className="hidden md:flex flex-col items-end text-xs text-muted-foreground">
-                <span>Acumulado histórico del proyecto</span>
-                {currentMonth && (
-                  <span>
-                    Mes actual ({currentMonth.monthLabel}): {formatManHours(currentMonth.manHours)} hs
-                  </span>
-                )}
-              </div>
-            </div>
-
-            {/* Acumulado por mes */}
-            <div className="mt-4 h-48 md:h-56">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={chartData} margin={{ top: 16, right: 10, left: -10, bottom: 0 }} barSize={28}>
-                  <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                  <XAxis dataKey="name" tick={{ fontSize: 9 }} className="text-muted-foreground" stroke="currentColor" />
-                  <YAxis tick={{ fontSize: 9 }} className="text-muted-foreground" stroke="currentColor" />
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: "hsl(var(--card))",
-                      border: "1px solid hsl(var(--border))",
-                      borderRadius: "8px",
-                      fontSize: "12px",
-                    }}
-                    labelStyle={{ color: "hsl(var(--foreground))" }}
-                    formatter={(value: number) => [`${formatManHours(value)} hs`, "Horas hombre"]}
-                  />
-                  <Bar dataKey="horas" name="Horas hombre" fill="#F59E0B" radius={[0, 0, 0, 0]}>
-                    <LabelList
-                      dataKey="horas"
-                      position="top"
-                      fill="#B45309"
-                      fontSize={9}
-                      fontWeight={600}
-                      formatter={(value: number) => (value > 0 ? formatManHours(value) : "")}
-                    />
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-        )
-      })()}
-
-      {/* Histograma de Actividades Semanal (full width) */}
-      {activityBreakdown && activityBreakdown.breakdown.length > 0 && (() => {
-        // Collect all categories across all weeks
-        const allCategories = new Set<string>()
-        activityBreakdown.breakdown.forEach(w => {
-          Object.keys(w.activities).forEach(cat => allCategories.add(cat))
-        })
-        const categories = Array.from(allCategories)
-        // Transform data for recharts stacked bar
-        const chartData = activityBreakdown.breakdown.map(w => ({
-          name: w.weekLabel,
-          ...w.activities,
-        }))
-
-        return (
-          <div className="mb-6 p-4 rounded-lg bg-muted/20 border border-border">
-            <div className="flex items-center gap-2 mb-3">
-              <BarChart3 className="w-4 h-4 text-primary" />
-              <h4 className="text-sm font-medium text-foreground">Histograma de Actividades por Semana</h4>
-            </div>
-            <div className="h-56 md:h-64">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={chartData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }} barSize={24}>
-                  <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                  <XAxis dataKey="name" tick={{ fontSize: 9 }} className="text-muted-foreground" stroke="currentColor" />
-                  <YAxis tick={{ fontSize: 9 }} className="text-muted-foreground" stroke="currentColor" />
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: "hsl(var(--card))",
-                      border: "1px solid hsl(var(--border))",
-                      borderRadius: "8px",
-                      fontSize: "12px",
-                    }}
-                    labelStyle={{ color: "hsl(var(--foreground))" }}
-                  />
-                  <Legend wrapperStyle={{ fontSize: "10px" }} formatter={(value) => <span className="text-foreground">{CATEGORY_LABELS[value] || value}</span>} />
-                  {categories.map((cat) => (
-                    <Bar
-                      key={cat}
-                      dataKey={cat}
-                      name={cat}
-                      stackId="activities"
-                      fill={CATEGORY_COLORS[cat] || "#9E9E9E"}
-                    />
-                  ))}
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-        )
-      })()}
-
       {/* Curva S (full width) */}
       {sCurveData && sCurveData.real.length > 0 && (() => {
         // Merge real + theoretical into a single dataset
@@ -583,9 +465,9 @@ function ProjectCard({
                     type="monotone"
                     dataKey="real"
                     name="real"
-                    stroke="#4F46E5"
+                    stroke="#d68f2d"
                     strokeWidth={2.5}
-                    dot={{ fill: "#4F46E5", strokeWidth: 2, r: 3 }}
+                    dot={{ fill: "#d68f2d", strokeWidth: 2, r: 3 }}
                     activeDot={{ r: 5 }}
                     connectNulls
                   />
@@ -604,12 +486,26 @@ function ProjectCard({
                 </LineChart>
               </ResponsiveContainer>
             </div>
+            {/* La teórica se pondera con el plan por actividad: si alguna del
+                alcance quedó sin plan, la curva no llega a 100 y el desvío se
+                lee mejor de lo que es. Decirlo acá evita leerla mal. */}
+            {sCurveData.theoretical && sCurveData.theoreticalCoverage < 99.9 && (
+              <p className="mt-2 text-[11px] text-muted-foreground">
+                Solo el {sCurveData.theoreticalCoverage.toFixed(0)}% del peso del proyecto
+                tiene curva teórica cargada, así que la teórica no llega a 100%.
+              </p>
+            )}
+            {!sCurveData.theoretical && (
+              <p className="mt-2 text-[11px] text-muted-foreground">
+                Sin curva teórica: cargá el plan por actividad en Configuración → Curva S.
+              </p>
+            )}
           </div>
         )
       })()}
 
-      {/* Grid de 4 cuadrantes */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      {/* Avance por Actividad junto a Histograma de Personal */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
         {/* Cuadrante 1: Avance por Actividad */}
         {activityChartData.length > 0 && (
           <div className="p-4 rounded-lg bg-muted/20 border border-border">
@@ -617,7 +513,9 @@ function ProjectCard({
               <BarChart3 className="w-4 h-4 text-primary" />
               <h4 className="text-sm font-medium text-foreground">Avance por Actividad</h4>
             </div>
-            <div className="h-48 md:h-56">
+            {/* Alto proporcional: el alcance ahora puede traer hasta 16
+                categorías, y con alto fijo las barras se aplastan. */}
+            <div style={{ height: Math.max(192, activityChartData.length * 26 + 40) }}>
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart
                   data={activityChartData}
@@ -652,12 +550,12 @@ function ProjectCard({
                     formatter={(value: number) => [`${value}%`, "Avance"]}
                     labelStyle={{ color: "hsl(var(--foreground))" }}
                   />
-                  <Bar dataKey="progress" fill="#4F46E5" radius={[0, 0, 0, 0]}>
+                  <Bar dataKey="progress" fill="#d68f2d" radius={[0, 0, 0, 0]}>
                     <LabelList
                       dataKey="progress"
                       position="right"
                       formatter={(value: number) => `${value}%`}
-                      fill="#4F46E5"
+                      fill="#d68f2d"
                       fontSize={9}
                       fontWeight={600}
                     />
@@ -691,11 +589,11 @@ function ProjectCard({
                     labelStyle={{ color: "hsl(var(--foreground))" }}
                   />
                   <Legend wrapperStyle={{ fontSize: "10px" }} formatter={(value) => <span className="text-foreground">{value}</span>} />
-                  <Bar dataKey="directos" name="Directo" stackId="personnel" fill="#4F46E5" radius={[0, 0, 0, 0]}>
-                    <LabelList dataKey="directos" position="center" fill="#FFFFFF" fontSize={8} fontWeight={600} />
+                  <Bar dataKey="directos" name="Directo" stackId="personnel" fill="#d68f2d" radius={[0, 0, 0, 0]}>
+                    <LabelList dataKey="directos" position="center" fill="#23190f" fontSize={8} fontWeight={600} />
                   </Bar>
-                  <Bar dataKey="indirectos" name="Indirecto" stackId="personnel" fill="#818CF8" radius={[0, 0, 0, 0]}>
-                    <LabelList dataKey="indirectos" position="center" fill="#FFFFFF" fontSize={8} fontWeight={600} />
+                  <Bar dataKey="indirectos" name="Indirecto" stackId="personnel" fill="#a1948b" radius={[0, 0, 0, 0]}>
+                    <LabelList dataKey="indirectos" position="center" fill="#23190f" fontSize={8} fontWeight={600} />
                   </Bar>
                 </BarChart>
               </ResponsiveContainer>
@@ -707,6 +605,138 @@ function ProjectCard({
           </div>
         </div>
 
+      </div>
+
+      {/* Horas Hombre y Histograma de Actividades, en la misma fila. Van en
+          su propia grilla y no en la de abajo: si una tarjeta anterior no se
+          renderiza, en una grilla corrida el par quedaría partido. */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+        {/* Horas Hombre Trabajadas (acumulado mensual) */}
+        {manHoursData && manHoursData.history.length > 0 && (() => {
+          const currentMonthKey = (() => {
+            const now = new Date()
+            return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`
+          })()
+          const currentMonth = manHoursData.history.find((m) => m.month === currentMonthKey)
+          const chartData = manHoursData.history.map((m) => ({
+            name: m.monthLabel,
+            horas: m.manHours,
+          }))
+
+          return (
+            <div className="h-full p-4 rounded-lg bg-primary/5 border border-primary/20">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-primary/10">
+                    <HardHat className="w-5 h-5 text-primary" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Horas Hombre Trabajadas</p>
+                    <p className="text-2xl font-bold text-primary">
+                      {formatManHours(manHoursData.totalManHours)} <span className="text-sm font-medium">hs</span>
+                    </p>
+                  </div>
+                </div>
+                <div className="hidden md:flex flex-col items-end text-xs text-muted-foreground">
+                  <span>Acumulado histórico del proyecto</span>
+                  {currentMonth && (
+                    <span>
+                      Mes actual ({currentMonth.monthLabel}): {formatManHours(currentMonth.manHours)} hs
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* Acumulado por mes */}
+              <div className="mt-4 h-48 md:h-56">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={chartData} margin={{ top: 16, right: 10, left: -10, bottom: 0 }} barSize={28}>
+                    <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                    <XAxis dataKey="name" tick={{ fontSize: 9 }} className="text-muted-foreground" stroke="currentColor" />
+                    <YAxis tick={{ fontSize: 9 }} className="text-muted-foreground" stroke="currentColor" />
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: "hsl(var(--card))",
+                        border: "1px solid hsl(var(--border))",
+                        borderRadius: "8px",
+                        fontSize: "12px",
+                      }}
+                      labelStyle={{ color: "hsl(var(--foreground))" }}
+                      formatter={(value: number) => [`${formatManHours(value)} hs`, "Horas hombre"]}
+                    />
+                    <Bar dataKey="horas" name="Horas hombre" fill="#F59E0B" radius={[0, 0, 0, 0]}>
+                      <LabelList
+                        dataKey="horas"
+                        position="top"
+                        fill="#B45309"
+                        fontSize={9}
+                        fontWeight={600}
+                        formatter={(value: number) => (value > 0 ? formatManHours(value) : "")}
+                      />
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          )
+        })()}
+
+        {/* Histograma de Actividades Semanal */}
+        {activityBreakdown && activityBreakdown.breakdown.length > 0 && (() => {
+          // Collect all categories across all weeks
+          const allCategories = new Set<string>()
+          activityBreakdown.breakdown.forEach(w => {
+            Object.keys(w.activities).forEach(cat => allCategories.add(cat))
+          })
+          const categories = Array.from(allCategories)
+          // Transform data for recharts stacked bar
+          const chartData = activityBreakdown.breakdown.map(w => ({
+            name: w.weekLabel,
+            ...w.activities,
+          }))
+
+          return (
+            <div className="h-full p-4 rounded-lg bg-muted/20 border border-border">
+              <div className="flex items-center gap-2 mb-3">
+                <BarChart3 className="w-4 h-4 text-primary" />
+                <h4 className="text-sm font-medium text-foreground">Histograma de Actividades por Semana</h4>
+              </div>
+              <div className="h-56 md:h-64">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={chartData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }} barSize={24}>
+                    <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                    <XAxis dataKey="name" tick={{ fontSize: 9 }} className="text-muted-foreground" stroke="currentColor" />
+                    <YAxis tick={{ fontSize: 9 }} className="text-muted-foreground" stroke="currentColor" />
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: "hsl(var(--card))",
+                        border: "1px solid hsl(var(--border))",
+                        borderRadius: "8px",
+                        fontSize: "12px",
+                      }}
+                      labelStyle={{ color: "hsl(var(--foreground))" }}
+                    />
+                    <Legend wrapperStyle={{ fontSize: "10px" }} formatter={(value) => <span className="text-foreground">{CATEGORY_LABELS[value] || value}</span>} />
+                    {categories.map((cat) => (
+                      <Bar
+                        key={cat}
+                        dataKey={cat}
+                        name={cat}
+                        stackId="activities"
+                        fill={CATEGORY_COLORS[cat] || "#9E9E9E"}
+                      />
+                    ))}
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          )
+        })()}
+
+      </div>
+
+      {/* Resto de los cuadrantes */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Cuadrante 3: Histograma de Maquinaria */}
         <div className="p-4 rounded-lg bg-muted/20 border border-border">
           <div className="flex items-center gap-2 mb-3">
@@ -766,7 +796,7 @@ function ProjectCard({
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-xs font-medium text-foreground truncate">{machine.tipo} - {machine.marca}</p>
-                    <p className="text-[10px] text-muted-foreground truncate">{machine.modelo} • {machine.patente}</p>
+                    <p className="text-[10px] text-muted-foreground truncate">{machine.modelo} • {machine.patente ?? machine.numeroChasis ?? machine.codigoInterno}</p>
                   </div>
                 </div>
               ))}

@@ -107,6 +107,34 @@ export function validateImageFile(file: File): { valid: boolean; error?: string 
 /**
  * Valida archivo PDF (frontend).
  */
+/**
+ * Valida la plantilla de Totales antes de subirla.
+ *
+ * Es un filtro de usabilidad para dar un error rápido, NO un control de
+ * seguridad: el backend revalida extensión, MIME, magic bytes y estructura del
+ * ZIP, que es donde está la defensa real.
+ */
+export function validateSpreadsheetFile(file: File): { valid: boolean; error?: string } {
+  const MAX_SIZE_MB = 2;
+  const ALLOWED_TYPES = [
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  ];
+
+  if (!validateFileSize(file, MAX_SIZE_MB)) {
+    return { valid: false, error: `El archivo no debe superar ${MAX_SIZE_MB} MB` };
+  }
+
+  if (!file.name.toLowerCase().endsWith('.xlsx')) {
+    return { valid: false, error: 'Subí la plantilla en formato .xlsx' };
+  }
+
+  if (!validateFileType(file, ALLOWED_TYPES)) {
+    return { valid: false, error: 'Tipo de archivo no permitido. Subí un .xlsx' };
+  }
+
+  return { valid: true };
+}
+
 export function validatePDFFile(file: File): { valid: boolean; error?: string } {
   const MAX_SIZE_MB = 10;
   const ALLOWED_TYPES = ['application/pdf'];

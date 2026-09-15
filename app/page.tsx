@@ -4,18 +4,26 @@ import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { useAuth, useOrganization } from "@clerk/nextjs"
 import { FirstProjectModal } from "@/components/modals/first-project-modal"
-import { useApp } from "@/lib/contexts/AppContext"
+import { useApp, usePermissions } from "@/lib/contexts/AppContext"
 import { Loader2, Building2 } from "lucide-react"
 
 export default function Home() {
   const [isMounted, setIsMounted] = useState(false)
   const { isLoaded: isClerkLoaded, userId, orgId } = useAuth()
   const { isLoaded: isOrgLoaded, membership } = useOrganization()
-  const { isOnboardingComplete, addProject, isLoading, projects } = useApp()
+  const { addProject, isLoading, projects } = useApp()
+  const { landing, permissions: userPermissions } = usePermissions()
   const router = useRouter()
 
   // Verificar si el usuario es admin de la organización
   const isAdmin = membership?.role === "org:admin"
+
+  // "¿La empresa ya tiene al menos un proyecto?" es un hecho de la empresa,
+  // no de lo que este usuario puede ver: `projects` viene acotado por el
+  // alcance del rol (p. ej. sin_rol o un rol "assigned" sin asignaciones ve
+  // 0 proyectos aunque la empresa ya tenga varios). Por eso se usa el campo
+  // sin scopear de /me en vez de `projects.length > 0`.
+  const isOnboardingComplete = userPermissions ? userPermissions.orgHasProjects : projects.length > 0
 
   useEffect(() => {
     setIsMounted(true)
@@ -31,11 +39,13 @@ export default function Home() {
       return
     }
 
-    // Si está autenticado y tiene al menos un proyecto, ir al dashboard
-    if (orgId && isOnboardingComplete) {
-      router.push("/tablero")
+    // Si está autenticado y tiene al menos un proyecto, ir a la landing de su
+    // rol. Esperamos a que los permisos carguen para no rebotar con el
+    // default ("/tablero") antes de saber si el usuario es "sin_rol".
+    if (orgId && isOnboardingComplete && userPermissions && landing !== "/") {
+      router.push(landing)
     }
-  }, [isMounted, isClerkLoaded, isOrgLoaded, userId, orgId, isOnboardingComplete, router])
+  }, [isMounted, isClerkLoaded, isOrgLoaded, userId, orgId, isOnboardingComplete, userPermissions, landing, router])
 
   // Log para debug
   useEffect(() => {
@@ -85,9 +95,28 @@ export default function Home() {
     )
   }
 
-  // Si tiene proyectos, no mostrar nada (se está redirigiendo)
-  if (isOnboardingComplete) {
+  // Si tiene proyectos y la landing no es "/" (o sea, no es sin_rol), se está
+  // redirigiendo a su landing: no mostrar nada.
+  if (isOnboardingComplete && (!userPermissions || landing !== "/")) {
     return null
+  }
+
+  // Tiene proyectos pero su rol es "sin_rol": no hay a dónde redirigirlo.
+  if (isOnboardingComplete && userPermissions && landing === "/") {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center p-4">
+        <div className="text-center max-w-md space-y-4">
+          <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto">
+            <Building2 className="w-8 h-8 text-primary" />
+          </div>
+          <h1 className="text-2xl font-bold text-foreground">Cuenta pendiente de asignación</h1>
+          <p className="text-muted-foreground">
+            Tu cuenta todavía no tiene un rol asignado. Pedile a un administrador de Tecnología
+            que te asigne uno desde Configuración → Equipo.
+          </p>
+        </div>
+      </div>
+    )
   }
 
   // Si no hay proyectos pero el usuario NO es admin, mostrar mensaje
@@ -113,7 +142,7 @@ export default function Home() {
     <FirstProjectModal
       onProjectCreated={(project) => {
         addProject(project)
-        router.push("/tablero")
+        router.push(landing !== "/" ? landing : "/tablero")
       }}
     />
   )
