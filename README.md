@@ -183,3 +183,4 @@ Para preguntas sobre:
 
 **Versión:** 1.0  
 **Última actualización:** Septiembre de 2026
+
