@@ -75,6 +75,21 @@ function formatDateTime(iso: string) {
   })
 }
 
+/**
+ * Clases de licencia de un chofer. `tiposLicencia` es la fuente; el split de
+ * `tipoLicencia` ("C1, E2") cubre datos cacheados antes de las licencias múltiples.
+ */
+function driverLicenses(driver: Pick<Driver, "tiposLicencia" | "tipoLicencia">): string[] {
+  if (driver.tiposLicencia?.length) return driver.tiposLicencia
+  return (driver.tipoLicencia || "").split(",").map((t) => t.trim()).filter(Boolean)
+}
+
+/** Alterna una clase en la selección y la deja en el orden canónico de LICENSE_TYPES. */
+function toggleLicense(selected: string[], tipo: string): string[] {
+  const next = selected.includes(tipo) ? selected.filter((t) => t !== tipo) : [...selected, tipo]
+  return LICENSE_TYPES.filter((t) => next.includes(t))
+}
+
 /** Agrupa la licencia por su letra (B, C, D, E, G) para el filtro por familia. */
 function licenseFamily(tipo: string): string {
   return tipo.charAt(0)
@@ -210,7 +225,7 @@ export function DriversManagement() {
   const emptyForm: Partial<CreateDriverDTO> = {
     nombre: "",
     apellido: "",
-    tipoLicencia: "",
+    tiposLicencia: [],
     cuit: "",
     email: "",
     vencimientoLicencia: "",
@@ -235,8 +250,7 @@ export function DriversManagement() {
       const matchesStatus = filterStatus === "all" || d.estado === filterStatus
       const matchesLicense =
         filterLicense === "all" ||
-        d.tipoLicencia === filterLicense ||
-        licenseFamily(d.tipoLicencia) === filterLicense
+        driverLicenses(d).some((t) => t === filterLicense || licenseFamily(t) === filterLicense)
       const matchesSearch =
         !term ||
         [d.nombre, d.apellido, d.nombreCompleto, d.cuit, d.email]
@@ -249,10 +263,10 @@ export function DriversManagement() {
   const nuevoCuitError = cuitError(newDriver.cuit || "")
   const editCuitError = editingDriver ? cuitError(editingDriver.cuit || "") : null
 
-  // La certificación solo existe para las licencias que la habilitan (E2).
+  // La certificación solo existe si alguna licencia la habilita (E2).
   // Espejo de la regla del backend, que igual normaliza el par al guardar.
-  const nuevoRequiereCert = licenseRequiresCertification(newDriver.tipoLicencia)
-  const editRequiereCert = editingDriver ? licenseRequiresCertification(editingDriver.tipoLicencia) : false
+  const nuevoRequiereCert = licenseRequiresCertification(newDriver.tiposLicencia)
+  const editRequiereCert = editingDriver ? licenseRequiresCertification(driverLicenses(editingDriver)) : false
 
   /**
    * Filas de alerta derivadas de los choferes ya cargados: el estado y los
@@ -299,7 +313,7 @@ export function DriversManagement() {
   }, [drivers])
 
   const handleAddDriver = async () => {
-    if (!newDriver.nombre || !newDriver.apellido || !newDriver.tipoLicencia || !newDriver.cuit) {
+    if (!newDriver.nombre || !newDriver.apellido || !newDriver.tiposLicencia?.length || !newDriver.cuit) {
       showError("Error", "Completa los campos obligatorios")
       return
     }
@@ -318,7 +332,7 @@ export function DriversManagement() {
       const driver = await driverService.create({
         nombre: newDriver.nombre || "",
         apellido: newDriver.apellido || "",
-        tipoLicencia: newDriver.tipoLicencia || "",
+        tiposLicencia: newDriver.tiposLicencia || [],
         cuit: newDriver.cuit || "",
         email: newDriver.email || null,
         vencimientoLicencia: newDriver.vencimientoLicencia || null,
@@ -338,7 +352,7 @@ export function DriversManagement() {
   const handleUpdateDriver = async () => {
     if (!editingDriver) return
 
-    if (!editingDriver.nombre || !editingDriver.apellido || !editingDriver.cuit) {
+    if (!editingDriver.nombre || !editingDriver.apellido || !editingDriver.cuit || driverLicenses(editingDriver).length === 0) {
       showError("Error", "Completa los campos obligatorios")
       return
     }
@@ -357,7 +371,7 @@ export function DriversManagement() {
       const updated = await driverService.update(editingDriver.id, {
         nombre: editingDriver.nombre,
         apellido: editingDriver.apellido,
-        tipoLicencia: editingDriver.tipoLicencia,
+        tiposLicencia: driverLicenses(editingDriver),
         cuit: editingDriver.cuit,
         email: editingDriver.email || null,
         vencimientoLicencia: editingDriver.vencimientoLicencia || null,
@@ -414,9 +428,47 @@ export function DriversManagement() {
    * par excluyente Certificación Sí/No + su vencimiento. Compartido entre el
    * alta y la edición para que las dos pantallas no se separen.
    */
+  /**
+   * Selector de clases de licencia: chips que se prenden y apagan, porque un
+   * chofer puede tener varias a la vez. Compartido entre alta y edición.
+   */
+  const renderLicensePicker = (
+    selected: string[],
+    required: boolean,
+    onChange: (tipos: string[]) => void,
+  ) => (
+    <div className="space-y-2 md:col-span-2 lg:col-span-3">
+      <Label className="text-xs md:text-sm font-medium text-foreground">
+        Tipo de Licencia{required ? " *" : ""}
+        <span className="ml-1 font-normal text-muted-foreground">(podés elegir más de una)</span>
+      </Label>
+      <div className="flex flex-wrap gap-2">
+        {LICENSE_TYPES.map((type) => {
+          const active = selected.includes(type)
+          return (
+            <button
+              key={type}
+              type="button"
+              aria-pressed={active}
+              title={LICENSE_LABELS[type]}
+              onClick={() => onChange(toggleLicense(selected, type))}
+              className={`px-3 py-2 text-xs md:text-sm rounded-lg border-2 transition-all ${
+                active
+                  ? "border-primary bg-primary/10 text-primary font-medium"
+                  : "border-border bg-background text-foreground hover:border-primary/50"
+              }`}
+            >
+              {LICENSE_LABELS[type]}
+            </button>
+          )
+        })}
+      </div>
+    </div>
+  )
+
   const renderLicenseFields = (
     values: {
-      tipoLicencia?: string
+      tiposLicencia?: string[]
       vencimientoLicencia?: string | null
       tieneCertificacion?: boolean
       vencimientoCertificacion?: string | null
@@ -430,7 +482,7 @@ export function DriversManagement() {
       vencimientoCertificacion?: string | null
     }) => void,
   ) => {
-    const requiere = licenseRequiresCertification(values.tipoLicencia)
+    const requiere = licenseRequiresCertification(values.tiposLicencia)
     return (
       <>
         <div className="space-y-2">
@@ -554,26 +606,6 @@ export function DriversManagement() {
                   />
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="tipoLicencia" className="text-xs md:text-sm font-medium text-foreground">
-                    Tipo de Licencia *
-                  </Label>
-                  <Select
-                    value={newDriver.tipoLicencia}
-                    onValueChange={(value) => setNewDriver({ ...newDriver, tipoLicencia: value })}
-                  >
-                    <SelectTrigger id="tipoLicencia">
-                      <SelectValue placeholder="Seleccionar licencia" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {LICENSE_TYPES.map((type) => (
-                        <SelectItem key={type} value={type}>
-                          {LICENSE_LABELS[type]}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
 
                 <div className="space-y-2">
                   <Label htmlFor="cuit" className="text-xs md:text-sm font-medium text-foreground">
@@ -607,6 +639,10 @@ export function DriversManagement() {
                     className="bg-input border-border text-foreground text-sm"
                   />
                 </div>
+
+                {renderLicensePicker(newDriver.tiposLicencia || [], true, (tipos) =>
+                  setNewDriver({ ...newDriver, tiposLicencia: tipos }),
+                )}
 
                 {renderLicenseFields(newDriver, (patch) =>
                   setNewDriver({ ...newDriver, ...patch }),
@@ -666,24 +702,6 @@ export function DriversManagement() {
                   />
                 </div>
 
-                <div className="space-y-2">
-                  <Label className="text-xs md:text-sm font-medium text-foreground">Tipo de Licencia</Label>
-                  <Select
-                    value={editingDriver.tipoLicencia}
-                    onValueChange={(value) => setEditingDriver({ ...editingDriver, tipoLicencia: value })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {LICENSE_TYPES.map((type) => (
-                        <SelectItem key={type} value={type}>
-                          {LICENSE_LABELS[type]}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
 
                 <div className="space-y-2">
                   <Label className="text-xs md:text-sm font-medium text-foreground">CUIT</Label>
@@ -709,6 +727,10 @@ export function DriversManagement() {
                     className="bg-input border-border text-foreground text-sm"
                   />
                 </div>
+
+                {renderLicensePicker(driverLicenses(editingDriver), false, (tipos) =>
+                  setEditingDriver({ ...editingDriver, tiposLicencia: tipos }),
+                )}
 
                 {renderLicenseFields(editingDriver, (patch) =>
                   setEditingDriver({ ...editingDriver, ...patch }),
@@ -832,12 +854,20 @@ export function DriversManagement() {
                       {driver.apellido}, {driver.nombre}
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap">
-                      <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary">
-                        {driver.tipoLicencia}
-                      </span>
-                      <span className="ml-2 text-xs text-muted-foreground hidden lg:inline">
-                        {licenseLabel(driver.tipoLicencia).split("—")[1]?.trim()}
-                      </span>
+                      {driverLicenses(driver).map((tipo) => (
+                        <span
+                          key={tipo}
+                          title={licenseLabel(tipo)}
+                          className="mr-1 px-2 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary"
+                        >
+                          {tipo}
+                        </span>
+                      ))}
+                      {driverLicenses(driver).length === 1 && (
+                        <span className="ml-1 text-xs text-muted-foreground hidden lg:inline">
+                          {licenseLabel(driver.tipoLicencia).split("—")[1]?.trim()}
+                        </span>
+                      )}
                     </td>
                     <td className="px-4 py-3 text-foreground whitespace-nowrap">{driver.cuit}</td>
                     <td className="px-4 py-3 text-muted-foreground whitespace-nowrap">{driver.email || "—"}</td>
@@ -962,7 +992,9 @@ export function DriversManagement() {
                 </div>
 
                 <div className="space-y-2">
-                  <p className="text-xs text-muted-foreground">{licenseLabel(driver.tipoLicencia)}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {driverLicenses(driver).map((tipo) => licenseLabel(tipo)).join(" · ")}
+                  </p>
                   <div className="flex items-center gap-2 text-xs">
                     <IdCard className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
                     <span className="font-medium text-foreground">{driver.cuit}</span>

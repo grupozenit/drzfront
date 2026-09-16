@@ -323,16 +323,18 @@ export const REPORT_FILTER_CATEGORIES = ACTIVITY_CATEGORY_LIST.filter(
 // TIPOS DE MAQUINARIA
 // ============================================
 
+// Orden alfabético, con "Otro" siempre al final.
 export const MACHINE_TYPES = [
-    "Manipulador Telescópico",
-    "Camión Pluma",
-    "Grúa",
-    "Excavadora",
-    "Retroexcavadora",
     "Camión",
+    "Camión Pluma",
     "Camioneta",
     "Combi",
+    "Excavadora",
+    "Grúa",
+    "Hincadora",
+    "Manipulador Telescópico",
     "Minicargador",
+    "Retroexcavadora",
     "Rodillo Compactador",
     "Otro",
 ] as const;
@@ -369,6 +371,16 @@ function normalizeLabel(value?: string | null): string {
 // vencimiento). Espejo de CERTIFIABLE_TYPES en el backend.
 const CERTIFIABLE_MACHINE_TYPES = ["camion pluma", "manipulador telescopico"];
 
+// Tipos en los que la capacidad no aplica. Comparación exacta, no por
+// substring como isVehicleType: un Camión Pluma sí tiene capacidad.
+// Espejo de NO_CAPACITY_TYPES en el backend, que además la descarta al guardar.
+const NO_CAPACITY_MACHINE_TYPES = ["camion", "camioneta", "combi"];
+
+/** False para Camión, Camioneta y Combi: no piden Capacidad. */
+export function machineAcceptsCapacity(tipo?: string | null): boolean {
+    return !NO_CAPACITY_MACHINE_TYPES.includes(normalizeLabel(tipo));
+}
+
 /** True si el tipo de maquinaria ofrece el par Certificación Sí/No + vencimiento. */
 export function requiresCertification(tipo?: string | null): boolean {
     return CERTIFIABLE_MACHINE_TYPES.includes(normalizeLabel(tipo));
@@ -378,30 +390,34 @@ export function requiresCertification(tipo?: string | null): boolean {
 // Espejo de CERTIFIABLE_LICENSE_TYPES en el backend.
 const CERTIFIABLE_LICENSE_TYPES = ["e2"];
 
-/** True si el tipo de licencia ofrece el par Certificación Sí/No + vencimiento. */
-export function licenseRequiresCertification(tipoLicencia?: string | null): boolean {
-    return CERTIFIABLE_LICENSE_TYPES.includes(normalizeLabel(tipoLicencia));
+/**
+ * True si alguna de las clases de licencia ofrece el par Certificación Sí/No +
+ * vencimiento. Un chofer puede tener varias clases a la vez.
+ */
+export function licenseRequiresCertification(tiposLicencia?: readonly string[] | null): boolean {
+    return (tiposLicencia || []).some((t) => CERTIFIABLE_LICENSE_TYPES.includes(normalizeLabel(t)));
 }
 
 // ============================================
 // TIPOS DE EQUIPOS Y HERRAMIENTAS
 // ============================================
 
+// Orden alfabético, con "Otro" siempre al final.
 export const EQUIPMENT_TYPES = [
-    "Generador",
-    "Tablero Eléctrico",
-    "Estación Total",
-    "GPS",
-    "Drone",
-    "Multímetro",
-    "Compresor",
-    "Soldadora",
-    "Bomba",
-    "Taladro",
     "Amoladora",
-    "Sierra Circular",
-    "Pistola de Calor",
+    "Bomba",
+    "Compresor",
+    "Drone",
     "Equipo POT (Pull Out Test)",
+    "Estación Total",
+    "Generador",
+    "GPS",
+    "Multímetro",
+    "Pistola de Calor",
+    "Sierra Circular",
+    "Soldadora",
+    "Tablero Eléctrico",
+    "Taladro",
     "Otro",
 ] as const;
 

@@ -41,7 +41,7 @@ import Link from "next/link"
 import { useProjects, useMachinery, useDrivers, usePermissions } from "@/lib/hooks"
 import { useViewMode } from "@/lib/hooks/useViewMode"
 import { machineryService } from "@/lib/api"
-import { MACHINE_TYPES, isVehicleType, requiresCertification } from "@/lib/constants/activities"
+import { MACHINE_TYPES, isVehicleType, machineAcceptsCapacity, requiresCertification } from "@/lib/constants/activities"
 import { formatDateLocal } from "@/lib/utils"
 import type { Machine, CreateMachineDTO, UpdateMachineDTO, MachineOwnership, EventLogEntry } from "@/lib/types"
 
@@ -264,6 +264,27 @@ function QuickDateEdit({ label, value, onSave, readOnly = false }: QuickDateEdit
   )
 }
 
+// Año del modelo: opcional; si se carga, entre 1900 y el año próximo (0 km).
+// Mismo rango que valida el backend (validate_machine_year).
+const MIN_MACHINE_YEAR = 1900
+
+function maxMachineYear(): number {
+  return new Date().getFullYear() + 1
+}
+
+function parseAnio(raw: string): number | null {
+  const digits = raw.replace(/\D/g, "").slice(0, 4)
+  return digits ? Number(digits) : null
+}
+
+function anioError(anio?: number | null): string | null {
+  if (anio == null) return null
+  if (anio < MIN_MACHINE_YEAR || anio > maxMachineYear()) {
+    return `El año debe estar entre ${MIN_MACHINE_YEAR} y ${maxMachineYear()}`
+  }
+  return null
+}
+
 export function MachineryManagement() {
   // Estado local para formularios
   const [showNewForm, setShowNewForm] = useState(false)
@@ -290,6 +311,7 @@ export function MachineryManagement() {
     codigoInterno: "",
     patente: "",
     numeroChasis: "",
+    anio: null,
     capacidad: "",
     propiedad: "propio",
     observaciones: "",
@@ -324,6 +346,10 @@ export function MachineryManagement() {
 
   const esVehiculoNuevo = isVehicleType(newMachine.tipo)
   const esVehiculoEditando = editingMachine ? isVehicleType(editingMachine.tipo) : false
+
+  // Camión, Camioneta y Combi no piden Capacidad. El backend la descarta igual.
+  const capacidadNuevo = machineAcceptsCapacity(newMachine.tipo)
+  const capacidadEditando = editingMachine ? machineAcceptsCapacity(editingMachine.tipo) : true
 
   // Certificación habilitante: solo la piden Camión Pluma y Manipulador
   // Telescópico. Espejo de la regla del backend, que igual normaliza el par.
@@ -363,13 +389,12 @@ export function MachineryManagement() {
       showError("Error", "Completa los campos obligatorios")
       return
     }
-    if (esVehiculoNuevo) {
-      if (!newMachine.patente || !newMachine.choferId) {
-        showError("Error", "Patente y chofer responsable son obligatorios para este tipo de vehículo")
-        return
-      }
-    } else if (!newMachine.numeroChasis) {
-      showError("Error", "El número de chasis es obligatorio para este tipo de maquinaria")
+    if (esVehiculoNuevo && (!newMachine.patente || !newMachine.choferId)) {
+      showError("Error", "Patente y chofer responsable son obligatorios para este tipo de vehículo")
+      return
+    }
+    if (anioError(newMachine.anio)) {
+      showError("Error", anioError(newMachine.anio)!)
       return
     }
     const nuevoCertificado = requiereCertNuevo && !!newMachine.tieneCertificacion
@@ -387,7 +412,8 @@ export function MachineryManagement() {
         codigoInterno: newMachine.codigoInterno || "",
         patente: esVehiculoNuevo ? newMachine.patente || null : null,
         numeroChasis: esVehiculoNuevo ? null : newMachine.numeroChasis || null,
-        capacidad: newMachine.capacidad || "",
+        anio: newMachine.anio ?? null,
+        capacidad: capacidadNuevo ? newMachine.capacidad || "" : "",
         propiedad: newMachine.propiedad || "propio",
         observaciones: newMachine.observaciones || "",
         proyectoId: newMachine.proyectoId || null,
@@ -412,13 +438,12 @@ export function MachineryManagement() {
   const handleUpdateMachine = async () => {
     if (!editingMachine) return
 
-    if (esVehiculoEditando) {
-      if (!editingMachine.patente || !editingMachine.choferId) {
-        showError("Error", "Patente y chofer responsable son obligatorios para este tipo de vehículo")
-        return
-      }
-    } else if (!editingMachine.numeroChasis) {
-      showError("Error", "El número de chasis es obligatorio para este tipo de maquinaria")
+    if (esVehiculoEditando && (!editingMachine.patente || !editingMachine.choferId)) {
+      showError("Error", "Patente y chofer responsable son obligatorios para este tipo de vehículo")
+      return
+    }
+    if (anioError(editingMachine.anio)) {
+      showError("Error", anioError(editingMachine.anio)!)
       return
     }
     const editCertificado = requiereCertEditando && !!editingMachine.tieneCertificacion
@@ -436,7 +461,8 @@ export function MachineryManagement() {
         codigoInterno: editingMachine.codigoInterno,
         patente: esVehiculoEditando ? editingMachine.patente : null,
         numeroChasis: esVehiculoEditando ? null : editingMachine.numeroChasis,
-        capacidad: editingMachine.capacidad,
+        anio: editingMachine.anio ?? null,
+        capacidad: capacidadEditando ? editingMachine.capacidad : "",
         propiedad: editingMachine.propiedad,
         observaciones: editingMachine.observaciones,
         choferId: esVehiculoEditando ? editingMachine.choferId : null,
@@ -602,7 +628,7 @@ export function MachineryManagement() {
 
   const renderIdentifierFields = (
     esVehiculo: boolean,
-    values: { patente?: string | null; numeroChasis?: string | null; choferId?: string | null; vencimientoRto?: string | null; tieneGps?: boolean; tieneTelepase?: boolean },
+    values: { patente?: string | null; numeroChasis?: string | null; anio?: number | null; choferId?: string | null; vencimientoRto?: string | null; tieneGps?: boolean; tieneTelepase?: boolean },
     onChange: (field: string, value: any) => void
   ) => {
     const choferOptions = choferOptionsFor(values.choferId)
@@ -684,7 +710,7 @@ export function MachineryManagement() {
         </>
       ) : (
         <div className="space-y-2">
-          <Label className="text-xs md:text-sm font-medium text-foreground">Número de Chasis *</Label>
+          <Label className="text-xs md:text-sm font-medium text-foreground">Número de Chasis</Label>
           <Input
             placeholder="Ej: 9BWZZZ377VT004251"
             value={values.numeroChasis || ""}
@@ -693,6 +719,20 @@ export function MachineryManagement() {
           />
         </div>
       )}
+      <div className="space-y-2">
+        <Label className="text-xs md:text-sm font-medium text-foreground">Año</Label>
+        <Input
+          type="number"
+          inputMode="numeric"
+          min={MIN_MACHINE_YEAR}
+          max={maxMachineYear()}
+          placeholder="Ej: 2019"
+          value={values.anio ?? ""}
+          onChange={(e) => onChange("anio", parseAnio(e.target.value))}
+          className={`bg-input text-foreground text-sm ${anioError(values.anio) ? "border-destructive" : "border-border"}`}
+        />
+        {anioError(values.anio) && <p className="text-xs text-destructive">{anioError(values.anio)}</p>}
+      </div>
     </>
     )
   }
@@ -759,6 +799,7 @@ export function MachineryManagement() {
                         ...(requiresCertification(value)
                           ? {}
                           : { tieneCertificacion: false, vencimientoCertificacion: "" }),
+                        ...(machineAcceptsCapacity(value) ? {} : { capacidad: "" }),
                       })
                     }
                   >
@@ -822,18 +863,20 @@ export function MachineryManagement() {
                   setNewMachine({ ...newMachine, ...patch })
                 )}
 
-                <div className="space-y-2">
-                  <Label htmlFor="capacidad" className="text-xs md:text-sm font-medium text-foreground">
-                    Capacidad
-                  </Label>
-                  <Input
-                    id="capacidad"
-                    placeholder="Ej: 20 ton, 5 m³"
-                    value={newMachine.capacidad || ""}
-                    onChange={(e) => setNewMachine({ ...newMachine, capacidad: e.target.value })}
-                    className="bg-input border-border text-foreground text-sm"
-                  />
-                </div>
+                {capacidadNuevo && (
+                  <div className="space-y-2">
+                    <Label htmlFor="capacidad" className="text-xs md:text-sm font-medium text-foreground">
+                      Capacidad
+                    </Label>
+                    <Input
+                      id="capacidad"
+                      placeholder="Ej: 20 ton, 5 m³"
+                      value={newMachine.capacidad || ""}
+                      onChange={(e) => setNewMachine({ ...newMachine, capacidad: e.target.value })}
+                      className="bg-input border-border text-foreground text-sm"
+                    />
+                  </div>
+                )}
 
                 <div className="space-y-2">
                   <Label htmlFor="propiedad" className="text-xs md:text-sm font-medium text-foreground">
@@ -950,6 +993,7 @@ export function MachineryManagement() {
                         ...(requiresCertification(value)
                           ? {}
                           : { tieneCertificacion: false, vencimientoCertificacion: null }),
+                        ...(machineAcceptsCapacity(value) ? {} : { capacidad: "" }),
                       })
                     }
                   >
@@ -1001,14 +1045,16 @@ export function MachineryManagement() {
                   setEditingMachine({ ...editingMachine, ...patch })
                 )}
 
-                <div className="space-y-2">
-                  <Label className="text-xs md:text-sm font-medium text-foreground">Capacidad</Label>
-                  <Input
-                    value={editingMachine.capacidad}
-                    onChange={(e) => setEditingMachine({ ...editingMachine, capacidad: e.target.value })}
-                    className="bg-input border-border text-foreground text-sm"
-                  />
-                </div>
+                {capacidadEditando && (
+                  <div className="space-y-2">
+                    <Label className="text-xs md:text-sm font-medium text-foreground">Capacidad</Label>
+                    <Input
+                      value={editingMachine.capacidad || ""}
+                      onChange={(e) => setEditingMachine({ ...editingMachine, capacidad: e.target.value })}
+                      className="bg-input border-border text-foreground text-sm"
+                    />
+                  </div>
+                )}
 
                 <div className="space-y-2">
                   <Label className="text-xs md:text-sm font-medium text-foreground">Propio / Subcontrato</Label>
@@ -1217,7 +1263,10 @@ export function MachineryManagement() {
                   >
                     <td className="px-4 py-3 font-medium text-foreground whitespace-nowrap">{machine.codigoInterno}</td>
                     <td className="px-4 py-3 text-foreground whitespace-nowrap">{machine.tipo}</td>
-                    <td className="px-4 py-3 text-foreground whitespace-nowrap">{machine.marca} {machine.modelo}</td>
+                    <td className="px-4 py-3 text-foreground whitespace-nowrap">
+                      {machine.marca} {machine.modelo}
+                      {machine.anio && <span className="ml-1 text-xs text-muted-foreground">({machine.anio})</span>}
+                    </td>
                     <td className="px-4 py-3 text-foreground whitespace-nowrap">
                       {machine.patente || machine.numeroChasis || "—"}
                       {isVehicleType(machine.tipo) && (
@@ -1384,7 +1433,13 @@ export function MachineryManagement() {
                       )}
                     </div>
                   )}
-                  {machine.capacidad && (
+                  {machine.anio && (
+                    <div className="flex items-center gap-2 text-xs">
+                      <span className="text-muted-foreground">Año:</span>
+                      <span className="font-medium text-foreground">{machine.anio}</span>
+                    </div>
+                  )}
+                  {machine.capacidad && machineAcceptsCapacity(machine.tipo) && (
                     <div className="flex items-center gap-2 text-xs">
                       <span className="text-muted-foreground">Capacidad:</span>
                       <span className="font-medium text-foreground">{machine.capacidad}</span>
