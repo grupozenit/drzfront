@@ -517,6 +517,10 @@ export interface Driver {
   email?: string | null;
   estado: DriverStatus;
   vehiculosAsignados: number;
+  proyectoId?: string | null;
+  proyectoName?: string | null;
+  /** Asignado a un proyecto fuera del alcance del usuario: id y nombre vienen ocultos. */
+  proyectoOculto?: boolean;
   companyId: string;
   createdAt: string;
   updatedAt: string;
@@ -539,6 +543,8 @@ export interface CreateDriverDTO {
   vencimientoLicencia?: string | null;
   tieneCertificacion?: boolean;
   vencimientoCertificacion?: string | null;
+  /** Proyecto asignado; null = sin asignar. */
+  proyectoId?: string | null;
 }
 
 export interface UpdateDriverDTO extends Partial<CreateDriverDTO> {}
@@ -546,6 +552,7 @@ export interface UpdateDriverDTO extends Partial<CreateDriverDTO> {}
 export interface DriverFilters {
   status?: DriverStatus | 'all';
   licenseType?: string | 'all';
+  projectId?: string | 'none' | 'all';
 }
 
 export type DriverExpirationKind = 'licencia' | 'certificacion';

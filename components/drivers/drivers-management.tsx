@@ -30,8 +30,9 @@ import {
   Search,
   Truck,
   AlertTriangle,
+  FolderOpen,
 } from "lucide-react"
-import { useDrivers, usePermissions } from "@/lib/hooks"
+import { useDrivers, usePermissions, useProjects } from "@/lib/hooks"
 import { useViewMode } from "@/lib/hooks/useViewMode"
 import { driverService } from "@/lib/api"
 import {
@@ -82,6 +83,12 @@ function formatDateTime(iso: string) {
 function driverLicenses(driver: Pick<Driver, "tiposLicencia" | "tipoLicencia">): string[] {
   if (driver.tiposLicencia?.length) return driver.tiposLicencia
   return (driver.tipoLicencia || "").split(",").map((t) => t.trim()).filter(Boolean)
+}
+
+/** Nombre del proyecto para mostrar; un proyecto fuera del alcance no se nombra. */
+function driverProjectLabel(driver: Pick<Driver, "proyectoName" | "proyectoOculto">): string {
+  if (driver.proyectoName) return driver.proyectoName
+  return driver.proyectoOculto ? "Otro proyecto" : "Sin asignar"
 }
 
 /** Alterna una clase en la selección y la deja en el orden canónico de LICENSE_TYPES. */
@@ -218,6 +225,7 @@ export function DriversManagement() {
   const [openMenuId, setOpenMenuId] = useState<string | null>(null)
   const [filterStatus, setFilterStatus] = useState<string>("activo")
   const [filterLicense, setFilterLicense] = useState<string>("all")
+  const [filterProject, setFilterProject] = useState<string>("all")
   const [searchTerm, setSearchTerm] = useState<string>("")
   const [isSaving, setIsSaving] = useState(false)
   const [viewMode, setViewMode] = useViewMode("choferes-view")
@@ -231,6 +239,7 @@ export function DriversManagement() {
     vencimientoLicencia: "",
     tieneCertificacion: false,
     vencimientoCertificacion: "",
+    proyectoId: null,
   }
 
   const [newDriver, setNewDriver] = useState<Partial<CreateDriverDTO>>(emptyForm)
@@ -239,9 +248,15 @@ export function DriversManagement() {
   const { drivers, isLoading, loadDrivers, addDriver, updateDriver, removeDriver } = useDrivers()
   const { can } = usePermissions()
   const canWrite = can("choferes", "create")
+  const { projects, loadProjects } = useProjects()
+  const sortedProjects = useMemo(
+    () => [...projects].sort((a, b) => a.name.localeCompare(b.name, "es", { sensitivity: "base", numeric: true })),
+    [projects],
+  )
 
   useEffect(() => {
     loadDrivers()
+    loadProjects()
   }, [])
 
   const filteredDrivers = useMemo(() => {
@@ -251,14 +266,18 @@ export function DriversManagement() {
       const matchesLicense =
         filterLicense === "all" ||
         driverLicenses(d).some((t) => t === filterLicense || licenseFamily(t) === filterLicense)
+      const matchesProject =
+        filterProject === "all" ||
+        d.proyectoId === filterProject ||
+        (filterProject === "none" && !d.proyectoId && !d.proyectoOculto)
       const matchesSearch =
         !term ||
         [d.nombre, d.apellido, d.nombreCompleto, d.cuit, d.email]
           .filter(Boolean)
           .some((field) => field!.toLowerCase().includes(term))
-      return matchesStatus && matchesLicense && matchesSearch
+      return matchesStatus && matchesLicense && matchesProject && matchesSearch
     })
-  }, [drivers, filterStatus, filterLicense, searchTerm])
+  }, [drivers, filterStatus, filterLicense, filterProject, searchTerm])
 
   const nuevoCuitError = cuitError(newDriver.cuit || "")
   const editCuitError = editingDriver ? cuitError(editingDriver.cuit || "") : null
@@ -338,6 +357,7 @@ export function DriversManagement() {
         vencimientoLicencia: newDriver.vencimientoLicencia || null,
         tieneCertificacion: nuevoCertificado,
         vencimientoCertificacion: nuevoCertificado ? newDriver.vencimientoCertificacion || null : null,
+        proyectoId: newDriver.proyectoId || null,
       })
       addDriver(driver)
       resetForm()
@@ -377,6 +397,8 @@ export function DriversManagement() {
         vencimientoLicencia: editingDriver.vencimientoLicencia || null,
         tieneCertificacion: editCertificado,
         vencimientoCertificacion: editCertificado ? editingDriver.vencimientoCertificacion || null : null,
+        // Un proyecto oculto (fuera de alcance) no se reenvía: no tocarlo.
+        ...(editingDriver.proyectoOculto ? {} : { proyectoId: editingDriver.proyectoId || null }),
       })
       updateDriver(editingDriver.id, updated)
       setEditingDriver(null)
@@ -647,6 +669,30 @@ export function DriversManagement() {
                 {renderLicenseFields(newDriver, (patch) =>
                   setNewDriver({ ...newDriver, ...patch }),
                 )}
+
+                <div className="space-y-2">
+                  <Label htmlFor="proyecto" className="text-xs md:text-sm font-medium text-foreground">
+                    Asignar a Proyecto (opcional)
+                  </Label>
+                  <Select
+                    value={newDriver.proyectoId || "none"}
+                    onValueChange={(value) =>
+                      setNewDriver({ ...newDriver, proyectoId: value === "none" ? null : value })
+                    }
+                  >
+                    <SelectTrigger id="proyecto">
+                      <SelectValue placeholder="Sin asignar" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Sin asignar</SelectItem>
+                      {sortedProjects.map((project) => (
+                        <SelectItem key={project.id} value={project.id}>
+                          {project.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
 
               <div className="flex gap-3 pt-4 border-t border-border">
@@ -735,6 +781,30 @@ export function DriversManagement() {
                 {renderLicenseFields(editingDriver, (patch) =>
                   setEditingDriver({ ...editingDriver, ...patch }),
                 )}
+
+                <div className="space-y-2">
+                  <Label className="text-xs md:text-sm font-medium text-foreground">
+                    Asignar a Proyecto (opcional)
+                  </Label>
+                  <Select
+                    value={editingDriver.proyectoId || "none"}
+                    onValueChange={(value) =>
+                      setEditingDriver({ ...editingDriver, proyectoId: value === "none" ? null : value, proyectoOculto: false })
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Sin asignar" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Sin asignar</SelectItem>
+                      {sortedProjects.map((project) => (
+                        <SelectItem key={project.id} value={project.id}>
+                          {project.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
 
               <div className="flex gap-3 pt-4 border-t border-border">
@@ -779,7 +849,7 @@ export function DriversManagement() {
             <ViewToggle value={viewMode} onChange={setViewMode} />
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6 w-full">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 w-full">
             <div className="flex items-center gap-2">
               <Label className="text-xs md:text-sm font-medium text-foreground whitespace-nowrap">Estado</Label>
               <Select value={filterStatus} onValueChange={setFilterStatus}>
@@ -815,6 +885,24 @@ export function DriversManagement() {
                 </SelectContent>
               </Select>
             </div>
+
+            <div className="flex items-center gap-2">
+              <Label className="text-xs md:text-sm font-medium text-foreground whitespace-nowrap">Proyecto</Label>
+              <Select value={filterProject} onValueChange={setFilterProject}>
+                <SelectTrigger className="w-full md:w-56">
+                  <SelectValue placeholder="Todos" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos</SelectItem>
+                  <SelectItem value="none">Sin asignar</SelectItem>
+                  {sortedProjects.map((project) => (
+                    <SelectItem key={project.id} value={project.id}>
+                      {project.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
         </Card>
 
@@ -839,6 +927,7 @@ export function DriversManagement() {
                   <th className="text-left font-medium px-4 py-3">CUIT</th>
                   <th className="text-left font-medium px-4 py-3">Email</th>
                   <th className="text-left font-medium px-4 py-3">Vencimientos</th>
+                  <th className="text-left font-medium px-4 py-3">Proyecto</th>
                   <th className="text-left font-medium px-4 py-3">Vehículos</th>
                   <th className="text-left font-medium px-4 py-3">Estado</th>
                   <th className="text-left font-medium px-4 py-3">Acciones</th>
@@ -890,6 +979,7 @@ export function DriversManagement() {
                         )}
                       </div>
                     </td>
+                    <td className="px-4 py-3 text-muted-foreground whitespace-nowrap">{driverProjectLabel(driver)}</td>
                     <td className="px-4 py-3 whitespace-nowrap">
                       {driver.vehiculosAsignados > 0 ? (
                         <span className="inline-flex items-center gap-1 text-foreground">
@@ -1005,6 +1095,10 @@ export function DriversManagement() {
                       <span className="text-foreground truncate">{driver.email}</span>
                     </div>
                   )}
+                  <div className="flex items-center gap-2 text-xs">
+                    <FolderOpen className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
+                    <span className="text-foreground truncate">{driverProjectLabel(driver)}</span>
+                  </div>
                   {driver.vehiculosAsignados > 0 && (
                     <div className="flex items-center gap-2 text-xs">
                       <Truck className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
