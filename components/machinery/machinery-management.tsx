@@ -1249,8 +1249,6 @@ export function MachineryManagement() {
                   <th className="text-left font-medium px-4 py-3">Chofer</th>
                   <th className="text-left font-medium px-4 py-3">Proyecto</th>
                   <th className="text-left font-medium px-4 py-3">Último Service</th>
-                  <th className="text-left font-medium px-4 py-3">Vencimientos</th>
-                  <th className="text-left font-medium px-4 py-3">Incidencias</th>
                   <th className="text-left font-medium px-4 py-3">Estado</th>
                   <th className="text-left font-medium px-4 py-3">Acciones</th>
                 </tr>
@@ -1285,20 +1283,6 @@ export function MachineryManagement() {
                         onSave={(v) => handleQuickUpdateService(machine, v)}
                         readOnly={!canWrite}
                       />
-                    </td>
-                    <td className="px-4 py-3 whitespace-nowrap"><RtoBadge machine={machine} /></td>
-                    <td className="px-4 py-3 whitespace-nowrap">
-                      {machine.incidenciasAbiertas > 0 ? (
-                        <button
-                          onClick={() => setNotesMachine(machine)}
-                          className="flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400"
-                        >
-                          <AlertTriangle className="w-3 h-3" />
-                          {machine.incidenciasAbiertas}
-                        </button>
-                      ) : (
-                        <span className="text-muted-foreground text-xs">—</span>
-                      )}
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap">
                       {machine.estado === "baja" ? (
