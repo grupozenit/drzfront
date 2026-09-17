@@ -62,6 +62,13 @@ export const driverService = {
   },
 
   /**
+   * Asigna o mueve un chofer/operador a otro proyecto (null = desasignar)
+   */
+  async assignToProject(id: string, projectId: string | null): Promise<Driver> {
+    return apiClient.post<Driver>(`${ENDPOINT}/${id}/assign`, { proyectoId: projectId });
+  },
+
+  /**
    * Da de baja un chofer
    */
   async deactivate(id: string): Promise<Driver> {

@@ -571,7 +571,7 @@ export interface DriverExpirationAlert {
 export interface DriverEventLogEntry {
   id: string;
   driverId: string;
-  eventType: 'alta' | 'edicion' | 'baja' | 'reactivacion';
+  eventType: 'alta' | 'edicion' | 'asignacion' | 'desasignacion' | 'baja' | 'reactivacion';
   userId: string;
   userName: string;
   companyId: string;

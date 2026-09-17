@@ -31,6 +31,7 @@ import {
   Truck,
   AlertTriangle,
   FolderOpen,
+  ArrowRightLeft,
 } from "lucide-react"
 import { useDrivers, usePermissions, useProjects } from "@/lib/hooks"
 import { useViewMode } from "@/lib/hooks/useViewMode"
@@ -55,6 +56,8 @@ import type {
 const EVENT_LABELS: Record<DriverEventLogEntry["eventType"], string> = {
   alta: "Alta",
   edicion: "Edición",
+  asignacion: "Asignación",
+  desasignacion: "Desasignación",
   baja: "Baja",
   reactivacion: "Reactivación",
 }
@@ -62,6 +65,8 @@ const EVENT_LABELS: Record<DriverEventLogEntry["eventType"], string> = {
 const EVENT_COLORS: Record<DriverEventLogEntry["eventType"], string> = {
   alta: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400",
   edicion: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400",
+  asignacion: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400",
+  desasignacion: "bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-200",
   baja: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400",
   reactivacion: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400",
 }
@@ -220,6 +225,8 @@ export function DriversManagement() {
   const [showNewForm, setShowNewForm] = useState(false)
   const [editingDriver, setEditingDriver] = useState<Driver | null>(null)
   const [showDeactivateDialog, setShowDeactivateDialog] = useState(false)
+  const [showMoveDialog, setShowMoveDialog] = useState(false)
+  const [moveToProject, setMoveToProject] = useState<string>("")
   const [selectedDriver, setSelectedDriver] = useState<Driver | null>(null)
   const [historyDriver, setHistoryDriver] = useState<Driver | null>(null)
   const [openMenuId, setOpenMenuId] = useState<string | null>(null)
@@ -405,6 +412,32 @@ export function DriversManagement() {
       success("Chofer actualizado", "Los cambios se han guardado correctamente")
     } catch (err: any) {
       showError("Error", err?.message || "No se pudo actualizar el chofer")
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  const closeMoveDialog = () => {
+    setShowMoveDialog(false)
+    setSelectedDriver(null)
+    setMoveToProject("")
+  }
+
+  const handleMoveDriver = async () => {
+    if (!selectedDriver || !moveToProject) return
+
+    setIsSaving(true)
+    try {
+      const projectId = moveToProject === "none" ? null : moveToProject
+      const updated = await driverService.assignToProject(selectedDriver.id, projectId)
+      updateDriver(selectedDriver.id, updated)
+      closeMoveDialog()
+      success(
+        projectId ? "Chofer/operador movido" : "Chofer/operador desasignado",
+        projectId ? "La asignación se guardó correctamente" : "Quedó sin proyecto asignado",
+      )
+    } catch (err: any) {
+      showError("Error", err?.message || "No se pudo cambiar el proyecto")
     } finally {
       setIsSaving(false)
     }
@@ -1011,6 +1044,11 @@ export function DriversManagement() {
                             onClose={() => setOpenMenuId(null)}
                             onEdit={() => setEditingDriver(driver)}
                             onHistory={() => setHistoryDriver(driver)}
+                            onMove={() => {
+                              setSelectedDriver(driver)
+                              setMoveToProject(driver.proyectoId || "none")
+                              setShowMoveDialog(true)
+                            }}
                             onDeactivate={() => {
                               setSelectedDriver(driver)
                               setShowDeactivateDialog(true)
@@ -1070,6 +1108,11 @@ export function DriversManagement() {
                         onClose={() => setOpenMenuId(null)}
                         onEdit={() => setEditingDriver(driver)}
                         onHistory={() => setHistoryDriver(driver)}
+                        onMove={() => {
+                          setSelectedDriver(driver)
+                          setMoveToProject(driver.proyectoId || "none")
+                          setShowMoveDialog(true)
+                        }}
                         onDeactivate={() => {
                           setSelectedDriver(driver)
                           setShowDeactivateDialog(true)
@@ -1154,6 +1197,33 @@ export function DriversManagement() {
           </Card>
         )}
 
+        {/* Move Dialog */}
+        <Dialog
+          isOpen={showMoveDialog}
+          onClose={closeMoveDialog}
+          onConfirm={handleMoveDriver}
+          title={selectedDriver?.proyectoId ? "Cambiar de Proyecto" : "Asignar a Proyecto"}
+          confirmText={selectedDriver?.proyectoId ? "Mover" : "Asignar"}
+          cancelText="Cancelar"
+        >
+          <div className="space-y-2">
+            <Label className="text-sm font-medium text-foreground">Proyecto</Label>
+            <Select value={moveToProject} onValueChange={setMoveToProject}>
+              <SelectTrigger>
+                <SelectValue placeholder="Seleccionar proyecto" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">Sin asignar</SelectItem>
+                {sortedProjects.map((project) => (
+                  <SelectItem key={project.id} value={project.id}>
+                    {project.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </Dialog>
+
         {/* Deactivate Dialog */}
         <Dialog
           isOpen={showDeactivateDialog}
@@ -1184,6 +1254,7 @@ interface DriverActionsMenuProps {
   onClose: () => void
   onEdit: () => void
   onHistory: () => void
+  onMove: () => void
   onDeactivate: () => void
   onReactivate: () => void
   canWrite: boolean
@@ -1194,6 +1265,7 @@ function DriverActionsMenu({
   onClose,
   onEdit,
   onHistory,
+  onMove,
   onDeactivate,
   onReactivate,
   canWrite,
@@ -1222,6 +1294,18 @@ function DriverActionsMenu({
         <Clock className="w-4 h-4" />
         Ver historial
       </button>
+      {canWrite && driver.estado === "activo" && !driver.proyectoOculto && (
+        <button
+          onClick={() => {
+            onMove()
+            onClose()
+          }}
+          className="w-full flex items-center gap-2 px-3 py-2 text-sm text-foreground hover:bg-muted rounded-md transition-colors"
+        >
+          <ArrowRightLeft className="w-4 h-4" />
+          {driver.proyectoId ? "Cambiar de Proyecto" : "Asignar a proyecto"}
+        </button>
+      )}
       {canWrite && (driver.estado === "activo" ? (
         <button
           onClick={() => {
