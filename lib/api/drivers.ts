@@ -26,6 +26,9 @@ export const driverService = {
     if (filters?.licenseType && filters.licenseType !== 'all') {
       params.licenseType = filters.licenseType;
     }
+    if (filters?.projectId && filters.projectId !== 'all') {
+      params.projectId = filters.projectId;
+    }
 
     return apiClient.get<Driver[]>(ENDPOINT, params);
   },

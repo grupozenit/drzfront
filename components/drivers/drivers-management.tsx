@@ -30,8 +30,9 @@ import {
   Search,
   Truck,
   AlertTriangle,
+  FolderOpen,
 } from "lucide-react"
-import { useDrivers, usePermissions } from "@/lib/hooks"
+import { useDrivers, usePermissions, useProjects } from "@/lib/hooks"
 import { useViewMode } from "@/lib/hooks/useViewMode"
 import { driverService } from "@/lib/api"
 import {
@@ -73,6 +74,27 @@ function formatDateTime(iso: string) {
     hour: "2-digit",
     minute: "2-digit",
   })
+}
+
+/**
+ * Clases de licencia de un chofer. `tiposLicencia` es la fuente; el split de
+ * `tipoLicencia` ("C1, E2") cubre datos cacheados antes de las licencias múltiples.
+ */
+function driverLicenses(driver: Pick<Driver, "tiposLicencia" | "tipoLicencia">): string[] {
+  if (driver.tiposLicencia?.length) return driver.tiposLicencia
+  return (driver.tipoLicencia || "").split(",").map((t) => t.trim()).filter(Boolean)
+}
+
+/** Nombre del proyecto para mostrar; un proyecto fuera del alcance no se nombra. */
+function driverProjectLabel(driver: Pick<Driver, "proyectoName" | "proyectoOculto">): string {
+  if (driver.proyectoName) return driver.proyectoName
+  return driver.proyectoOculto ? "Otro proyecto" : "Sin asignar"
+}
+
+/** Alterna una clase en la selección y la deja en el orden canónico de LICENSE_TYPES. */
+function toggleLicense(selected: string[], tipo: string): string[] {
+  const next = selected.includes(tipo) ? selected.filter((t) => t !== tipo) : [...selected, tipo]
+  return LICENSE_TYPES.filter((t) => next.includes(t))
 }
 
 /** Agrupa la licencia por su letra (B, C, D, E, G) para el filtro por familia. */
@@ -203,6 +225,7 @@ export function DriversManagement() {
   const [openMenuId, setOpenMenuId] = useState<string | null>(null)
   const [filterStatus, setFilterStatus] = useState<string>("activo")
   const [filterLicense, setFilterLicense] = useState<string>("all")
+  const [filterProject, setFilterProject] = useState<string>("all")
   const [searchTerm, setSearchTerm] = useState<string>("")
   const [isSaving, setIsSaving] = useState(false)
   const [viewMode, setViewMode] = useViewMode("choferes-view")
@@ -210,12 +233,13 @@ export function DriversManagement() {
   const emptyForm: Partial<CreateDriverDTO> = {
     nombre: "",
     apellido: "",
-    tipoLicencia: "",
+    tiposLicencia: [],
     cuit: "",
     email: "",
     vencimientoLicencia: "",
     tieneCertificacion: false,
     vencimientoCertificacion: "",
+    proyectoId: null,
   }
 
   const [newDriver, setNewDriver] = useState<Partial<CreateDriverDTO>>(emptyForm)
@@ -224,9 +248,15 @@ export function DriversManagement() {
   const { drivers, isLoading, loadDrivers, addDriver, updateDriver, removeDriver } = useDrivers()
   const { can } = usePermissions()
   const canWrite = can("choferes", "create")
+  const { projects, loadProjects } = useProjects()
+  const sortedProjects = useMemo(
+    () => [...projects].sort((a, b) => a.name.localeCompare(b.name, "es", { sensitivity: "base", numeric: true })),
+    [projects],
+  )
 
   useEffect(() => {
     loadDrivers()
+    loadProjects()
   }, [])
 
   const filteredDrivers = useMemo(() => {
@@ -235,24 +265,27 @@ export function DriversManagement() {
       const matchesStatus = filterStatus === "all" || d.estado === filterStatus
       const matchesLicense =
         filterLicense === "all" ||
-        d.tipoLicencia === filterLicense ||
-        licenseFamily(d.tipoLicencia) === filterLicense
+        driverLicenses(d).some((t) => t === filterLicense || licenseFamily(t) === filterLicense)
+      const matchesProject =
+        filterProject === "all" ||
+        d.proyectoId === filterProject ||
+        (filterProject === "none" && !d.proyectoId && !d.proyectoOculto)
       const matchesSearch =
         !term ||
         [d.nombre, d.apellido, d.nombreCompleto, d.cuit, d.email]
           .filter(Boolean)
           .some((field) => field!.toLowerCase().includes(term))
-      return matchesStatus && matchesLicense && matchesSearch
+      return matchesStatus && matchesLicense && matchesProject && matchesSearch
     })
-  }, [drivers, filterStatus, filterLicense, searchTerm])
+  }, [drivers, filterStatus, filterLicense, filterProject, searchTerm])
 
   const nuevoCuitError = cuitError(newDriver.cuit || "")
   const editCuitError = editingDriver ? cuitError(editingDriver.cuit || "") : null
 
-  // La certificación solo existe para las licencias que la habilitan (E2).
+  // La certificación solo existe si alguna licencia la habilita (E2).
   // Espejo de la regla del backend, que igual normaliza el par al guardar.
-  const nuevoRequiereCert = licenseRequiresCertification(newDriver.tipoLicencia)
-  const editRequiereCert = editingDriver ? licenseRequiresCertification(editingDriver.tipoLicencia) : false
+  const nuevoRequiereCert = licenseRequiresCertification(newDriver.tiposLicencia)
+  const editRequiereCert = editingDriver ? licenseRequiresCertification(driverLicenses(editingDriver)) : false
 
   /**
    * Filas de alerta derivadas de los choferes ya cargados: el estado y los
@@ -299,7 +332,7 @@ export function DriversManagement() {
   }, [drivers])
 
   const handleAddDriver = async () => {
-    if (!newDriver.nombre || !newDriver.apellido || !newDriver.tipoLicencia || !newDriver.cuit) {
+    if (!newDriver.nombre || !newDriver.apellido || !newDriver.tiposLicencia?.length || !newDriver.cuit) {
       showError("Error", "Completa los campos obligatorios")
       return
     }
@@ -318,12 +351,13 @@ export function DriversManagement() {
       const driver = await driverService.create({
         nombre: newDriver.nombre || "",
         apellido: newDriver.apellido || "",
-        tipoLicencia: newDriver.tipoLicencia || "",
+        tiposLicencia: newDriver.tiposLicencia || [],
         cuit: newDriver.cuit || "",
         email: newDriver.email || null,
         vencimientoLicencia: newDriver.vencimientoLicencia || null,
         tieneCertificacion: nuevoCertificado,
         vencimientoCertificacion: nuevoCertificado ? newDriver.vencimientoCertificacion || null : null,
+        proyectoId: newDriver.proyectoId || null,
       })
       addDriver(driver)
       resetForm()
@@ -338,7 +372,7 @@ export function DriversManagement() {
   const handleUpdateDriver = async () => {
     if (!editingDriver) return
 
-    if (!editingDriver.nombre || !editingDriver.apellido || !editingDriver.cuit) {
+    if (!editingDriver.nombre || !editingDriver.apellido || !editingDriver.cuit || driverLicenses(editingDriver).length === 0) {
       showError("Error", "Completa los campos obligatorios")
       return
     }
@@ -357,12 +391,14 @@ export function DriversManagement() {
       const updated = await driverService.update(editingDriver.id, {
         nombre: editingDriver.nombre,
         apellido: editingDriver.apellido,
-        tipoLicencia: editingDriver.tipoLicencia,
+        tiposLicencia: driverLicenses(editingDriver),
         cuit: editingDriver.cuit,
         email: editingDriver.email || null,
         vencimientoLicencia: editingDriver.vencimientoLicencia || null,
         tieneCertificacion: editCertificado,
         vencimientoCertificacion: editCertificado ? editingDriver.vencimientoCertificacion || null : null,
+        // Un proyecto oculto (fuera de alcance) no se reenvía: no tocarlo.
+        ...(editingDriver.proyectoOculto ? {} : { proyectoId: editingDriver.proyectoId || null }),
       })
       updateDriver(editingDriver.id, updated)
       setEditingDriver(null)
@@ -414,9 +450,47 @@ export function DriversManagement() {
    * par excluyente Certificación Sí/No + su vencimiento. Compartido entre el
    * alta y la edición para que las dos pantallas no se separen.
    */
+  /**
+   * Selector de clases de licencia: chips que se prenden y apagan, porque un
+   * chofer puede tener varias a la vez. Compartido entre alta y edición.
+   */
+  const renderLicensePicker = (
+    selected: string[],
+    required: boolean,
+    onChange: (tipos: string[]) => void,
+  ) => (
+    <div className="space-y-2 md:col-span-2 lg:col-span-3">
+      <Label className="text-xs md:text-sm font-medium text-foreground">
+        Tipo de Licencia{required ? " *" : ""}
+        <span className="ml-1 font-normal text-muted-foreground">(podés elegir más de una)</span>
+      </Label>
+      <div className="flex flex-wrap gap-2">
+        {LICENSE_TYPES.map((type) => {
+          const active = selected.includes(type)
+          return (
+            <button
+              key={type}
+              type="button"
+              aria-pressed={active}
+              title={LICENSE_LABELS[type]}
+              onClick={() => onChange(toggleLicense(selected, type))}
+              className={`px-3 py-2 text-xs md:text-sm rounded-lg border-2 transition-all ${
+                active
+                  ? "border-primary bg-primary/10 text-primary font-medium"
+                  : "border-border bg-background text-foreground hover:border-primary/50"
+              }`}
+            >
+              {LICENSE_LABELS[type]}
+            </button>
+          )
+        })}
+      </div>
+    </div>
+  )
+
   const renderLicenseFields = (
     values: {
-      tipoLicencia?: string
+      tiposLicencia?: string[]
       vencimientoLicencia?: string | null
       tieneCertificacion?: boolean
       vencimientoCertificacion?: string | null
@@ -430,7 +504,7 @@ export function DriversManagement() {
       vencimientoCertificacion?: string | null
     }) => void,
   ) => {
-    const requiere = licenseRequiresCertification(values.tipoLicencia)
+    const requiere = licenseRequiresCertification(values.tiposLicencia)
     return (
       <>
         <div className="space-y-2">
@@ -554,26 +628,6 @@ export function DriversManagement() {
                   />
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="tipoLicencia" className="text-xs md:text-sm font-medium text-foreground">
-                    Tipo de Licencia *
-                  </Label>
-                  <Select
-                    value={newDriver.tipoLicencia}
-                    onValueChange={(value) => setNewDriver({ ...newDriver, tipoLicencia: value })}
-                  >
-                    <SelectTrigger id="tipoLicencia">
-                      <SelectValue placeholder="Seleccionar licencia" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {LICENSE_TYPES.map((type) => (
-                        <SelectItem key={type} value={type}>
-                          {LICENSE_LABELS[type]}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
 
                 <div className="space-y-2">
                   <Label htmlFor="cuit" className="text-xs md:text-sm font-medium text-foreground">
@@ -608,9 +662,37 @@ export function DriversManagement() {
                   />
                 </div>
 
+                {renderLicensePicker(newDriver.tiposLicencia || [], true, (tipos) =>
+                  setNewDriver({ ...newDriver, tiposLicencia: tipos }),
+                )}
+
                 {renderLicenseFields(newDriver, (patch) =>
                   setNewDriver({ ...newDriver, ...patch }),
                 )}
+
+                <div className="space-y-2">
+                  <Label htmlFor="proyecto" className="text-xs md:text-sm font-medium text-foreground">
+                    Asignar a Proyecto (opcional)
+                  </Label>
+                  <Select
+                    value={newDriver.proyectoId || "none"}
+                    onValueChange={(value) =>
+                      setNewDriver({ ...newDriver, proyectoId: value === "none" ? null : value })
+                    }
+                  >
+                    <SelectTrigger id="proyecto">
+                      <SelectValue placeholder="Sin asignar" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Sin asignar</SelectItem>
+                      {sortedProjects.map((project) => (
+                        <SelectItem key={project.id} value={project.id}>
+                          {project.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
 
               <div className="flex gap-3 pt-4 border-t border-border">
@@ -666,24 +748,6 @@ export function DriversManagement() {
                   />
                 </div>
 
-                <div className="space-y-2">
-                  <Label className="text-xs md:text-sm font-medium text-foreground">Tipo de Licencia</Label>
-                  <Select
-                    value={editingDriver.tipoLicencia}
-                    onValueChange={(value) => setEditingDriver({ ...editingDriver, tipoLicencia: value })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {LICENSE_TYPES.map((type) => (
-                        <SelectItem key={type} value={type}>
-                          {LICENSE_LABELS[type]}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
 
                 <div className="space-y-2">
                   <Label className="text-xs md:text-sm font-medium text-foreground">CUIT</Label>
@@ -710,9 +774,37 @@ export function DriversManagement() {
                   />
                 </div>
 
+                {renderLicensePicker(driverLicenses(editingDriver), false, (tipos) =>
+                  setEditingDriver({ ...editingDriver, tiposLicencia: tipos }),
+                )}
+
                 {renderLicenseFields(editingDriver, (patch) =>
                   setEditingDriver({ ...editingDriver, ...patch }),
                 )}
+
+                <div className="space-y-2">
+                  <Label className="text-xs md:text-sm font-medium text-foreground">
+                    Asignar a Proyecto (opcional)
+                  </Label>
+                  <Select
+                    value={editingDriver.proyectoId || "none"}
+                    onValueChange={(value) =>
+                      setEditingDriver({ ...editingDriver, proyectoId: value === "none" ? null : value, proyectoOculto: false })
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Sin asignar" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Sin asignar</SelectItem>
+                      {sortedProjects.map((project) => (
+                        <SelectItem key={project.id} value={project.id}>
+                          {project.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
 
               <div className="flex gap-3 pt-4 border-t border-border">
@@ -757,7 +849,7 @@ export function DriversManagement() {
             <ViewToggle value={viewMode} onChange={setViewMode} />
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6 w-full">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 w-full">
             <div className="flex items-center gap-2">
               <Label className="text-xs md:text-sm font-medium text-foreground whitespace-nowrap">Estado</Label>
               <Select value={filterStatus} onValueChange={setFilterStatus}>
@@ -793,6 +885,24 @@ export function DriversManagement() {
                 </SelectContent>
               </Select>
             </div>
+
+            <div className="flex items-center gap-2">
+              <Label className="text-xs md:text-sm font-medium text-foreground whitespace-nowrap">Proyecto</Label>
+              <Select value={filterProject} onValueChange={setFilterProject}>
+                <SelectTrigger className="w-full md:w-56">
+                  <SelectValue placeholder="Todos" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos</SelectItem>
+                  <SelectItem value="none">Sin asignar</SelectItem>
+                  {sortedProjects.map((project) => (
+                    <SelectItem key={project.id} value={project.id}>
+                      {project.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
         </Card>
 
@@ -817,6 +927,7 @@ export function DriversManagement() {
                   <th className="text-left font-medium px-4 py-3">CUIT</th>
                   <th className="text-left font-medium px-4 py-3">Email</th>
                   <th className="text-left font-medium px-4 py-3">Vencimientos</th>
+                  <th className="text-left font-medium px-4 py-3">Proyecto</th>
                   <th className="text-left font-medium px-4 py-3">Vehículos</th>
                   <th className="text-left font-medium px-4 py-3">Estado</th>
                   <th className="text-left font-medium px-4 py-3">Acciones</th>
@@ -832,12 +943,20 @@ export function DriversManagement() {
                       {driver.apellido}, {driver.nombre}
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap">
-                      <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary">
-                        {driver.tipoLicencia}
-                      </span>
-                      <span className="ml-2 text-xs text-muted-foreground hidden lg:inline">
-                        {licenseLabel(driver.tipoLicencia).split("—")[1]?.trim()}
-                      </span>
+                      {driverLicenses(driver).map((tipo) => (
+                        <span
+                          key={tipo}
+                          title={licenseLabel(tipo)}
+                          className="mr-1 px-2 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary"
+                        >
+                          {tipo}
+                        </span>
+                      ))}
+                      {driverLicenses(driver).length === 1 && (
+                        <span className="ml-1 text-xs text-muted-foreground hidden lg:inline">
+                          {licenseLabel(driver.tipoLicencia).split("—")[1]?.trim()}
+                        </span>
+                      )}
                     </td>
                     <td className="px-4 py-3 text-foreground whitespace-nowrap">{driver.cuit}</td>
                     <td className="px-4 py-3 text-muted-foreground whitespace-nowrap">{driver.email || "—"}</td>
@@ -860,6 +979,7 @@ export function DriversManagement() {
                         )}
                       </div>
                     </td>
+                    <td className="px-4 py-3 text-muted-foreground whitespace-nowrap">{driverProjectLabel(driver)}</td>
                     <td className="px-4 py-3 whitespace-nowrap">
                       {driver.vehiculosAsignados > 0 ? (
                         <span className="inline-flex items-center gap-1 text-foreground">
@@ -962,7 +1082,9 @@ export function DriversManagement() {
                 </div>
 
                 <div className="space-y-2">
-                  <p className="text-xs text-muted-foreground">{licenseLabel(driver.tipoLicencia)}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {driverLicenses(driver).map((tipo) => licenseLabel(tipo)).join(" · ")}
+                  </p>
                   <div className="flex items-center gap-2 text-xs">
                     <IdCard className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
                     <span className="font-medium text-foreground">{driver.cuit}</span>
@@ -973,6 +1095,10 @@ export function DriversManagement() {
                       <span className="text-foreground truncate">{driver.email}</span>
                     </div>
                   )}
+                  <div className="flex items-center gap-2 text-xs">
+                    <FolderOpen className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
+                    <span className="text-foreground truncate">{driverProjectLabel(driver)}</span>
+                  </div>
                   {driver.vehiculosAsignados > 0 && (
                     <div className="flex items-center gap-2 text-xs">
                       <Truck className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />

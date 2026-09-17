@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, useMemo } from "react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -36,6 +36,15 @@ export function ProjectManagement() {
 
   const { toasts, success, error: showError, removeToast } = useToast()
   const { projects, isLoading, loadProjects, addProject, updateProject, removeProject } = useProjects()
+  // Orden alfabético por nombre (sin distinguir mayúsculas ni acentos, y con
+  // números en orden natural: "Parque 2" antes que "Parque 10").
+  const sortedProjects = useMemo(
+    () =>
+      [...projects].sort((a, b) =>
+        a.name.localeCompare(b.name, "es", { sensitivity: "base", numeric: true }),
+      ),
+    [projects],
+  )
   const { can } = usePermissions()
   const canWrite = can("proyectos", "create")
   // Totales y Curva S son las dos piezas del onboarding del proyecto: las
@@ -366,7 +375,7 @@ export function ProjectManagement() {
         {/* Projects List */}
         {!isLoading && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-1 gap-6">
-            {projects.map((project) => (
+            {sortedProjects.map((project) => (
               <Card key={project.id} className="p-6 bg-card border-border hover:border-primary/50 transition-colors">
                 <div className="space-y-4">
                   <div className="flex items-start justify-between">

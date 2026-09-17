@@ -104,6 +104,8 @@ export interface Project {
   name: string;
   companyId: string;
   hasBaseline: boolean;
+  /** Tiene al menos un parte diario enviado. Tablero y Avances ocultan los que no. */
+  hasReports: boolean;
   progress: number; // 0-100
   status: 'active' | 'completed' | 'paused';
   startDate?: string | null; // Fecha de inicio del proyecto (YYYY-MM-DD)
@@ -391,6 +393,7 @@ export interface Machine {
   codigoInterno: string;
   patente?: string | null;
   numeroChasis?: string | null;
+  anio?: number | null;
   capacidad: string;
   propiedad: MachineOwnership;
   observaciones: string;
@@ -426,6 +429,7 @@ export interface CreateMachineDTO {
   codigoInterno: string;
   patente?: string | null;
   numeroChasis?: string | null;
+  anio?: number | null;
   capacidad?: string;
   propiedad: MachineOwnership;
   observaciones?: string;
@@ -505,11 +509,18 @@ export interface Driver {
   nombre: string;
   apellido: string;
   nombreCompleto: string;
+  /** Clases de licencia, en orden canónico (un chofer puede tener varias). */
+  tiposLicencia: string[];
+  /** Texto para mostrar: "C1, E2". Derivado en el backend. */
   tipoLicencia: string;
   cuit: string;
   email?: string | null;
   estado: DriverStatus;
   vehiculosAsignados: number;
+  proyectoId?: string | null;
+  proyectoName?: string | null;
+  /** Asignado a un proyecto fuera del alcance del usuario: id y nombre vienen ocultos. */
+  proyectoOculto?: boolean;
   companyId: string;
   createdAt: string;
   updatedAt: string;
@@ -526,12 +537,14 @@ export interface Driver {
 export interface CreateDriverDTO {
   nombre: string;
   apellido: string;
-  tipoLicencia: string;
+  tiposLicencia: string[];
   cuit: string;
   email?: string | null;
   vencimientoLicencia?: string | null;
   tieneCertificacion?: boolean;
   vencimientoCertificacion?: string | null;
+  /** Proyecto asignado; null = sin asignar. */
+  proyectoId?: string | null;
 }
 
 export interface UpdateDriverDTO extends Partial<CreateDriverDTO> {}
@@ -539,6 +552,7 @@ export interface UpdateDriverDTO extends Partial<CreateDriverDTO> {}
 export interface DriverFilters {
   status?: DriverStatus | 'all';
   licenseType?: string | 'all';
+  projectId?: string | 'none' | 'all';
 }
 
 export type DriverExpirationKind = 'licencia' | 'certificacion';

@@ -31,6 +31,10 @@ export function DashboardOverview() {
 
   // Hooks de datos
   const { projects, isLoading: isLoadingProjects, loadProjects } = useProjects()
+  // Solo proyectos con al menos un parte diario enviado: los que únicamente
+  // tienen flota cargada no tienen nada que mostrar acá. El backend ya los
+  // excluye de los datos agregados; esto los saca también de los filtros.
+  const projectsWithReports = useMemo(() => projects.filter((p) => p.hasReports), [projects])
   const {
     allWorkProgress,
     workProgress,
@@ -201,7 +205,7 @@ export function DashboardOverview() {
             >
               Todos
             </button>
-            {projects.map((project) => (
+            {projectsWithReports.map((project) => (
               <button
                 key={project.id}
                 type="button"
