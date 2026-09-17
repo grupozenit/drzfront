@@ -389,8 +389,8 @@ export function MachineryManagement() {
       showError("Error", "Completa los campos obligatorios")
       return
     }
-    if (esVehiculoNuevo && (!newMachine.patente || !newMachine.choferId)) {
-      showError("Error", "Patente y chofer responsable son obligatorios para este tipo de vehículo")
+    if (esVehiculoNuevo && !newMachine.patente) {
+      showError("Error", "La patente es obligatoria para este tipo de vehículo")
       return
     }
     if (anioError(newMachine.anio)) {
@@ -438,8 +438,8 @@ export function MachineryManagement() {
   const handleUpdateMachine = async () => {
     if (!editingMachine) return
 
-    if (esVehiculoEditando && (!editingMachine.patente || !editingMachine.choferId)) {
-      showError("Error", "Patente y chofer responsable son obligatorios para este tipo de vehículo")
+    if (esVehiculoEditando && !editingMachine.patente) {
+      showError("Error", "La patente es obligatoria para este tipo de vehículo")
       return
     }
     if (anioError(editingMachine.anio)) {
@@ -646,24 +646,24 @@ export function MachineryManagement() {
             />
           </div>
           <div className="space-y-2">
-            <Label className="text-xs md:text-sm font-medium text-foreground">Chofer Responsable *</Label>
+            <Label className="text-xs md:text-sm font-medium text-foreground">Chofer Responsable</Label>
             {choferOptions.length === 0 ? (
               <div className="text-xs text-muted-foreground border border-dashed border-border rounded-lg px-3 py-2">
-                No hay choferes activos.{" "}
+                No hay choferes activos (es opcional).{" "}
                 <Link href="/choferes" className="text-primary hover:underline">
-                  Cargá uno primero
+                  Cargar un chofer
                 </Link>
-                .
               </div>
             ) : (
               <Select
-                value={values.choferId || ""}
-                onValueChange={(value) => onChange("choferId", value)}
+                value={values.choferId || "none"}
+                onValueChange={(value) => onChange("choferId", value === "none" ? null : value)}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Seleccionar chofer" />
+                  <SelectValue placeholder="Sin chofer asignado" />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="none">Sin chofer asignado</SelectItem>
                   {choferOptions.map((d) => (
                     <SelectItem key={d.id} value={d.id}>
                       {d.nombreCompleto} — {d.tipoLicencia}
