@@ -22,10 +22,14 @@ export function DashboardClientLayout({ children }: DashboardClientLayoutProps) 
         onToggle={() => setIsSidebarOpen(!isSidebarOpen)}
       />
 
-      <div className="flex-1 flex flex-col">
+      {/* min-w-0: sin esto un ítem flex no se achica por debajo del ancho de su
+          contenido, y una tabla ancha (Maquinaria, Choferes, Equipos) estira
+          toda la columna fuera de la pantalla en vez de usar su propio scroll
+          horizontal. */}
+      <div className="flex-1 flex flex-col min-w-0">
         <Header onMenuClick={() => setIsSidebarOpen(!isSidebarOpen)} />
 
-        <main className="flex-1 overflow-auto">
+        <main className="flex-1 min-w-0 overflow-auto">
           {children}
         </main>
       </div>
