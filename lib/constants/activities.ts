@@ -473,7 +473,7 @@ export const REPORT_STATUS_LABELS: Record<string, string> = {
 export const LICENSE_TYPES = [
     "B1", "B2",
     "C1", "C2", "C3",
-    "D1", "D2", "D3",
+    "D1", "D2", "D3", "D4",
     "E1", "E2",
 ] as const;
 
@@ -488,6 +488,7 @@ export const LICENSE_LABELS: Record<string, string> = {
     D1: "D1 — Transporte de pasajeros hasta 8",
     D2: "D2 — Transporte de pasajeros más de 8",
     D3: "D3 — Servicios de emergencia",
+    D4: "D4 — Transporte escolar",
     E1: "E1 — Maquinaria especial no agrícola",
     E2: "E2 — Maquinaria especial con acoplado",
 };
