@@ -43,6 +43,7 @@ import {
   licenseRequiresCertification,
 } from "@/lib/constants/activities"
 import { cuitError, formatCuit, formatDateLocal } from "@/lib/utils"
+import { matchesSearch } from "@/lib/utils/search"
 import { DriverExpirationAlerts } from "@/components/fleet/driver-expiration-alerts"
 import type {
   Driver,
@@ -267,7 +268,6 @@ export function DriversManagement() {
   }, [])
 
   const filteredDrivers = useMemo(() => {
-    const term = searchTerm.trim().toLowerCase()
     return drivers.filter((d) => {
       const matchesStatus = filterStatus === "all" || d.estado === filterStatus
       const matchesLicense =
@@ -277,12 +277,8 @@ export function DriversManagement() {
         filterProject === "all" ||
         d.proyectoId === filterProject ||
         (filterProject === "none" && !d.proyectoId && !d.proyectoOculto)
-      const matchesSearch =
-        !term ||
-        [d.nombre, d.apellido, d.nombreCompleto, d.cuit, d.email]
-          .filter(Boolean)
-          .some((field) => field!.toLowerCase().includes(term))
-      return matchesStatus && matchesLicense && matchesProject && matchesSearch
+      const matchesText = matchesSearch(searchTerm, [d.nombre, d.apellido, d.nombreCompleto, d.cuit, d.email])
+      return matchesStatus && matchesLicense && matchesProject && matchesText
     })
   }, [drivers, filterStatus, filterLicense, filterProject, searchTerm])
 
