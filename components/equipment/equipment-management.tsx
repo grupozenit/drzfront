@@ -353,8 +353,8 @@ export function EquipmentManagement() {
         observaciones: newItem.observaciones || "",
         proyectoId: newItem.proyectoId || null,
         ultimaMantencion: newItem.ultimaMantencion || null,
-        fechaCompra: esPotNuevo ? newItem.fechaCompra || null : null,
-        fechaUltimaCalibracion: esPotNuevo ? newItem.fechaUltimaCalibracion || null : null,
+        fechaCompra: newItem.fechaCompra || null,
+        fechaUltimaCalibracion: newItem.fechaUltimaCalibracion || null,
       })
       addEquipment(item)
       resetForm()
@@ -380,9 +380,9 @@ export function EquipmentManagement() {
         capacidad: editingItem.capacidad,
         propiedad: editingItem.propiedad,
         observaciones: editingItem.observaciones,
-        ultimaMantencion: editingItem.ultimaMantencion,
-        fechaCompra: esPotEditando ? editingItem.fechaCompra : null,
-        fechaUltimaCalibracion: esPotEditando ? editingItem.fechaUltimaCalibracion : null,
+        ultimaMantencion: editingItem.ultimaMantencion || null,
+        fechaCompra: editingItem.fechaCompra || null,
+        fechaUltimaCalibracion: editingItem.fechaUltimaCalibracion || null,
       })
       updateEquipment(editingItem.id, updated)
       setEditingItem(null)
@@ -632,24 +632,20 @@ export function EquipmentManagement() {
                   />
                 </div>
 
-                {esPotNuevo && (
-                  <>
-                    <div className="space-y-2">
-                      <Label className="text-xs md:text-sm font-medium text-foreground">Fecha de Compra</Label>
-                      <DatePicker
-                        value={newItem.fechaCompra || ""}
-                        onChange={(v) => setNewItem({ ...newItem, fechaCompra: v })}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label className="text-xs md:text-sm font-medium text-foreground">Última Calibración</Label>
-                      <DatePicker
-                        value={newItem.fechaUltimaCalibracion || ""}
-                        onChange={(v) => setNewItem({ ...newItem, fechaUltimaCalibracion: v })}
-                      />
-                    </div>
-                  </>
-                )}
+                <div className="space-y-2">
+                  <Label className="text-xs md:text-sm font-medium text-foreground">Fecha de Compra</Label>
+                  <DatePicker
+                    value={newItem.fechaCompra || ""}
+                    onChange={(v) => setNewItem({ ...newItem, fechaCompra: v })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-xs md:text-sm font-medium text-foreground">Última Calibración</Label>
+                  <DatePicker
+                    value={newItem.fechaUltimaCalibracion || ""}
+                    onChange={(v) => setNewItem({ ...newItem, fechaUltimaCalibracion: v })}
+                  />
+                </div>
 
                 <div className="space-y-2 md:col-span-2 lg:col-span-3">
                   <Label htmlFor="observaciones" className="text-xs md:text-sm font-medium text-foreground">
@@ -823,24 +819,20 @@ export function EquipmentManagement() {
                   />
                 </div>
 
-                {esPotEditando && (
-                  <>
-                    <div className="space-y-2">
-                      <Label className="text-xs md:text-sm font-medium text-foreground">Fecha de Compra</Label>
-                      <DatePicker
-                        value={editingItem.fechaCompra || ""}
-                        onChange={(v) => setEditingItem({ ...editingItem, fechaCompra: v })}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label className="text-xs md:text-sm font-medium text-foreground">Última Calibración</Label>
-                      <DatePicker
-                        value={editingItem.fechaUltimaCalibracion || ""}
-                        onChange={(v) => setEditingItem({ ...editingItem, fechaUltimaCalibracion: v })}
-                      />
-                    </div>
-                  </>
-                )}
+                <div className="space-y-2">
+                  <Label className="text-xs md:text-sm font-medium text-foreground">Fecha de Compra</Label>
+                  <DatePicker
+                    value={editingItem.fechaCompra || ""}
+                    onChange={(v) => setEditingItem({ ...editingItem, fechaCompra: v })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-xs md:text-sm font-medium text-foreground">Última Calibración</Label>
+                  <DatePicker
+                    value={editingItem.fechaUltimaCalibracion || ""}
+                    onChange={(v) => setEditingItem({ ...editingItem, fechaUltimaCalibracion: v })}
+                  />
+                </div>
 
                 <div className="space-y-2 md:col-span-2 lg:col-span-3">
                   <Label className="text-xs md:text-sm font-medium text-foreground">Observaciones</Label>
@@ -1018,10 +1010,14 @@ export function EquipmentManagement() {
                     <td className="px-4 py-3 text-foreground whitespace-nowrap">
                       {item.tipo}
                       {item.subtipo && <div className="text-[11px] text-muted-foreground">{item.subtipo}</div>}
-                      {isPotEquipment(item.tipo) && (item.fechaCompra || item.fechaUltimaCalibracion) && (
+                      {(item.fechaCompra || item.fechaUltimaCalibracion) && (
                         <div className="text-[10px] text-muted-foreground">
-                          {item.fechaCompra && <>Compra: {formatDateLocal(item.fechaCompra)} </>}
-                          {item.fechaUltimaCalibracion && <>· Calib.: {formatDateLocal(item.fechaUltimaCalibracion)}</>}
+                          {[
+                            item.fechaCompra && `Compra: ${formatDateLocal(item.fechaCompra)}`,
+                            item.fechaUltimaCalibracion && `Calib.: ${formatDateLocal(item.fechaUltimaCalibracion)}`,
+                          ]
+                            .filter(Boolean)
+                            .join(" · ")}
                         </div>
                       )}
                     </td>
@@ -1167,7 +1163,7 @@ export function EquipmentManagement() {
                     onSave={(v) => handleQuickUpdateMantencion(item, v)}
                     readOnly={!canWrite}
                   />
-                  {isPotEquipment(item.tipo) && (item.fechaCompra || item.fechaUltimaCalibracion) && (
+                  {(item.fechaCompra || item.fechaUltimaCalibracion) && (
                     <div className="text-xs text-muted-foreground space-y-0.5">
                       {item.fechaCompra && <p>Fecha de compra: {formatDateLocal(item.fechaCompra)}</p>}
                       {item.fechaUltimaCalibracion && <p>Última calibración: {formatDateLocal(item.fechaUltimaCalibracion)}</p>}
