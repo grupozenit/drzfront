@@ -167,11 +167,11 @@ export function FleetDashboard({ data, isLoading }: FleetDashboardProps) {
                 const currentValue = localMaintenance[entry.id] ?? entry.ultimaFecha ?? ""
                 return (
                   <tr key={`${entry.tipoActivo}-${entry.id}`} className="border-t border-border">
-                    <td className="px-2 py-2 font-medium text-foreground whitespace-nowrap">{entry.codigoInterno}</td>
+                    <td className="px-2 py-2 font-medium text-foreground whitespace-nowrap">{entry.codigoInterno || "—"}</td>
                     <td className="px-2 py-2 text-muted-foreground whitespace-nowrap">
                       {entry.tipoActivo === "maquinaria" ? "Maquinaria" : "Equipo"} · {entry.tipo}
                     </td>
-                    <td className="px-2 py-2 text-foreground whitespace-nowrap">{entry.marca} {entry.modelo}</td>
+                    <td className="px-2 py-2 text-foreground whitespace-nowrap">{[entry.marca, entry.modelo].filter(Boolean).join(" ") || "—"}</td>
                     <td className="px-2 py-2 whitespace-nowrap">
                       <div className="flex items-center gap-2">
                         <DatePicker value={currentValue} onChange={(v) => handleQuickService(entry, v)} className="w-36" />
@@ -354,7 +354,7 @@ export function FleetDashboard({ data, isLoading }: FleetDashboardProps) {
                   }`}
                 >
                   <td className="px-2 py-2 font-medium text-foreground whitespace-nowrap">
-                    {inc.codigoInterno} — {inc.tipo}
+                    {inc.codigoInterno ? `${inc.codigoInterno} — ${inc.tipo}` : inc.tipo}
                   </td>
                   <td className="px-2 py-2 text-muted-foreground whitespace-nowrap">{inc.proyectoName || "Sin asignar"}</td>
                   <td className="px-2 py-2 text-muted-foreground whitespace-nowrap">{inc.noteTipo}</td>

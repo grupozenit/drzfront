@@ -36,10 +36,47 @@ import {
 } from "lucide-react"
 import { useProjects, useEquipment, usePermissions } from "@/lib/hooks"
 import { useViewMode } from "@/lib/hooks/useViewMode"
-import { equipmentService } from "@/lib/api"
-import { EQUIPMENT_TYPES, isPotEquipment } from "@/lib/constants/activities"
+import { equipmentService, isApiError } from "@/lib/api"
+import { EQUIPMENT_TYPES, POT_EQUIPMENT_SUBTYPES, isPotEquipment } from "@/lib/constants/activities"
 import { formatDateLocal } from "@/lib/utils"
 import type { Equipment, CreateEquipmentDTO, UpdateEquipmentDTO, EquipmentOwnership, EventLogEntry } from "@/lib/types"
+
+// ─── Display helpers ──────────────────────────────────────────────────────────
+
+/** Marca y modelo son opcionales: se muestra lo que haya, o null si no hay nada. */
+function brandModel(item: Pick<Equipment, "marca" | "modelo">): string | null {
+  return [item.marca, item.modelo].filter(Boolean).join(" ") || null
+}
+
+/** Tipo con el subtipo del kit POT, si lo tiene. */
+function typeLabel(item: Pick<Equipment, "tipo" | "subtipo">): string {
+  return item.subtipo ? `${item.tipo} · ${item.subtipo}` : item.tipo
+}
+
+/**
+ * Mensaje del backend si es texto (p. ej. "Ya existe un equipo con este código
+ * interno"); un 422 de validación trae una lista y se cae al genérico.
+ */
+function errorText(err: unknown, fallback: string): string {
+  const message = isApiError(err) ? err.message : null
+  return typeof message === "string" && message ? message : fallback
+}
+
+/** Descripción corta para encabezados y confirmaciones. */
+function describe(item: Equipment): string {
+  const bm = brandModel(item)
+  return bm ? `${typeLabel(item)} — ${bm}` : typeLabel(item)
+}
+
+/**
+ * Opciones del selector de tipo. Un equipo cargado con un tipo que ya no está
+ * en la lista lo conserva como opción; si no, el Select queda en blanco y al
+ * guardar se perdería el valor.
+ */
+function typeOptions(current?: string | null): readonly string[] {
+  if (!current || (EQUIPMENT_TYPES as readonly string[]).includes(current)) return EQUIPMENT_TYPES
+  return [current, ...EQUIPMENT_TYPES]
+}
 
 // ─── Event labels & colors ────────────────────────────────────────────────────
 
@@ -110,7 +147,7 @@ function HistoryModal({ item, onClose }: HistoryModalProps) {
           <div>
             <h3 className="text-base font-semibold text-foreground">Historial de Eventos</h3>
             <p className="text-xs text-muted-foreground mt-0.5">
-              {item.tipo} — {item.marca} {item.modelo}
+              {describe(item)}
             </p>
           </div>
           <button onClick={onClose} className="p-1 hover:bg-muted rounded-lg transition-colors">
@@ -233,6 +270,7 @@ export function EquipmentManagement() {
 
   const emptyForm: Partial<CreateEquipmentDTO> = {
     tipo: "",
+    subtipo: "",
     marca: "",
     modelo: "",
     codigoInterno: "",
@@ -262,6 +300,15 @@ export function EquipmentManagement() {
   const esPotNuevo = isPotEquipment(newItem.tipo)
   const esPotEditando = editingItem ? isPotEquipment(editingItem.tipo) : false
 
+  // Tipos del filtro: la lista vigente más los que todavía tengan equipos
+  // cargados con un tipo anterior, para poder encontrarlos y corregirlos.
+  const filterTypes = useMemo(() => {
+    const legacy = Array.from(new Set(equipment.map((e) => e.tipo)))
+      .filter((t) => t && !(EQUIPMENT_TYPES as readonly string[]).includes(t))
+      .sort((a, b) => a.localeCompare(b, "es"))
+    return [...EQUIPMENT_TYPES, ...legacy]
+  }, [equipment])
+
   const filteredItems = useMemo(() => {
     const term = searchTerm.trim().toLowerCase()
     return equipment.filter((e) => {
@@ -273,7 +320,7 @@ export function EquipmentManagement() {
       const matchesTipo = filterTipo === "all" || e.tipo === filterTipo
       const matchesSearch =
         !term ||
-        [e.codigoInterno, e.marca, e.modelo]
+        [e.codigoInterno, e.marca, e.modelo, e.subtipo]
           .filter(Boolean)
           .some((field) => field!.toLowerCase().includes(term))
       return matchesProject && matchesStatus && matchesTipo && matchesSearch
@@ -288,8 +335,8 @@ export function EquipmentManagement() {
   }, [equipment])
 
   const handleAddItem = async () => {
-    if (!newItem.tipo || !newItem.marca || !newItem.modelo || !newItem.codigoInterno) {
-      showError("Error", "Completa los campos obligatorios")
+    if (!newItem.tipo) {
+      showError("Error", "Seleccioná el tipo de equipo")
       return
     }
 
@@ -297,9 +344,10 @@ export function EquipmentManagement() {
     try {
       const item = await equipmentService.create({
         tipo: newItem.tipo || "",
-        marca: newItem.marca || "",
-        modelo: newItem.modelo || "",
-        codigoInterno: newItem.codigoInterno || "",
+        subtipo: esPotNuevo ? newItem.subtipo || null : null,
+        marca: newItem.marca?.trim() || null,
+        modelo: newItem.modelo?.trim() || null,
+        codigoInterno: newItem.codigoInterno?.trim() || null,
         capacidad: newItem.capacidad || "",
         propiedad: newItem.propiedad || "propio",
         observaciones: newItem.observaciones || "",
@@ -312,7 +360,7 @@ export function EquipmentManagement() {
       resetForm()
       success("Equipo registrado", "El equipo se ha registrado correctamente")
     } catch (err) {
-      showError("Error", "No se pudo registrar el equipo")
+      showError("Error", errorText(err, "No se pudo registrar el equipo"))
     } finally {
       setIsSaving(false)
     }
@@ -325,9 +373,10 @@ export function EquipmentManagement() {
     try {
       const updated = await equipmentService.update(editingItem.id, {
         tipo: editingItem.tipo,
-        marca: editingItem.marca,
-        modelo: editingItem.modelo,
-        codigoInterno: editingItem.codigoInterno,
+        subtipo: esPotEditando ? editingItem.subtipo || null : null,
+        marca: editingItem.marca?.trim() || null,
+        modelo: editingItem.modelo?.trim() || null,
+        codigoInterno: editingItem.codigoInterno?.trim() || null,
         capacidad: editingItem.capacidad,
         propiedad: editingItem.propiedad,
         observaciones: editingItem.observaciones,
@@ -339,7 +388,7 @@ export function EquipmentManagement() {
       setEditingItem(null)
       success("Equipo actualizado", "Los cambios se han guardado correctamente")
     } catch (err) {
-      showError("Error", "No se pudo actualizar el equipo")
+      showError("Error", errorText(err, "No se pudo actualizar el equipo"))
     } finally {
       setIsSaving(false)
     }
@@ -481,9 +530,33 @@ export function EquipmentManagement() {
                   </Select>
                 </div>
 
+                {esPotNuevo && (
+                  <div className="space-y-2">
+                    <Label htmlFor="subtipo" className="text-xs md:text-sm font-medium text-foreground">
+                      Subtipo
+                    </Label>
+                    <Select
+                      value={newItem.subtipo || "none"}
+                      onValueChange={(value) => setNewItem({ ...newItem, subtipo: value === "none" ? "" : value })}
+                    >
+                      <SelectTrigger id="subtipo">
+                        <SelectValue placeholder="Seleccionar subtipo" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">Sin especificar</SelectItem>
+                        {POT_EQUIPMENT_SUBTYPES.map((sub) => (
+                          <SelectItem key={sub} value={sub}>
+                            {sub}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+
                 <div className="space-y-2">
                   <Label htmlFor="codigoInterno" className="text-xs md:text-sm font-medium text-foreground">
-                    Código Interno *
+                    Código Interno
                   </Label>
                   <Input
                     id="codigoInterno"
@@ -496,7 +569,7 @@ export function EquipmentManagement() {
 
                 <div className="space-y-2">
                   <Label htmlFor="marca" className="text-xs md:text-sm font-medium text-foreground">
-                    Marca *
+                    Marca
                   </Label>
                   <Input
                     id="marca"
@@ -509,7 +582,7 @@ export function EquipmentManagement() {
 
                 <div className="space-y-2">
                   <Label htmlFor="modelo" className="text-xs md:text-sm font-medium text-foreground">
-                    Modelo *
+                    Modelo
                   </Label>
                   <Input
                     id="modelo"
@@ -659,7 +732,7 @@ export function EquipmentManagement() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {EQUIPMENT_TYPES.map((type) => (
+                      {typeOptions(editingItem.tipo).map((type) => (
                         <SelectItem key={type} value={type}>
                           {type}
                         </SelectItem>
@@ -668,10 +741,32 @@ export function EquipmentManagement() {
                   </Select>
                 </div>
 
+                {esPotEditando && (
+                  <div className="space-y-2">
+                    <Label className="text-xs md:text-sm font-medium text-foreground">Subtipo</Label>
+                    <Select
+                      value={editingItem.subtipo || "none"}
+                      onValueChange={(value) => setEditingItem({ ...editingItem, subtipo: value === "none" ? null : value })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Seleccionar subtipo" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">Sin especificar</SelectItem>
+                        {POT_EQUIPMENT_SUBTYPES.map((sub) => (
+                          <SelectItem key={sub} value={sub}>
+                            {sub}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+
                 <div className="space-y-2">
                   <Label className="text-xs md:text-sm font-medium text-foreground">Código Interno</Label>
                   <Input
-                    value={editingItem.codigoInterno}
+                    value={editingItem.codigoInterno || ""}
                     onChange={(e) => setEditingItem({ ...editingItem, codigoInterno: e.target.value })}
                     className="bg-input border-border text-foreground text-sm"
                   />
@@ -680,7 +775,7 @@ export function EquipmentManagement() {
                 <div className="space-y-2">
                   <Label className="text-xs md:text-sm font-medium text-foreground">Marca</Label>
                   <Input
-                    value={editingItem.marca}
+                    value={editingItem.marca || ""}
                     onChange={(e) => setEditingItem({ ...editingItem, marca: e.target.value })}
                     className="bg-input border-border text-foreground text-sm"
                   />
@@ -689,7 +784,7 @@ export function EquipmentManagement() {
                 <div className="space-y-2">
                   <Label className="text-xs md:text-sm font-medium text-foreground">Modelo</Label>
                   <Input
-                    value={editingItem.modelo}
+                    value={editingItem.modelo || ""}
                     onChange={(e) => setEditingItem({ ...editingItem, modelo: e.target.value })}
                     className="bg-input border-border text-foreground text-sm"
                   />
@@ -835,7 +930,7 @@ export function EquipmentManagement() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Todos</SelectItem>
-                  {EQUIPMENT_TYPES.map((type) => (
+                  {filterTypes.map((type) => (
                     <SelectItem key={type} value={type}>
                       {type}
                     </SelectItem>
@@ -919,9 +1014,10 @@ export function EquipmentManagement() {
                     key={item.id}
                     className={`border-b border-border hover:bg-muted/50 ${item.estado === "baja" ? "opacity-60" : ""}`}
                   >
-                    <td className="px-4 py-3 font-medium text-foreground whitespace-nowrap">{item.codigoInterno}</td>
+                    <td className="px-4 py-3 font-medium text-foreground whitespace-nowrap">{item.codigoInterno || "—"}</td>
                     <td className="px-4 py-3 text-foreground whitespace-nowrap">
                       {item.tipo}
+                      {item.subtipo && <div className="text-[11px] text-muted-foreground">{item.subtipo}</div>}
                       {isPotEquipment(item.tipo) && (item.fechaCompra || item.fechaUltimaCalibracion) && (
                         <div className="text-[10px] text-muted-foreground">
                           {item.fechaCompra && <>Compra: {formatDateLocal(item.fechaCompra)} </>}
@@ -929,7 +1025,7 @@ export function EquipmentManagement() {
                         </div>
                       )}
                     </td>
-                    <td className="px-4 py-3 text-foreground whitespace-nowrap">{item.marca} {item.modelo}</td>
+                    <td className="px-4 py-3 text-foreground whitespace-nowrap">{brandModel(item) || "—"}</td>
                     <td className="px-4 py-3 text-muted-foreground whitespace-nowrap">{item.capacidad || "—"}</td>
                     <td className="px-4 py-3 text-muted-foreground whitespace-nowrap">{getProjectName(item.proyectoId)}</td>
                     <td className="px-4 py-3 whitespace-nowrap">
@@ -1018,10 +1114,8 @@ export function EquipmentManagement() {
                       <Wrench className={`w-5 h-5 ${item.estado === "activa" ? "text-primary" : "text-muted-foreground"}`} />
                     </div>
                     <div>
-                      <h4 className="text-sm font-semibold text-foreground">
-                        {item.tipo} - {item.marca}
-                      </h4>
-                      <p className="text-xs text-muted-foreground">{item.modelo}</p>
+                      <h4 className="text-sm font-semibold text-foreground">{typeLabel(item)}</h4>
+                      <p className="text-xs text-muted-foreground">{brandModel(item) || "Sin marca / modelo"}</p>
                     </div>
                   </div>
 
@@ -1059,7 +1153,7 @@ export function EquipmentManagement() {
                 <div className="space-y-2">
                   <div className="flex items-center gap-2 text-xs">
                     <span className="text-muted-foreground">Código:</span>
-                    <span className="font-medium text-foreground">{item.codigoInterno}</span>
+                    <span className="font-medium text-foreground">{item.codigoInterno || "—"}</span>
                   </div>
                   {item.capacidad && (
                     <div className="flex items-center gap-2 text-xs">
@@ -1178,7 +1272,7 @@ export function EquipmentManagement() {
           onConfirm={handleDeactivateItem}
           type="confirm"
           title="Dar de baja equipo"
-          message={`¿Estás seguro de dar de baja "${selectedItem?.tipo} - ${selectedItem?.marca} ${selectedItem?.modelo}"?`}
+          message={`¿Estás seguro de dar de baja "${selectedItem ? describe(selectedItem) : ""}"?`}
           confirmText="Dar de baja"
           cancelText="Cancelar"
         />

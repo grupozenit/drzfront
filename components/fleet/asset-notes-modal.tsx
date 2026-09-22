@@ -37,7 +37,7 @@ function todayStr() {
 
 interface AssetNotesModalProps {
   assetType: "maquinaria" | "equipo"
-  asset: { id: string; codigoInterno?: string | null; tipo: string; marca: string; modelo: string } | null
+  asset: { id: string; codigoInterno?: string | null; tipo: string; marca?: string | null; modelo?: string | null } | null
   onClose: () => void
   onChanged?: (incidenciasAbiertas: number) => void
   canWrite?: boolean
@@ -138,7 +138,8 @@ export function AssetNotesModal({ assetType, asset, onClose, onChanged, canWrite
             <h3 className="text-base font-semibold text-foreground">Bitácora</h3>
             <p className="text-xs text-muted-foreground mt-0.5">
               {asset.codigoInterno ? `${asset.codigoInterno} — ` : ""}
-              {asset.tipo} — {asset.marca} {asset.modelo}
+              {asset.tipo}
+              {(asset.marca || asset.modelo) && <> — {[asset.marca, asset.modelo].filter(Boolean).join(" ")}</>}
             </p>
           </div>
           <button onClick={onClose} className="p-1 hover:bg-muted rounded-lg transition-colors">
