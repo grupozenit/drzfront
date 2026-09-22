@@ -44,6 +44,7 @@ import { machineryService } from "@/lib/api"
 import { MACHINE_TYPES, isVehicleType, machineAcceptsCapacity, requiresCertification } from "@/lib/constants/activities"
 import { formatDateLocal } from "@/lib/utils"
 import { rowActionProps } from "@/lib/utils/row-click"
+import { matchesSearch } from "@/lib/utils/search"
 import type { Machine, CreateMachineDTO, UpdateMachineDTO, MachineOwnership, EventLogEntry } from "@/lib/types"
 
 // ─── Event labels & colors ────────────────────────────────────────────────────
@@ -366,7 +367,6 @@ export function MachineryManagement() {
 
   // Filtrar maquinaria
   const filteredMachines = useMemo(() => {
-    const term = searchTerm.trim().toLowerCase()
     return machinery.filter((m) => {
       const matchesProject =
         filterProject === "all" ||
@@ -374,12 +374,10 @@ export function MachineryManagement() {
         (filterProject === "none" && !m.proyectoId)
       const matchesStatus = filterStatus === "all" || m.estado === filterStatus
       const matchesTipo = filterTipo === "all" || m.tipo === filterTipo
-      const matchesSearch =
-        !term ||
-        [m.codigoInterno, m.patente, m.numeroChasis, m.marca, m.modelo, m.choferResponsable]
-          .filter(Boolean)
-          .some((field) => field!.toLowerCase().includes(term))
-      return matchesProject && matchesStatus && matchesTipo && matchesSearch
+      const matchesText = matchesSearch(searchTerm, [
+        m.tipo, m.codigoInterno, m.patente, m.numeroChasis, m.marca, m.modelo, m.choferResponsable,
+      ])
+      return matchesProject && matchesStatus && matchesTipo && matchesText
     })
   }, [machinery, filterProject, filterStatus, filterTipo, searchTerm])
 
@@ -1130,7 +1128,7 @@ export function MachineryManagement() {
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <input
                 type="text"
-                placeholder="Buscar por código, patente, chasis, marca, modelo o chofer..."
+                placeholder="Buscar por tipo, código, patente, chasis, marca, modelo o chofer..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-full pl-9 pr-3 py-2 text-sm rounded-lg bg-input border border-border text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
