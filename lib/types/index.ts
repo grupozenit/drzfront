@@ -585,9 +585,11 @@ export interface DriverEventLogEntry {
 export interface Equipment {
   id: string;
   tipo: string;
-  marca: string;
-  modelo: string;
-  codigoInterno: string;
+  /** Solo Equipo POT: instrumento del kit (POT_EQUIPMENT_SUBTYPES). */
+  subtipo?: string | null;
+  marca: string | null;
+  modelo: string | null;
+  codigoInterno: string | null;
   capacidad: string;
   propiedad: EquipmentOwnership;
   observaciones: string;
@@ -606,9 +608,10 @@ export interface Equipment {
 
 export interface CreateEquipmentDTO {
   tipo: string;
-  marca: string;
-  modelo: string;
-  codigoInterno: string;
+  subtipo?: string | null;
+  marca?: string | null;
+  modelo?: string | null;
+  codigoInterno?: string | null;
   capacidad?: string;
   propiedad: EquipmentOwnership;
   observaciones?: string;
@@ -739,8 +742,8 @@ export interface FleetMaintenanceEntry {
   id: string;
   codigoInterno?: string | null;
   tipo: string;
-  marca: string;
-  modelo: string;
+  marca: string | null;
+  modelo: string | null;
   ultimaFecha: string | null;
   diasDesde: number | null;
 }
@@ -781,8 +784,8 @@ export interface FleetOpenIncident {
   activoId: string;
   codigoInterno?: string | null;
   tipo: string;
-  marca: string;
-  modelo: string;
+  marca: string | null;
+  modelo: string | null;
   proyectoName?: string | null;
   noteId: string;
   noteTipo: NoteTipo;

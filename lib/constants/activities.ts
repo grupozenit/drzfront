@@ -404,26 +404,67 @@ export function licenseRequiresCertification(tiposLicencia?: readonly string[] |
 
 // Orden alfabético, con "Otro" siempre al final.
 export const EQUIPMENT_TYPES = [
-    "Amoladora",
+    "Amoladora Eléctrica",
+    "Amoladora Inalámbrica",
+    "Aspiradora",
+    "Atornilladora",
     "Bomba",
+    "Calefactor Diésel",
+    "Carretilla",
     "Compresor",
+    "Crimpadora",
+    "Destornillador",
     "Drone",
     "Equipo POT (Pull Out Test)",
     "Estación Total",
     "Generador",
     "GPS",
+    "Grasera",
+    "Hormigonera",
+    "Láser Digital",
+    "Llave de Impacto",
+    "Megóhmetro",
+    "Motocompactador",
+    "Motoguadaña",
     "Multímetro",
-    "Pistola de Calor",
+    "Odómetro",
+    "Pistola de Alto Impacto",
+    "Pistola de Pintar",
+    "Pistola Térmica",
+    "Prensa Hidráulica",
+    "Presurizador",
+    "Remachadora",
+    "Rotomartillo",
     "Sierra Circular",
+    "Sierra Sable",
     "Soldadora",
     "Tablero Eléctrico",
-    "Taladro",
+    "Taladro Atornillador",
+    "Taladro Eléctrico",
+    "Taladro Inalámbrico",
+    "Taladro Magnético",
+    "Taladro Percutor",
+    "Termofusora",
+    "Torquímetro",
+    "Vibrador de Hormigón",
     "Otro",
 ] as const;
 
 export type EquipmentType = (typeof EQUIPMENT_TYPES)[number];
 
 export const POT_EQUIPMENT_TYPE = "Equipo POT (Pull Out Test)";
+
+// Instrumentos del kit de un Equipo POT. El backend repite la lista en
+// `POT_SUBTYPES` (src/services/machinery_service.py) y la valida; un test del
+// backend falla si las dos se separan.
+export const POT_EQUIPMENT_SUBTYPES = [
+    "Base Magnética",
+    "Dinamómetro de Compresión",
+    "Dinamómetro de Tracción",
+    "Reloj Comparador",
+] as const;
+
+export type PotEquipmentSubtype = (typeof POT_EQUIPMENT_SUBTYPES)[number];
 
 const POT_KEYWORDS = ["pot", "pull out test"];
 
