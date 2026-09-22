@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useMemo } from "react"
+import { useState, useEffect, useMemo, useRef } from "react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -39,6 +39,7 @@ import { useViewMode } from "@/lib/hooks/useViewMode"
 import { equipmentService, isApiError } from "@/lib/api"
 import { EQUIPMENT_TYPES, POT_EQUIPMENT_SUBTYPES, isPotEquipment } from "@/lib/constants/activities"
 import { formatDateLocal } from "@/lib/utils"
+import { rowActionProps } from "@/lib/utils/row-click"
 import type { Equipment, CreateEquipmentDTO, UpdateEquipmentDTO, EquipmentOwnership, EventLogEntry } from "@/lib/types"
 
 // ─── Display helpers ──────────────────────────────────────────────────────────
@@ -290,6 +291,13 @@ export function EquipmentManagement() {
   const { projects, loadProjects } = useProjects()
   const { equipment, isLoading, loadEquipment, addEquipment, updateEquipment, removeEquipment } = useEquipment()
   const { can } = usePermissions()
+  // El formulario de edición se abre arriba del listado: al abrirlo desde una
+  // fila o tarjeta de más abajo, se lleva la vista hasta él.
+  const editFormRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (editingItem) editFormRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })
+  }, [editingItem?.id])
+
   const canWrite = can("equipos", "create")
 
   useEffect(() => {
@@ -708,7 +716,7 @@ export function EquipmentManagement() {
 
         {/* Edit Item Form */}
         {editingItem && (
-          <Card className="p-6 md:p-8 bg-card border-border">
+          <Card ref={editFormRef} className="p-6 md:p-8 bg-card border-border scroll-mt-4">
             <div className="space-y-6">
               <div className="flex items-center justify-between">
                 <h3 className="text-base md:text-lg font-semibold text-foreground">Editar Equipo</h3>
@@ -1004,7 +1012,10 @@ export function EquipmentManagement() {
                 {filteredItems.map((item) => (
                   <tr
                     key={item.id}
-                    className={`border-b border-border hover:bg-muted/50 ${item.estado === "baja" ? "opacity-60" : ""}`}
+                    {...rowActionProps(() => setEditingItem(item), canWrite)}
+                    className={`border-b border-border hover:bg-muted/50 ${item.estado === "baja" ? "opacity-60" : ""} ${
+                      canWrite ? "cursor-pointer focus-visible:outline-none focus-visible:bg-muted/50" : ""
+                    }`}
                   >
                     <td className="px-4 py-3 font-medium text-foreground whitespace-nowrap">{item.codigoInterno || "—"}</td>
                     <td className="px-4 py-3 text-foreground whitespace-nowrap">
@@ -1100,9 +1111,10 @@ export function EquipmentManagement() {
             {filteredItems.map((item) => (
               <Card
                 key={item.id}
+                {...rowActionProps(() => setEditingItem(item), canWrite)}
                 className={`p-4 md:p-5 bg-card border-border hover:border-primary/50 transition-colors ${
                   item.estado === "baja" ? "opacity-60" : ""
-                }`}
+                } ${canWrite ? "cursor-pointer focus-visible:outline-none focus-visible:border-primary" : ""}`}
               >
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex items-center gap-3">
