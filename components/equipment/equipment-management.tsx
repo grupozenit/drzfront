@@ -40,6 +40,7 @@ import { equipmentService, isApiError } from "@/lib/api"
 import { EQUIPMENT_TYPES, POT_EQUIPMENT_SUBTYPES, isPotEquipment } from "@/lib/constants/activities"
 import { formatDateLocal } from "@/lib/utils"
 import { rowActionProps } from "@/lib/utils/row-click"
+import { matchesSearch } from "@/lib/utils/search"
 import type { Equipment, CreateEquipmentDTO, UpdateEquipmentDTO, EquipmentOwnership, EventLogEntry } from "@/lib/types"
 
 // ─── Display helpers ──────────────────────────────────────────────────────────
@@ -318,7 +319,6 @@ export function EquipmentManagement() {
   }, [equipment])
 
   const filteredItems = useMemo(() => {
-    const term = searchTerm.trim().toLowerCase()
     return equipment.filter((e) => {
       const matchesProject =
         filterProject === "all" ||
@@ -326,12 +326,8 @@ export function EquipmentManagement() {
         (filterProject === "none" && !e.proyectoId)
       const matchesStatus = filterStatus === "all" || e.estado === filterStatus
       const matchesTipo = filterTipo === "all" || e.tipo === filterTipo
-      const matchesSearch =
-        !term ||
-        [e.codigoInterno, e.marca, e.modelo, e.subtipo]
-          .filter(Boolean)
-          .some((field) => field!.toLowerCase().includes(term))
-      return matchesProject && matchesStatus && matchesTipo && matchesSearch
+      const matchesText = matchesSearch(searchTerm, [e.tipo, e.subtipo, e.codigoInterno, e.marca, e.modelo])
+      return matchesProject && matchesStatus && matchesTipo && matchesText
     })
   }, [equipment, filterProject, filterStatus, filterTipo, searchTerm])
 
@@ -882,7 +878,7 @@ export function EquipmentManagement() {
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <input
                 type="text"
-                placeholder="Buscar por código, marca o modelo..."
+                placeholder="Buscar por tipo, código, marca o modelo..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-full pl-9 pr-3 py-2 text-sm rounded-lg bg-input border border-border text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
