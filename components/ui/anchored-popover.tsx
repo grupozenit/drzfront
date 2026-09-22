@@ -30,6 +30,12 @@ export function AnchoredPopover({ onClose, children, align = "right", className 
   const panelRef = useRef<HTMLDivElement>(null)
   const [mounted, setMounted] = useState(false)
   const [position, setPosition] = useState<{ top: number; left: number } | null>(null)
+  // El disparador puede estar montado pero oculto: las vistas de tabla y de
+  // tarjetas conviven en el DOM y una de las dos va con `md:hidden`/`hidden`.
+  // Como el panel vive en un portal, no hereda ese `display: none` y aparecía
+  // un segundo menú en la esquina superior izquierda (el rect de un elemento
+  // oculto es 0×0).
+  const [anchorHidden, setAnchorHidden] = useState(false)
 
   // El portal solo puede montarse en el cliente (no hay `document` en SSR).
   useEffect(() => setMounted(true), [])
@@ -42,6 +48,14 @@ export function AnchoredPopover({ onClose, children, align = "right", className 
       const anchor = markerRef.current?.parentElement
       const panel = panelRef.current
       if (!anchor || !panel) return
+
+      // Sin cajas de layout = el anclaje (o un ancestro) está en display: none.
+      if (anchor.getClientRects().length === 0) {
+        setAnchorHidden(true)
+        setPosition(null)
+        return
+      }
+      setAnchorHidden(false)
 
       const rect = anchor.getBoundingClientRect()
       const { offsetWidth: panelWidth, offsetHeight: panelHeight } = panel
@@ -84,13 +98,18 @@ export function AnchoredPopover({ onClose, children, align = "right", className 
       {mounted &&
         createPortal(
           <>
-            <div className="fixed inset-0 z-[90]" onClick={onClose} />
+            {!anchorHidden && <div className="fixed inset-0 z-[90]" onClick={onClose} />}
             <div
               ref={panelRef}
               style={{ top: position?.top ?? 0, left: position?.left ?? 0 }}
               // Invisible en el primer render: se mide el panel para saber si hay
               // que voltearlo antes de mostrarlo, y así evitar el salto visual.
-              className={`fixed z-[100] ${position ? "" : "invisible"} ${className}`}
+              // Con el anclaje oculto queda invisible e inerte (sin clics ni foco),
+              // pero montado, para poder medirlo si el anclaje vuelve a mostrarse
+              // (p. ej. al cruzar el breakpoint md con el menú abierto).
+              aria-hidden={anchorHidden || undefined}
+              inert={anchorHidden || undefined}
+              className={`fixed z-[100] ${position && !anchorHidden ? "" : "invisible pointer-events-none"} ${className}`}
             >
               {children}
             </div>

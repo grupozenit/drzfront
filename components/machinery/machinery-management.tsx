@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useMemo } from "react"
+import { useState, useEffect, useMemo, useRef } from "react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -43,6 +43,7 @@ import { useViewMode } from "@/lib/hooks/useViewMode"
 import { machineryService } from "@/lib/api"
 import { MACHINE_TYPES, isVehicleType, machineAcceptsCapacity, requiresCertification } from "@/lib/constants/activities"
 import { formatDateLocal } from "@/lib/utils"
+import { rowActionProps } from "@/lib/utils/row-click"
 import type { Machine, CreateMachineDTO, UpdateMachineDTO, MachineOwnership, EventLogEntry } from "@/lib/types"
 
 // ─── Event labels & colors ────────────────────────────────────────────────────
@@ -335,6 +336,13 @@ export function MachineryManagement() {
   const { machinery, isLoading, loadMachinery, addMachine, updateMachine, removeMachine } = useMachinery()
   const { drivers, loadDrivers } = useDrivers()
   const { can } = usePermissions()
+  // El formulario de edición se abre arriba del listado: al abrirlo desde una
+  // fila o tarjeta de más abajo, se lleva la vista hasta él.
+  const editFormRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (editingMachine) editFormRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })
+  }, [editingMachine?.id])
+
   const canWrite = can("maquinaria", "create")
 
   // Cargar datos iniciales
@@ -969,7 +977,7 @@ export function MachineryManagement() {
 
         {/* Edit Machine Form */}
         {editingMachine && (
-          <Card className="p-6 md:p-8 bg-card border-border">
+          <Card ref={editFormRef} className="p-6 md:p-8 bg-card border-border scroll-mt-4">
             <div className="space-y-6">
               <div className="flex items-center justify-between">
                 <h3 className="text-base md:text-lg font-semibold text-foreground">Editar Maquinaria</h3>
@@ -1257,7 +1265,10 @@ export function MachineryManagement() {
                 {filteredMachines.map((machine) => (
                   <tr
                     key={machine.id}
-                    className={`border-b border-border hover:bg-muted/50 ${machine.estado === "baja" ? "opacity-60" : ""}`}
+                    {...rowActionProps(() => setEditingMachine(machine), canWrite)}
+                    className={`border-b border-border hover:bg-muted/50 ${machine.estado === "baja" ? "opacity-60" : ""} ${
+                      canWrite ? "cursor-pointer focus-visible:outline-none focus-visible:bg-muted/50" : ""
+                    }`}
                   >
                     <td className="px-4 py-3 font-medium text-foreground whitespace-nowrap">{machine.codigoInterno}</td>
                     <td className="px-4 py-3 text-foreground whitespace-nowrap">{machine.tipo}</td>
@@ -1339,9 +1350,10 @@ export function MachineryManagement() {
             {filteredMachines.map((machine) => (
               <Card
                 key={machine.id}
+                {...rowActionProps(() => setEditingMachine(machine), canWrite)}
                 className={`p-4 md:p-5 bg-card border-border hover:border-primary/50 transition-colors ${
                   machine.estado === "baja" ? "opacity-60" : ""
-                }`}
+                } ${canWrite ? "cursor-pointer focus-visible:outline-none focus-visible:border-primary" : ""}`}
               >
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex items-center gap-3">
