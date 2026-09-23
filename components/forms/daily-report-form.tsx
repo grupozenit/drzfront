@@ -3,7 +3,7 @@
 import type React from "react"
 
 import { useState, useEffect } from "react"
-import { Cloud, CloudRain, CloudLightning, CloudSnow, CloudHail, Sun, ImagePlus, X, Loader2, ClipboardCopy } from "lucide-react"
+import { Cloud, CloudRain, CloudLightning, CloudSnow, CloudHail, Sun, ImagePlus, X, Loader2, ClipboardCopy, AlertCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -114,7 +114,7 @@ export function DailyReportForm({ onBack, existingReport }: DailyReportFormProps
   const { toasts, success, error: showError, removeToast } = useToast()
 
   // Hooks de datos
-  const { projects, isLoading: isLoadingProjects, loadProjects } = useProjects()
+  const { projects, isLoading: isLoadingProjects, error: projectsError, loadProjects } = useProjects()
   const { createReport, updateReport, saveDraft, isOnline } = useOfflineReports()
 
   // Cargar proyectos al montar
@@ -577,6 +577,21 @@ export function DailyReportForm({ onBack, existingReport }: DailyReportFormProps
                 <div className="flex items-center gap-2 h-10">
                   <Loader2 className="w-4 h-4 animate-spin" />
                   <span className="text-sm text-muted-foreground">Cargando proyectos...</span>
+                </div>
+              ) : projectsError ? (
+                <div role="alert" className="flex items-start gap-2 rounded-md border border-destructive/50 bg-destructive/10 p-3 text-sm text-destructive">
+                  <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
+                  <div className="space-y-2">
+                    <p>{projectsError}</p>
+                    <Button type="button" variant="outline" size="sm" onClick={() => loadProjects()}>
+                      Reintentar
+                    </Button>
+                  </div>
+                </div>
+              ) : projects.length === 0 ? (
+                <div role="alert" className="flex items-start gap-2 rounded-md border border-border bg-muted p-3 text-sm text-muted-foreground">
+                  <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
+                  <p>No hay proyectos disponibles. Si deberías tener una obra asignada, pedile a un administrador que la asigne en Configuración → Equipo.</p>
                 </div>
               ) : (
                 <Select value={selectedProject} onValueChange={setSelectedProject}>
