@@ -46,6 +46,9 @@ interface AppState {
   isLoading: boolean;
   isLoadingCompany: boolean;
   isLoadingProjects: boolean;
+  // Por qué falló la última carga de proyectos (null = no falló). Sin esto un
+  // 403 se veía igual que "no tenés proyectos": un selector vacío.
+  projectsError: string | null;
   isLoadingTeam: boolean;
   isLoadingMachinery: boolean;
   isLoadingEquipment: boolean;
@@ -154,6 +157,7 @@ export function AppProvider({ children, initialData }: AppProviderProps) {
     isLoading: false,
     isLoadingCompany: false,
     isLoadingProjects: false,
+    projectsError: null,
     isLoadingTeam: false,
     isLoadingMachinery: false,
     isLoadingEquipment: false,
@@ -206,18 +210,23 @@ export function AppProvider({ children, initialData }: AppProviderProps) {
       return;
     }
     
-    setState(prev => ({ ...prev, isLoadingProjects: true }));
+    setState(prev => ({ ...prev, isLoadingProjects: true, projectsError: null }));
     try {
       const projects = await projectsService.getAll();
       setState(prev => ({
         ...prev, 
         projects, 
         isLoadingProjects: false,
+        projectsError: null,
         isOnboardingComplete: projects.length > 0,
       }));
     } catch (error) {
       console.error('Error loading projects:', error);
-      setState(prev => ({ ...prev, projects: [], isLoadingProjects: false, isOnboardingComplete: false }));
+      const code = (error as { code?: string } | null)?.code;
+      const projectsError = code === '403'
+        ? 'Tu usuario no tiene permiso para ver proyectos. Pedile a un administrador que revise tu rol.'
+        : 'No se pudieron cargar los proyectos. Revisá tu conexión y reintentá.';
+      setState(prev => ({ ...prev, projects: [], isLoadingProjects: false, projectsError, isOnboardingComplete: false }));
     }
   }, [isLoaded, userId, orgId]);
 
@@ -534,8 +543,8 @@ export function useApp() {
 // ============================================
 
 export function useProjects() {
-  const { projects, isLoadingProjects, loadProjects, addProject, updateProject, removeProject } = useApp();
-  return { projects, isLoading: isLoadingProjects, loadProjects, addProject, updateProject, removeProject };
+  const { projects, isLoadingProjects, projectsError, loadProjects, addProject, updateProject, removeProject } = useApp();
+  return { projects, isLoading: isLoadingProjects, error: projectsError, loadProjects, addProject, updateProject, removeProject };
 }
 
 export function useCompany() {
