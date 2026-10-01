@@ -168,6 +168,9 @@ export function ReportHistory() {
     // Horas suspendidas
     if (report.hasSuspendedHours) {
       message += `*HORAS SUSPENDIDAS*\n`
+      if (report.fullDaySuspended) {
+        message += `• Jornada completa suspendida\n`
+      }
       message += `• Horas: ${report.suspendedHours || 0} horas\n`
       if (report.suspendedReason) {
         message += `• Motivo: ${report.suspendedReason}\n`
@@ -206,6 +209,8 @@ export function ReportHistory() {
         }
       })
       message += `\n`
+    } else if (report.fullDaySuspended) {
+      message += `*ACTIVIDADES REALIZADAS*\nSin actividades: jornada completa suspendida.\n\n`
     }
 
     // Tareas para mañana
