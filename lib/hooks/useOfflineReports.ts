@@ -84,6 +84,7 @@ export function useOfflineReports(options?: { projectId?: string; autoLoad?: boo
         hasSuspendedHours: data.hasSuspendedHours,
         suspendedHours: data.suspendedHours,
         suspendedReason: data.suspendedReason,
+        fullDaySuspended: data.fullDaySuspended,
         hasAccident: data.hasAccident,
         accidentWithInjury: data.accidentWithInjury,
         accidentDescription: data.accidentDescription,

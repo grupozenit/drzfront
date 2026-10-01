@@ -333,6 +333,8 @@ export interface DailyReport {
   hasSuspendedHours: boolean;
   suspendedHours?: number;
   suspendedReason?: string;
+  /** Jornada completa suspendida: el parte puede ir sin actividades. */
+  fullDaySuspended?: boolean;
   hasAccident: boolean;
   accidentWithInjury?: boolean;
   accidentDescription?: string;
@@ -360,6 +362,8 @@ export interface CreateReportDTO {
   hasSuspendedHours: boolean;
   suspendedHours?: number;
   suspendedReason?: string;
+  /** Jornada completa suspendida: el parte puede ir sin actividades. */
+  fullDaySuspended?: boolean;
   hasAccident: boolean;
   accidentWithInjury?: boolean;
   accidentDescription?: string;

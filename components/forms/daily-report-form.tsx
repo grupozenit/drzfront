@@ -22,6 +22,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { validateImageFile, sanitizeTextInput } from "@/lib/utils/sanitize"
+import { netShiftHours } from "@/lib/utils/report-hours"
 import { useProjects } from "@/lib/hooks"
 import { useOfflineReports } from "@/lib/hooks/useOfflineReports"
 import { reportsService } from "@/lib/api"
@@ -96,6 +97,7 @@ export function DailyReportForm({ onBack, existingReport }: DailyReportFormProps
   const [hasSuspendedHours, setHasSuspendedHours] = useState(existingReport?.hasSuspendedHours || false)
   const [suspendedHours, setSuspendedHours] = useState(existingReport?.suspendedHours?.toString() || "")
   const [suspendedReason, setSuspendedReason] = useState(existingReport?.suspendedReason || "")
+  const [fullDaySuspended, setFullDaySuspended] = useState(existingReport?.fullDaySuspended || false)
   const [attachedImages, setAttachedImages] = useState<File[]>([])
   const [existingImageUrls, setExistingImageUrls] = useState<string[]>(
     existingReport?.images || []
@@ -280,7 +282,8 @@ export function DailyReportForm({ onBack, existingReport }: DailyReportFormProps
       { label: "Personal indirecto", raw: indirectStaff, max: 100000, integer: true },
       { label: "Personal directo", raw: directStaff, max: 100000, integer: true },
     ]
-    if (hasSuspendedHours) {
+    // Con la jornada completa las horas las fija el backend: no hay nada que validar
+    if (hasSuspendedHours && !fullDaySuspended) {
       checks.push({ label: "Horas suspendidas", raw: suspendedHours, max: 24 })
     }
 
@@ -351,8 +354,13 @@ export function DailyReportForm({ onBack, existingReport }: DailyReportFormProps
       directStaff: toNumber(directStaff) ?? 0,
       weather,
       hasSuspendedHours,
-      suspendedHours: hasSuspendedHours ? toNumber(suspendedHours) ?? 0 : undefined,
+      suspendedHours: !hasSuspendedHours
+        ? undefined
+        : fullDaySuspended
+          ? netShiftHours(entryTime, exitTime)
+          : toNumber(suspendedHours) ?? 0,
       suspendedReason: hasSuspendedHours ? suspendedReason : undefined,
+      fullDaySuspended: hasSuspendedHours && fullDaySuspended,
       hasAccident,
       accidentWithInjury: hasAccident ? accidentWithInjury === "yes" : undefined,
       accidentDescription: hasAccident ? accidentDescription : undefined,
@@ -383,12 +391,13 @@ export function DailyReportForm({ onBack, existingReport }: DailyReportFormProps
       return
     }
     
-    if (!directStaff || toNumber(directStaff) === 0) {
+    // Si se suspendió la jornada completa puede no haber ido nadie a la obra
+    if (!fullDaySuspended && (!directStaff || toNumber(directStaff) === 0)) {
       showError("Campo requerido", "Debes ingresar la cantidad de personal directo")
       return
     }
 
-    if (!indirectStaff || toNumber(indirectStaff) === 0) {
+    if (!fullDaySuspended && (!indirectStaff || toNumber(indirectStaff) === 0)) {
       showError("Campo requerido", "Debes ingresar la cantidad de personal indirecto")
       return
     }
@@ -402,10 +411,12 @@ export function DailyReportForm({ onBack, existingReport }: DailyReportFormProps
     // Validar que hay al menos una actividad con descripción
     const activitiesWithDescription = activities.filter(a => a.description && a.description.trim() !== "")
     
-    if (activitiesWithDescription.length === 0) {
+    // Salvo que se haya suspendido la jornada completa: ese día no hay nada que
+    // reportar, y cargar una actividad en avance 0 sería inventar un dato
+    if (activitiesWithDescription.length === 0 && !fullDaySuspended) {
       // Mensaje más específico según el estado
       const firstActivity = activities[0]
-      let errorMessage = "Debes completar al menos una actividad para crear el reporte."
+      let errorMessage = "Debes completar al menos una actividad para crear el reporte. Si no se trabajó en todo el día, marcá \"Se suspendió la jornada completa\" en Horas Suspendidas."
       
       if (firstActivity.category && !firstActivity.subActivity) {
         const categoryLabel = ACTIVITY_CATEGORIES[firstActivity.category as ActivityCategory]?.label ?? firstActivity.category
@@ -512,6 +523,7 @@ export function DailyReportForm({ onBack, existingReport }: DailyReportFormProps
     setHasSuspendedHours(false)
     setSuspendedHours("")
     setSuspendedReason("")
+    setFullDaySuspended(false)
     setAttachedImages([])
     setTomorrowTasks([])
     setNewTask("")
@@ -795,6 +807,7 @@ export function DailyReportForm({ onBack, existingReport }: DailyReportFormProps
                     if (!e.target.checked) {
                       setSuspendedHours("")
                       setSuspendedReason("")
+                      setFullDaySuspended(false)
                     }
                   }}
                   className="w-4 h-4 rounded border-border text-primary focus:ring-primary focus:ring-offset-0 bg-input"
@@ -805,8 +818,10 @@ export function DailyReportForm({ onBack, existingReport }: DailyReportFormProps
                 <div className="flex items-center gap-2">
                   <Input
                     type="number"
-                    value={suspendedHours}
+                    value={fullDaySuspended ? String(netShiftHours(entryTime, exitTime)) : suspendedHours}
                     onChange={(e) => setSuspendedHours(e.target.value)}
+                    disabled={fullDaySuspended}
+                    aria-label="Horas suspendidas"
                     placeholder="Cantidad"
                     className="w-24 bg-input border-border text-foreground text-sm no-arrows"
                     min="0"
@@ -817,6 +832,22 @@ export function DailyReportForm({ onBack, existingReport }: DailyReportFormProps
                 </div>
               )}
             </div>
+            {hasSuspendedHours && (
+              <label className="mt-3 flex items-start gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={fullDaySuspended}
+                  onChange={(e) => setFullDaySuspended(e.target.checked)}
+                  className="mt-0.5 w-4 h-4 rounded border-border text-primary focus:ring-primary focus:ring-offset-0 bg-input"
+                />
+                <span className="text-sm text-foreground">
+                  <span className="font-medium">Se suspendió la jornada completa</span>
+                  <span className="block text-xs text-muted-foreground">
+                    No se realizó ninguna actividad: el reporte se puede enviar sin actividades y las horas suspendidas son la jornada entera.
+                  </span>
+                </span>
+              </label>
+            )}
             {hasSuspendedHours && (
               <div className="mt-3">
                 <Label className="text-xs md:text-sm font-medium text-foreground">Motivo de la suspensión</Label>
@@ -934,6 +965,12 @@ export function DailyReportForm({ onBack, existingReport }: DailyReportFormProps
               )}
             </div>
           </div>
+
+          {fullDaySuspended && (
+            <p className="mb-4 p-3 text-xs md:text-sm text-muted-foreground bg-muted/40 border border-border">
+              Jornada completa suspendida: las actividades son opcionales. Dejalas vacías si no se realizó ninguna.
+            </p>
+          )}
 
           <div className="space-y-4 md:space-y-6">
             {activities.map((activity, index) => (

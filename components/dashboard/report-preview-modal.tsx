@@ -136,6 +136,9 @@ export function ReportPreviewModal({ report, isOpen, onClose, onDownload }: Repo
             <div className="p-4 rounded-lg bg-yellow-50 dark:bg-yellow-900/10 border border-yellow-200 dark:border-yellow-800/30">
               <SectionTitle icon={<AlertTriangle className="w-4 h-4 text-yellow-600 dark:text-yellow-400" />} title="Horas Suspendidas" />
               <div className="grid grid-cols-2 gap-4">
+                {report.fullDaySuspended && (
+                  <InfoItem label="Jornada" value="Suspendida completa" />
+                )}
                 <InfoItem label="Horas" value={`${report.suspendedHours ?? 0} hs`} />
                 <InfoItem label="Motivo" value={report.suspendedReason ?? "—"} />
               </div>
@@ -159,6 +162,11 @@ export function ReportPreviewModal({ report, isOpen, onClose, onDownload }: Repo
           )}
 
           {/* Actividades */}
+          {report.fullDaySuspended && (!report.activities || report.activities.length === 0) && (
+            <div className="p-4 rounded-lg bg-muted/30 border border-border text-sm text-muted-foreground">
+              Sin actividades: jornada completa suspendida.
+            </div>
+          )}
           {report.activities && report.activities.length > 0 && (
             <div className="p-4 rounded-lg bg-muted/30 border border-border">
               <SectionTitle icon={<Briefcase className="w-4 h-4" />} title={`Actividades (${report.activities.length})`} />
