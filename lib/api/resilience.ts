@@ -10,6 +10,29 @@ interface CircuitBreakerState {
   failureCount: number;
   lastFailureTime: number | null;
   state: 'CLOSED' | 'OPEN' | 'HALF_OPEN';
+  lastErrorMessage?: string;
+}
+
+export const CIRCUIT_OPEN_CODE = 'CIRCUIT_OPEN';
+
+/** Status HTTP de un error del cliente, o null si el request no llegó a tener respuesta. */
+export function httpStatusOf(error: any): number | null {
+  const status = error?.code ? parseInt(error.code, 10) : NaN;
+  return Number.isNaN(status) ? null : status;
+}
+
+/**
+ * ¿El servicio falló, o respondió que no?
+ *
+ * Solo la red caída y los 5xx abren el circuito. Un 4xx es el servidor
+ * funcionando y rechazando el pedido: contarlo como falla hacía que cinco
+ * intentos de enviar un parte inválido bloquearan al usuario, y que en vez
+ * del motivo del rechazo viera "Circuit breaker is OPEN".
+ */
+export function isServiceFailure(error: any): boolean {
+  if (error?.code === CIRCUIT_OPEN_CODE) return false;
+  const status = httpStatusOf(error);
+  return status === null || status >= 500;
 }
 
 class CircuitBreaker {
@@ -46,7 +69,12 @@ class CircuitBreaker {
       const timeSinceLastFailure = Date.now() - (state.lastFailureTime || 0);
       
       if (timeSinceLastFailure < this.resetTimeout) {
-        throw new Error('Circuit breaker is OPEN. Service temporarily unavailable.');
+        const seconds = Math.ceil((this.resetTimeout - timeSinceLastFailure) / 1000);
+        const cause = state.lastErrorMessage ? ` Último error: ${state.lastErrorMessage}` : '';
+        throw {
+          message: `El servidor no está respondiendo. Volvé a intentar en ${seconds} s.${cause}`,
+          code: CIRCUIT_OPEN_CODE,
+        };
       }
       
       // Cambiar a HALF_OPEN para intentar una llamada
@@ -55,30 +83,38 @@ class CircuitBreaker {
 
     try {
       const result = await fn();
-      
-      // Éxito: resetear el contador
-      if (state.state === 'HALF_OPEN') {
-        this.setState(key, { 
-          failureCount: 0, 
-          lastFailureTime: null,
-          state: 'CLOSED' 
-        });
-      } else if (state.failureCount > 0) {
-        this.setState(key, { failureCount: 0, lastFailureTime: null });
-      }
-      
+      this.markHealthy(key);
       return result;
-    } catch (error) {
-      const newFailureCount = state.failureCount + 1;
-      
+    } catch (error: any) {
+      // El servidor respondió (aunque sea un rechazo): está sano
+      if (!isServiceFailure(error)) {
+        this.markHealthy(key);
+        throw error;
+      }
+
+      const current = this.getState(key);
+      const newFailureCount = current.failureCount + 1;
+      // Un intento de prueba que falla vuelve a abrir el circuito
+      const reopen = current.state === 'HALF_OPEN' || newFailureCount >= this.failureThreshold;
+
       this.setState(key, {
         failureCount: newFailureCount,
         lastFailureTime: Date.now(),
-        state: newFailureCount >= this.failureThreshold ? 'OPEN' : 'CLOSED',
+        state: reopen ? 'OPEN' : 'CLOSED',
+        lastErrorMessage: typeof error?.message === 'string' ? error.message.slice(0, 200) : undefined,
       });
-      
+
       throw error;
     }
+  }
+
+  private markHealthy(key: string) {
+    this.setState(key, {
+      failureCount: 0,
+      lastFailureTime: null,
+      state: 'CLOSED',
+      lastErrorMessage: undefined,
+    });
   }
 
   getStatus(key: string): CircuitBreakerState {
@@ -140,9 +176,11 @@ export async function retryWithBackoff<T>(
       }
 
       // Verificar si el error es retryable
-      const isRetryable = 
-        !error.code || // Network errors
-        (error.code && opts.retryableErrors.includes(parseInt(error.code)));
+      // Con el circuito abierto no tiene sentido reintentar: ya se sabe la respuesta
+      const status = httpStatusOf(error);
+      const isRetryable =
+        error?.code !== CIRCUIT_OPEN_CODE &&
+        (status === null || opts.retryableErrors.includes(status)); // null: error de red
 
       if (!isRetryable) {
         throw error; // No reintentar errores no retryables (ej: 401, 403, 404)
@@ -207,11 +245,11 @@ export async function resilientFetch<T>(
  * Verifica si un error es retryable basado en el código de estado
  */
 export function isRetryableError(error: any): boolean {
-  if (!error) return false;
-  
-  const code = error.code ? parseInt(error.code) : null;
-  if (!code) return true; // Network errors son retryables
-  
+  if (!error || error.code === CIRCUIT_OPEN_CODE) return false;
+
+  const code = httpStatusOf(error);
+  if (code === null) return true; // Network errors son retryables
+
   return DEFAULT_RETRY_OPTIONS.retryableErrors.includes(code);
 }
 

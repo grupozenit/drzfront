@@ -133,15 +133,34 @@ class ApiClient {
       }
     }
 
-      const response = await fetch(url, config);
+      let response: Response;
+      try {
+        response = await fetch(url, config);
+      } catch {
+        // Sin respuesta del servidor (red caída, DNS, CORS): el fetch rechaza
+        // con un TypeError "Failed to fetch" que no le dice nada al usuario
+        const networkError: ApiError = {
+          message: 'No se pudo conectar con el servidor. Revisá tu conexión e intentá de nuevo.',
+          code: 'NETWORK_ERROR',
+        };
+        throw networkError;
+      }
 
       // Manejar errores HTTP
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
+        // `detail` puede ser un string o un objeto con su propio `message`
+        // (p. ej. el 422 de la importación de Totales): el mensaje siempre es texto
+        const detail = errorData.detail;
+        const message =
+          (typeof errorData.message === 'string' && errorData.message) ||
+          (typeof detail === 'string' && detail) ||
+          (typeof detail?.message === 'string' && detail.message) ||
+          `Error ${response.status}: ${response.statusText}`;
         const error: ApiError = {
-          message: errorData.message || errorData.detail || `Error ${response.status}: ${response.statusText}`,
+          message,
           code: String(response.status),
-          details: errorData.errors || errorData.details,
+          details: errorData.errors || errorData.details || detail?.errors,
         };
         throw error;
       }

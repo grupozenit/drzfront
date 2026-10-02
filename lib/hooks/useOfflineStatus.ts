@@ -1,22 +1,28 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { getPendingCount } from '@/lib/offline/sync';
+import { getPendingCount, getRejectedReports } from '@/lib/offline/sync';
+import type { OfflinePendingReport } from '@/lib/offline/db';
 
 interface OfflineStatus {
   isOnline: boolean;
   pendingCount: number;
+  // Rechazados por el servidor: no cuentan como pendientes porque no se
+  // reintentan solos, pero el usuario tiene que verlos para no perderlos
+  rejectedReports: OfflinePendingReport[];
   refreshPendingCount: () => Promise<void>;
 }
 
 export function useOfflineStatus(): OfflineStatus {
   const [isOnline, setIsOnline] = useState(true);
   const [pendingCount, setPendingCount] = useState(0);
+  const [rejectedReports, setRejectedReports] = useState<OfflinePendingReport[]>([]);
 
   const refreshPendingCount = useCallback(async () => {
     try {
-      const count = await getPendingCount();
+      const [count, rejected] = await Promise.all([getPendingCount(), getRejectedReports()]);
       setPendingCount(count);
+      setRejectedReports(rejected);
     } catch {
       // IndexedDB puede no estar disponible en SSR
     }
@@ -49,5 +55,5 @@ export function useOfflineStatus(): OfflineStatus {
     };
   }, [refreshPendingCount]);
 
-  return { isOnline, pendingCount, refreshPendingCount };
+  return { isOnline, pendingCount, rejectedReports, refreshPendingCount };
 }

@@ -12,7 +12,9 @@ export interface OfflinePendingReport {
   id: string;           // UUID local temporal (prefijo "offline-")
   data: Omit<CreateReportDTO, 'images'>;
   images: OfflineImage[];
-  status: 'pending' | 'syncing' | 'failed';
+  // failed: falla transitoria, se reintenta sola. rejected: el servidor lo
+  // rechazó (4xx) y reintentarlo da lo mismo; espera a que el usuario decida.
+  status: 'pending' | 'syncing' | 'failed' | 'rejected';
   createdAt: number;    // timestamp ms
   attempts: number;
   errorMessage?: string;
