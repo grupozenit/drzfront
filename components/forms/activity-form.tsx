@@ -262,7 +262,7 @@ export function ActivityForm({ activity, index, onUpdate, onRemove, canRemove }:
 
               <div className="space-y-2">
                 <Label htmlFor={`unit-${activity.id}`} className="text-xs md:text-sm font-medium text-foreground">
-                  Unidad
+                  Unidad <span className="font-normal text-muted-foreground">(opcional)</span>
                 </Label>
                 <Input
                   id={`unit-${activity.id}`}

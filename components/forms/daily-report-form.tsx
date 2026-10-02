@@ -308,15 +308,6 @@ export function DailyReportForm({ onBack, existingReport }: DailyReportFormProps
 
     const completed = activities.filter(a => a.description.trim() !== "")
     for (const [index, activity] of completed.entries()) {
-      // "Otras" no tiene unidad de catálogo: la escribe el usuario, y el
-      // backend la rechaza vacía. Una actividad sin categoría viaja como "Otras".
-      if ((activity.category || "otras") === "otras" && !activity.unit?.trim()) {
-        return {
-          title: "Falta la unidad",
-          message: `Actividad ${index + 1}: en "Otras" completá la unidad (ej: m³, h, gl).`,
-        }
-      }
-
       const quantity = activity.quantity?.trim() ? toNumber(activity.quantity) : 0
       if (quantity === null) {
         return {

@@ -66,7 +66,7 @@ describe('syncPendingReports', () => {
 
   it('un 422 queda como rechazado, con el motivo, y no se reintenta solo', async () => {
     queue('a', 1);
-    create.mockRejectedValue({ code: '422', message: 'La categoría "Otras" requiere unidad' });
+    create.mockRejectedValue({ code: '422', message: 'La categoría "Hincado" requiere sub-actividad' });
 
     await syncPendingReports();
     await syncPendingReports();
@@ -74,7 +74,7 @@ describe('syncPendingReports', () => {
     expect(create).toHaveBeenCalledTimes(1);
     expect(store.get('a')).toMatchObject({
       status: 'rejected',
-      errorMessage: 'La categoría "Otras" requiere unidad',
+      errorMessage: 'La categoría "Hincado" requiere sub-actividad',
     });
   });
 

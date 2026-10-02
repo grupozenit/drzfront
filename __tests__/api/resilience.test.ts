@@ -45,12 +45,12 @@ describe('isServiceFailure', () => {
 
 describe('circuitBreaker', () => {
   it('un parte rechazado con 422 nunca abre el circuito y el usuario ve el motivo', async () => {
-    const invalid = rejected('422', 'La categoría "Otras" requiere unidad');
+    const invalid = rejected('422', 'La categoría "Hincado" requiere sub-actividad');
     await failTimes(10, invalid);
 
     await expect(circuitBreaker.execute(KEY, invalid)).rejects.toMatchObject({
       code: '422',
-      message: 'La categoría "Otras" requiere unidad',
+      message: 'La categoría "Hincado" requiere sub-actividad',
     });
     expect(circuitBreaker.getStatus(KEY).state).toBe('CLOSED');
   });
