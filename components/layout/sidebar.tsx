@@ -72,11 +72,15 @@ export function Sidebar({ isOpen, onToggle }: SidebarProps) {
       {isOpen && <div className="fixed inset-0 bg-black/50 z-30 md:hidden" onClick={onToggle} />}
 
       {/* Sidebar */}
+      {/* h-dvh: alto real del viewport (descuenta la barra del navegador en
+          móvil) resuelto por el propio CSS. Antes se fijaba en píxeles con un
+          valor medido por JS al cargar; si esa medición quedaba corta, el
+          sidebar terminaba a mitad de pantalla y su borde inferior se veía
+          como una línea horizontal. */}
       <aside
-        className={`fixed md:sticky top-0 left-0 h-[100dvh] md:h-screen bg-sidebar border-r border-sidebar-border z-40 transition-all duration-300 ${
+        className={`fixed md:sticky top-0 left-0 h-dvh bg-sidebar border-r border-sidebar-border z-40 transition-[width,translate] duration-300 ${
           isOpen ? "w-64 translate-x-0" : "-translate-x-full md:translate-x-0 md:w-20"
         }`}
-        style={{ height: 'var(--viewport-height, 100vh)' }}
       >
         <div className="flex flex-col h-full">
           {/* Logo Section */}
