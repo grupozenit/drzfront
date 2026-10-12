@@ -106,7 +106,7 @@ Calculation logic lives in `lib/utils/calculations.ts`.
 
 Uses shadcn/ui (Radix UI primitives + Tailwind). Component config is in `components.json`. All shadcn components are in `components/ui/`. Custom app components are organized in `components/forms/`, `components/layout/`, `components/modals/`, `components/icons/`, `components/offline/`, `components/machinery/`.
 
-The app uses Geist Sans/Mono fonts and a CSS variable `--viewport-height` for correct mobile viewport height (injected inline in `<head>`).
+The app uses Geist Sans/Mono fonts. The sidebar's height is `h-dvh` (pure CSS, handles the mobile URL bar) — don't go back to measuring `window.innerHeight` in JS: a stale measurement left the sidebar ending mid-screen.
 
 ### Backend Contract
 

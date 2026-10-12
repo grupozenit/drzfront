@@ -111,30 +111,6 @@ export default async function RootLayout({
       domain={undefined}
     >
       <html lang="es">
-        <head>
-          {/* Script para calcular altura real del viewport en móviles */}
-          <script
-            dangerouslySetInnerHTML={{
-              __html: `
-                (function() {
-                  function setViewportHeight() {
-                    const vh = window.innerHeight;
-                    document.documentElement.style.setProperty('--viewport-height', vh + 'px');
-                  }
-
-                  setViewportHeight();
-
-                  // Actualizar cuando cambie el tamaño (cuando aparece/desaparece barra del navegador)
-                  let resizeTimer;
-                  window.addEventListener('resize', function() {
-                    clearTimeout(resizeTimer);
-                    resizeTimer = setTimeout(setViewportHeight, 100);
-                  });
-                })();
-              `,
-            }}
-          />
-        </head>
         <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
           <OrganizationProvider>
             <ClerkApiConfig>
