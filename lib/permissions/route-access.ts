@@ -10,6 +10,7 @@ const ROUTE_RESOURCE_MAP: Record<string, PermissionResource> = {
   "/avances": "avances",
   "/reporte": "reportes",
   "/reporte-semanal": "reportes_semanales",
+  "/trabajadores": "trabajadores",
   "/flota": "flota",
   "/choferes": "choferes",
   "/maquinaria": "maquinaria",

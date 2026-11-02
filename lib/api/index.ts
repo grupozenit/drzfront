@@ -8,6 +8,7 @@ export { reportsService } from './reports';
 export { machineryService } from './machinery';
 export { equipmentService } from './equipment';
 export { driverService } from './drivers';
+export { workersService } from './workers';
 export { companyService } from './company';
 export { teamService } from './team';
 export { dashboardService } from './dashboard';
