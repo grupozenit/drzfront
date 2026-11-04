@@ -77,7 +77,7 @@ export interface UpdateProjectAssignmentsDTO {
 // Espejo de src.core.permissions.Resource/Action en el backend.
 export type PermissionResource =
   | 'tablero' | 'avances' | 'reportes' | 'reportes_semanales' | 'flota'
-  | 'maquinaria' | 'equipos' | 'choferes' | 'proyectos' | 'totales'
+  | 'maquinaria' | 'equipos' | 'choferes' | 'trabajadores' | 'proyectos' | 'totales'
   | 'usuarios' | 'configuracion';
 
 export type PermissionAction = 'read' | 'create' | 'update' | 'delete';
@@ -344,6 +344,12 @@ export interface DailyReport {
   status: ReportStatus;
   /** Correlativo por proyecto (1, 2, 3...). Null mientras sea borrador. */
   reportNumber: number | null;
+  /** El parte usa el listado de trabajadores (gestión de personal). */
+  usesWorkforce?: boolean;
+  /** Presentes del día. Copia guardada en el parte, no referencia viva. */
+  workforce?: ReportWorkforceEntry[];
+  /** Suma de las horas de los presentes (horas hombre del parte). */
+  workforceHours?: number | null;
   createdAt: string;
   updatedAt: string;
   createdBy: string;
@@ -371,6 +377,12 @@ export interface CreateReportDTO {
   tomorrowTasks: string[];
   images?: File[];
   status: ReportStatus;
+  /**
+   * Gestión de personal. Con `usesWorkforce`, el backend recalcula
+   * directStaff/indirectStaff y las horas hombre desde `workforce`.
+   */
+  usesWorkforce?: boolean;
+  workforce?: WorkforceEntryDTO[];
 }
 
 export interface UpdateReportDTO extends Partial<CreateReportDTO> {}
@@ -927,3 +939,73 @@ export interface ShareWhatsAppData {
   includeLink: boolean;
 }
 
+
+// ============================================
+// TRABAJADORES (plantilla de personal por proyecto)
+// ============================================
+
+export type WorkerType = 'directo' | 'indirecto';
+export type WorkerState = 'activo' | 'baja';
+
+export interface Worker {
+  id: string;
+  projectId: string;
+  projectName: string;
+  fullName: string;
+  empresa: string;
+  funcion: string;
+  tipo: WorkerType;
+  estado: WorkerState;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface CreateWorkerDTO {
+  projectId: string;
+  fullName: string;
+  empresa?: string;
+  funcion: string;
+  tipo: WorkerType;
+}
+
+export type UpdateWorkerDTO = Partial<Omit<CreateWorkerDTO, 'projectId'>> & {
+  estado?: WorkerState;
+};
+
+export interface WorkerFunction {
+  id: string;
+  name: string;
+}
+
+export interface WorkersImportResult {
+  projectId: string;
+  rowsRead: number;
+  imported: number;
+  direct: number;
+  indirect: number;
+  removed: number;
+  newFunctions: number;
+}
+
+/** Fila de error de una importación rechazada (misma forma que Totales). */
+export type WorkersImportError = TotalsImportError;
+
+/** Presente del parte tal como se envía. Con workerId, la identidad la pone el backend. */
+export interface WorkforceEntryDTO {
+  workerId?: string;
+  fullName?: string;
+  empresa?: string;
+  funcion?: string;
+  tipo?: WorkerType;
+  hours: number;
+}
+
+export interface ReportWorkforceEntry {
+  id: string;
+  workerId: string | null;
+  fullName: string;
+  empresa: string;
+  funcion: string;
+  tipo: WorkerType;
+  hours: number;
+}

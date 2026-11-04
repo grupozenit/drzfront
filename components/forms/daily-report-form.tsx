@@ -2,14 +2,22 @@
 
 import type React from "react"
 
-import { useState, useEffect } from "react"
-import { Cloud, CloudRain, CloudLightning, CloudSnow, CloudHail, Sun, ImagePlus, X, Loader2, ClipboardCopy, AlertCircle } from "lucide-react"
+import { useState, useEffect, useRef } from "react"
+import { Cloud, CloudRain, CloudLightning, CloudSnow, CloudHail, Sun, ImagePlus, X, Loader2, ClipboardCopy, AlertCircle, HardHat } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { ActivityForm } from "./activity-form"
+import {
+  WorkforcePanel,
+  findWorkforceError,
+  rowsFromReport,
+  rowsFromRoster,
+  toWorkforceDTO,
+  type WorkforceRow,
+} from "./workforce-panel"
 import { useToast, ToastContainer } from "@/components/ui/toast"
 import { Dialog } from "@/components/ui/dialog"
 import { ArrowLeft } from "lucide-react"
@@ -23,10 +31,10 @@ import {
 } from "@/components/ui/select"
 import { validateImageFile, sanitizeTextInput } from "@/lib/utils/sanitize"
 import { netShiftHours } from "@/lib/utils/report-hours"
-import { useProjects } from "@/lib/hooks"
+import { useProjects, usePermissions } from "@/lib/hooks"
 import { useOfflineReports } from "@/lib/hooks/useOfflineReports"
-import { reportsService } from "@/lib/api"
-import type { CreateReportDTO, WeatherType, ActivityEntry, ActivityCategory, DailyReport } from "@/lib/types"
+import { reportsService, workersService } from "@/lib/api"
+import type { CreateReportDTO, WeatherType, ActivityEntry, ActivityCategory, DailyReport, WorkerFunction } from "@/lib/types"
 import { WEATHER_LABELS, ACTIVITY_CATEGORIES } from "@/lib/constants/activities"
 
 interface Activity {
@@ -112,8 +120,20 @@ export function DailyReportForm({ onBack, existingReport }: DailyReportFormProps
   const [showCancelDialog, setShowCancelDialog] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [isLoadingLastReport, setIsLoadingLastReport] = useState(false)
+
+  // Gestión de personal (opcional). Con el listado activo, directo/indirecto
+  // salen de los tildados y las horas hombre de las horas de cada uno; el
+  // backend los recalcula igual, esto es solo para mostrarlos.
+  const [usesWorkforce, setUsesWorkforce] = useState(!!existingReport?.usesWorkforce)
+  const [workforceRows, setWorkforceRows] = useState<WorkforceRow[]>([])
+  const [workforceFunctions, setWorkforceFunctions] = useState<WorkerFunction[]>([])
+  const [isLoadingWorkforce, setIsLoadingWorkforce] = useState(false)
+  // Proyecto del que se cargó el listado: si cambia el proyecto, el listado ya no aplica
+  const workforceProjectRef = useRef<string | null>(existingReport?.usesWorkforce ? existingReport.projectId : null)
   
   const { toasts, success, error: showError, removeToast } = useToast()
+  const { can } = usePermissions()
+  const canUseWorkforce = can("trabajadores", "read")
 
   // Hooks de datos
   const { projects, isLoading: isLoadingProjects, error: projectsError, loadProjects } = useProjects()
@@ -130,6 +150,73 @@ export function DailyReportForm({ onBack, existingReport }: DailyReportFormProps
       setSelectedProject(projects[0].id)
     }
   }, [projects, selectedProject])
+
+  // Al editar un parte que ya usa el listado: lo guardado + el resto de la
+  // plantilla sin tildar. Sin conexión (o sin permiso) queda lo guardado.
+  useEffect(() => {
+    if (!existingReport?.usesWorkforce) return
+    const saved = existingReport.workforce ?? []
+    setWorkforceRows(rowsFromReport(saved, []))
+    if (!canUseWorkforce) return
+    let cancelled = false
+    Promise.all([
+      workersService.getAll({ projectId: existingReport.projectId, status: "activo" }),
+      workersService.getFunctions(),
+    ])
+      .then(([roster, functions]) => {
+        if (cancelled) return
+        setWorkforceRows(rowsFromReport(saved, roster))
+        setWorkforceFunctions(functions)
+      })
+      .catch(() => {})
+    return () => {
+      cancelled = true
+    }
+  }, [existingReport, canUseWorkforce])
+
+  // Cambiar de proyecto descarta el listado: era la plantilla de otra obra
+  useEffect(() => {
+    if (usesWorkforce && workforceProjectRef.current && workforceProjectRef.current !== selectedProject) {
+      setUsesWorkforce(false)
+      setWorkforceRows([])
+      workforceProjectRef.current = null
+    }
+  }, [selectedProject, usesWorkforce])
+
+  const enableWorkforce = async () => {
+    if (!selectedProject) return
+    setIsLoadingWorkforce(true)
+    try {
+      const [roster, functions] = await Promise.all([
+        workersService.getAll({ projectId: selectedProject, status: "activo" }),
+        workersService.getFunctions(),
+      ])
+      if (roster.length === 0) {
+        showError(
+          "Sin trabajadores cargados",
+          "Este proyecto no tiene plantilla de personal. Tecnología la carga desde Configuración → Proyectos.",
+        )
+        return
+      }
+      setWorkforceRows(rowsFromRoster(roster))
+      setWorkforceFunctions(functions)
+      workforceProjectRef.current = selectedProject
+      setUsesWorkforce(true)
+    } catch (err: any) {
+      showError(
+        "No se pudo cargar el listado",
+        isOnline ? err?.message ?? "Intentá de nuevo" : "Necesitás conexión para traer el listado de trabajadores.",
+      )
+    } finally {
+      setIsLoadingWorkforce(false)
+    }
+  }
+
+  const disableWorkforce = () => {
+    setUsesWorkforce(false)
+    setWorkforceRows([])
+    workforceProjectRef.current = null
+  }
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
@@ -276,11 +363,26 @@ export function DailyReportForm({ onBack, existingReport }: DailyReportFormProps
     return Number.isFinite(parsed) ? parsed : null
   }
 
+  // Con la jornada completa suspendida el listado no aplica (y se oculta)
+  const workforceActive = usesWorkforce && !fullDaySuspended
+  // Horas por defecto de cada presente: la jornada neta menos las suspendidas
+  const workforceDefaultHours = Math.max(
+    0,
+    Math.round(
+      (netShiftHours(entryTime, exitTime) -
+        (hasSuspendedHours && !fullDaySuspended ? toNumber(suspendedHours) ?? 0 : 0)) * 100,
+    ) / 100,
+  )
+  const workforceDirect = workforceRows.filter((r) => r.present && r.tipo === "directo").length
+  const workforceIndirect = workforceRows.filter((r) => r.present && r.tipo === "indirecto").length
+  const effectiveDirectStaff = workforceActive ? String(workforceDirect) : directStaff
+  const effectiveIndirectStaff = workforceActive ? String(workforceIndirect) : indirectStaff
+
   /** Primer campo numérico mal cargado, o null si están todos bien. */
   const findNumericError = (): { title: string; message: string } | null => {
     const checks: Array<{ label: string; raw: string; max: number; integer?: boolean }> = [
-      { label: "Personal indirecto", raw: indirectStaff, max: 100000, integer: true },
-      { label: "Personal directo", raw: directStaff, max: 100000, integer: true },
+      { label: "Personal indirecto", raw: effectiveIndirectStaff, max: 100000, integer: true },
+      { label: "Personal directo", raw: effectiveDirectStaff, max: 100000, integer: true },
     ]
     // Con la jornada completa las horas las fija el backend: no hay nada que validar
     if (hasSuspendedHours && !fullDaySuspended) {
@@ -304,6 +406,11 @@ export function DailyReportForm({ onBack, existingReport }: DailyReportFormProps
       if (check.integer && !Number.isInteger(value)) {
         return { title: "Dato inválido", message: `${check.label}: tiene que ser un número entero.` }
       }
+    }
+
+    if (workforceActive) {
+      const workforceError = findWorkforceError(workforceRows, workforceDefaultHours)
+      if (workforceError) return { title: "Horas inválidas", message: workforceError }
     }
 
     const completed = activities.filter(a => a.description.trim() !== "")
@@ -350,8 +457,8 @@ export function DailyReportForm({ onBack, existingReport }: DailyReportFormProps
       isHoliday: isHoliday === "yes",
       entryTime,
       exitTime,
-      indirectStaff: toNumber(indirectStaff) ?? 0,
-      directStaff: toNumber(directStaff) ?? 0,
+      indirectStaff: toNumber(effectiveIndirectStaff) ?? 0,
+      directStaff: toNumber(effectiveDirectStaff) ?? 0,
       weather,
       hasSuspendedHours,
       suspendedHours: !hasSuspendedHours
@@ -380,6 +487,8 @@ export function DailyReportForm({ onBack, existingReport }: DailyReportFormProps
       tomorrowTasks,
       images: attachedImages.length > 0 ? attachedImages : undefined,
       status,
+      usesWorkforce: workforceActive,
+      workforce: workforceActive ? toWorkforceDTO(workforceRows, workforceDefaultHours) : [],
     }
   }
 
@@ -392,13 +501,23 @@ export function DailyReportForm({ onBack, existingReport }: DailyReportFormProps
     }
     
     // Si se suspendió la jornada completa puede no haber ido nadie a la obra
-    if (!fullDaySuspended && (!directStaff || toNumber(directStaff) === 0)) {
-      showError("Campo requerido", "Debes ingresar la cantidad de personal directo")
+    if (!fullDaySuspended && (!effectiveDirectStaff || toNumber(effectiveDirectStaff) === 0)) {
+      showError(
+        "Campo requerido",
+        workforceActive
+          ? "Marcá al menos un trabajador directo presente en el listado"
+          : "Debes ingresar la cantidad de personal directo",
+      )
       return
     }
 
-    if (!fullDaySuspended && (!indirectStaff || toNumber(indirectStaff) === 0)) {
-      showError("Campo requerido", "Debes ingresar la cantidad de personal indirecto")
+    if (!fullDaySuspended && (!effectiveIndirectStaff || toNumber(effectiveIndirectStaff) === 0)) {
+      showError(
+        "Campo requerido",
+        workforceActive
+          ? "Marcá al menos un trabajador indirecto presente en el listado"
+          : "Debes ingresar la cantidad de personal indirecto",
+      )
       return
     }
 
@@ -532,6 +651,7 @@ export function DailyReportForm({ onBack, existingReport }: DailyReportFormProps
     setHasAccident(false)
     setAccidentWithInjury("no")
     setAccidentDescription("")
+    disableWorkforce()
     setShowCancelDialog(false)
     
     if (onBack) {
@@ -680,7 +800,34 @@ export function DailyReportForm({ onBack, existingReport }: DailyReportFormProps
 
         {/* Staff Section */}
         <Card className="p-4 md:p-6 bg-card border-border">
-          <h3 className="text-sm md:text-base font-semibold text-foreground mb-4">Personal en Sitio</h3>
+          <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
+            <h3 className="text-sm md:text-base font-semibold text-foreground">Personal en Sitio</h3>
+            {/* Opcional: con la jornada completa suspendida no hay a quién listar */}
+            {canUseWorkforce && !fullDaySuspended && selectedProject && (
+              workforceActive ? (
+                <button
+                  type="button"
+                  onClick={disableWorkforce}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                  title="Volver a cargar solo las cantidades"
+                >
+                  <X className="w-3.5 h-3.5" />
+                  Quitar listado
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => void enableWorkforce()}
+                  disabled={isLoadingWorkforce}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg border-2 border-dashed border-primary/40 bg-primary/5 text-primary hover:bg-primary/10 hover:border-primary/70 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  title="Cargar el personal con el listado de trabajadores del proyecto"
+                >
+                  {isLoadingWorkforce ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <HardHat className="w-3.5 h-3.5" />}
+                  Usar listado de trabajadores
+                </button>
+              )
+            )}
+          </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
             <div className="space-y-2">
               <Label htmlFor="indirect-staff" className="text-xs md:text-sm font-medium text-foreground">
@@ -693,8 +840,10 @@ export function DailyReportForm({ onBack, existingReport }: DailyReportFormProps
                 max={100000}
                 step={1}
                 inputMode="numeric"
-                value={indirectStaff}
+                value={effectiveIndirectStaff}
                 onChange={(e) => setIndirectStaff(e.target.value)}
+                readOnly={workforceActive}
+                aria-readonly={workforceActive}
                 className="bg-input border-border text-foreground text-sm no-arrows"
                 placeholder="Ingresa cantidad"
               />
@@ -711,14 +860,30 @@ export function DailyReportForm({ onBack, existingReport }: DailyReportFormProps
                 max={100000}
                 step={1}
                 inputMode="numeric"
-                value={directStaff}
+                value={effectiveDirectStaff}
                 onChange={(e) => setDirectStaff(e.target.value)}
+                readOnly={workforceActive}
+                aria-readonly={workforceActive}
                 className="bg-input border-border text-foreground text-sm no-arrows"
                 placeholder="Ingresa cantidad"
               />
               <p className="text-xs text-muted-foreground">Trabajadores en campo</p>
             </div>
           </div>
+          {workforceActive && (
+            <>
+              <p className="mt-3 text-xs text-muted-foreground">
+                Las cantidades salen del listado: destildá a quienes no vinieron hoy. Las horas arrancan en la
+                jornada del día ({workforceDefaultHours.toLocaleString("es-AR")} h) y se pueden ajustar por persona.
+              </p>
+              <WorkforcePanel
+                rows={workforceRows}
+                onChange={setWorkforceRows}
+                functions={workforceFunctions}
+                defaultHours={workforceDefaultHours}
+              />
+            </>
+          )}
 
           {/* Accident Section */}
           <div className="mt-4 pt-4 border-t border-border">

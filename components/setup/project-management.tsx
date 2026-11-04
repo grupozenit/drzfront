@@ -9,6 +9,7 @@ import { useToast, ToastContainer } from "@/components/ui/toast"
 import { Loader2, Upload, X, PenLine } from "lucide-react"
 import { TotalsSetup } from "./totals-setup"
 import { TheoreticalCurveSetup } from "./theoretical-curve-setup"
+import { WorkersSetup } from "./workers-setup"
 import { useProjects, usePermissions } from "@/lib/hooks"
 import { projectsService } from "@/lib/api"
 import { validateImageFile } from "@/lib/utils/sanitize"
@@ -18,6 +19,7 @@ export function ProjectManagement() {
   const [showNewForm, setShowNewForm] = useState(false)
   const [showTotalsForm, setShowTotalsForm] = useState<{ projectId: string; projectName: string } | null>(null)
   const [showCurveForm, setShowCurveForm] = useState<{ projectId: string; projectName: string } | null>(null)
+  const [showWorkersForm, setShowWorkersForm] = useState<{ projectId: string; projectName: string } | null>(null)
   const [editingProject, setEditingProject] = useState<Project | null>(null)
   const [isSaving, setIsSaving] = useState(false)
   const [signatureImageFile, setSignatureImageFile] = useState<File | null>(null)
@@ -50,6 +52,10 @@ export function ProjectManagement() {
   // Totales y Curva S son las dos piezas del onboarding del proyecto: las
   // carga Tecnología, no quien reporta el avance.
   const canWriteTotals = can("totales", "update")
+  // La importación de la plantilla de trabajadores es de Configuración: el
+  // Jefe de Obra crea trabajadores a mano pero no reemplaza el plantel entero.
+  // Es la misma combinación que exige el backend.
+  const canImportWorkers = can("trabajadores", "create") && can("proyectos", "update")
 
   useEffect(() => {
     loadProjects()
@@ -149,6 +155,19 @@ export function ProjectManagement() {
           projectId={showTotalsForm.projectId}
           projectName={showTotalsForm.projectName}
           onBack={() => setShowTotalsForm(null)}
+        />
+      </>
+    )
+  }
+
+  if (showWorkersForm) {
+    return (
+      <>
+        <ToastContainer toasts={toasts} onClose={removeToast} />
+        <WorkersSetup
+          projectId={showWorkersForm.projectId}
+          projectName={showWorkersForm.projectName}
+          onBack={() => setShowWorkersForm(null)}
         />
       </>
     )
@@ -387,7 +406,7 @@ export function ProjectManagement() {
                         </span>
                       )}
                     </div>
-                    <div className="flex items-center gap-3">
+                    <div className="flex flex-wrap items-center justify-end gap-2 md:gap-3">
                       {canWrite && (
                         <button
                           onClick={() => setEditingProject(project)}
@@ -410,6 +429,14 @@ export function ProjectManagement() {
                           className="px-3 py-1.5 text-xs font-medium rounded-md border border-[#d68f2d] text-[#d68f2d] bg-white hover:bg-[#d68f2d] hover:text-[#23190f] transition-colors dark:bg-transparent dark:border-[#d68f2d] dark:text-[#e8a94f] dark:hover:bg-[#d68f2d] dark:hover:text-[#23190f]"
                         >
                           Curva S
+                        </button>
+                      )}
+                      {canImportWorkers && (
+                        <button
+                          onClick={() => setShowWorkersForm({ projectId: project.id, projectName: project.name })}
+                          className="px-3 py-1.5 text-xs font-medium rounded-md border border-[#d68f2d] text-[#d68f2d] bg-white hover:bg-[#d68f2d] hover:text-[#23190f] transition-colors dark:bg-transparent dark:border-[#d68f2d] dark:text-[#e8a94f] dark:hover:bg-[#d68f2d] dark:hover:text-[#23190f]"
+                        >
+                          Trabajadores
                         </button>
                       )}
                     </div>

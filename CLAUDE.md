@@ -201,6 +201,15 @@ Never recompute a weighted percentage in the client: the weights live in `src/co
 
 `Baseline`, `baselinesService`, `useBaseline`, `lib/utils/calculations.ts` and `lib/constants/weights.ts` were all deleted. The last two were dead code that duplicated the backend's now-obsolete weights.
 
+## Trabajadores (workforce)
+
+Optional per daily report. The backend is the source of truth for everything below; see its CLAUDE.md for the rules.
+
+- **Page `/trabajadores`** (`components/workers/workers-management.tsx`, resource `trabajadores`, sidebar between Reportes Semanales and Flota): project selector (already scope-filtered by the backend), summary by empresa and by función (stacked directo/indirecto), and the editable list. Edit/add/delete are gated per action with `can("trabajadores", …)`; delete is a soft delete (`estado: "baja"`) with "Ver bajas" / "Reactivar".
+- **Import** (`components/setup/workers-setup.tsx`, from Configuración → Proyectos → "Trabajadores") is gated by `can("trabajadores","create") && can("proyectos","update")` — same pair the backend requires, so only Tecnología sees it. Uploading **replaces the whole roster**, so it's confirmed when people are already loaded. The función list is defined by users in the template's FUNCIONES sheet; the manual forms only offer that list (`workersService.getFunctions()`).
+- **Daily report**: "Usar listado de trabajadores" next to "Personal en Sitio" (hidden when the full day is suspended). Everyone starts present; uncheck who's absent. `components/forms/workforce-panel.tsx` holds the row model and pure helpers (tested in `__tests__/utils/workforce.test.ts`). A row's `hours: null` means "the day's shift" (net shift minus partial suspension) and follows the schedule until the user types a value. With the list on, the staff inputs are read-only counts — the backend recomputes them anyway.
+- **Send only `{ workerId, hours }` for roster people.** Name/empresa/función/tipo for those come from the server; only people added for that day alone travel with their full data. Changing project drops the list (it was another site's roster).
+
 ## "Línea Base" is called "Totales" in the UI
 
 The product name changed and so did the model. `project.hasBaseline` kept its name — it's already in the API contract and renaming it buys nothing.
