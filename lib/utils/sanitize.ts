@@ -149,3 +149,34 @@ export function validatePDFFile(file: File): { valid: boolean; error?: string } 
   
   return { valid: true };
 }
+
+/**
+ * Largo máximo de las observaciones generales del parte diario. Espeja
+ * GENERAL_OBSERVATIONS_MAX del backend (src/models/report.py), que es también
+ * el ancho de la columna.
+ */
+export const GENERAL_OBSERVATIONS_MAX = 2000;
+
+const HTML_ENTITIES: Record<string, string> = {
+  '&amp;': '&',
+  '&lt;': '<',
+  '&gt;': '>',
+  '&quot;': '"',
+  '&#34;': '"',
+  '&#39;': "'",
+  '&#x27;': "'",
+};
+
+/**
+ * Revierte el escapado que el backend aplica a los textos libres (bleach deja
+ * "&", "<" y ">" como entidades) para mostrarlos tal cual se escribieron.
+ *
+ * Es un reemplazo de strings, no un parseo: nunca pasa por innerHTML, así que
+ * el resultado es texto plano y React lo sigue escapando al renderizar. Sirve
+ * también para cargar el texto en un formulario de edición sin que al guardar
+ * se vuelva a escapar ("&amp;" → "&amp;amp;").
+ */
+export function decodeHtmlEntities(text: string | null | undefined): string {
+  if (!text) return '';
+  return text.replace(/&(?:amp|lt|gt|quot|#34|#39|#x27);/g, (entity) => HTML_ENTITIES[entity] ?? entity);
+}

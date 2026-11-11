@@ -339,6 +339,8 @@ export interface DailyReport {
   accidentWithInjury?: boolean;
   accidentDescription?: string;
   activities: ActivityEntry[];
+  /** Observaciones generales del día, fuera de las actividades (opcional). */
+  generalObservations?: string | null;
   tomorrowTasks: string[];
   images: string[]; // URLs de imágenes
   status: ReportStatus;
@@ -374,6 +376,11 @@ export interface CreateReportDTO {
   accidentWithInjury?: boolean;
   accidentDescription?: string;
   activities: Omit<ActivityEntry, 'id'>[];
+  /**
+   * Observaciones generales (opcional, hasta GENERAL_OBSERVATIONS_MAX). En una
+   * edición, "" las borra y omitir el campo las conserva.
+   */
+  generalObservations?: string;
   tomorrowTasks: string[];
   images?: File[];
   status: ReportStatus;
