@@ -89,6 +89,7 @@ export function useOfflineReports(options?: { projectId?: string; autoLoad?: boo
         accidentWithInjury: data.accidentWithInjury,
         accidentDescription: data.accidentDescription,
         activities: data.activities.map((a, i) => ({ ...a, id: `local-${i}` })),
+        generalObservations: data.generalObservations || null,
         tomorrowTasks: data.tomorrowTasks,
         images: [],
         status: data.status,

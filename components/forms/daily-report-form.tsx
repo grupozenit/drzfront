@@ -29,7 +29,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { validateImageFile, sanitizeTextInput } from "@/lib/utils/sanitize"
+import { validateImageFile, sanitizeTextInput, decodeHtmlEntities, GENERAL_OBSERVATIONS_MAX } from "@/lib/utils/sanitize"
 import { netShiftHours } from "@/lib/utils/report-hours"
 import { useProjects, usePermissions } from "@/lib/hooks"
 import { useOfflineReports } from "@/lib/hooks/useOfflineReports"
@@ -109,6 +109,9 @@ export function DailyReportForm({ onBack, existingReport }: DailyReportFormProps
   const [attachedImages, setAttachedImages] = useState<File[]>([])
   const [existingImageUrls, setExistingImageUrls] = useState<string[]>(
     existingReport?.images || []
+  )
+  const [generalObservations, setGeneralObservations] = useState(
+    decodeHtmlEntities(existingReport?.generalObservations)
   )
   const [tomorrowTasks, setTomorrowTasks] = useState<string[]>(existingReport?.tomorrowTasks || [])
   const [newTask, setNewTask] = useState("")
@@ -484,6 +487,8 @@ export function DailyReportForm({ onBack, existingReport }: DailyReportFormProps
           workers: toNumber(a.workers) ?? 0,
           observations: a.observations,
         })),
+      // Siempre viaja: en una edición, "" es lo que borra las observaciones
+      generalObservations: generalObservations.trim(),
       tomorrowTasks,
       images: attachedImages.length > 0 ? attachedImages : undefined,
       status,
@@ -644,6 +649,7 @@ export function DailyReportForm({ onBack, existingReport }: DailyReportFormProps
     setSuspendedReason("")
     setFullDaySuspended(false)
     setAttachedImages([])
+    setGeneralObservations("")
     setTomorrowTasks([])
     setNewTask("")
     setSelectedProject(projects[0]?.id || "")
@@ -1158,6 +1164,28 @@ export function DailyReportForm({ onBack, existingReport }: DailyReportFormProps
             + Agregar Actividad
           </button>
         </div>
+
+        {/* General Observations Section */}
+        <Card className="p-4 md:p-6 bg-card border-border">
+          <h3 className="text-sm md:text-base font-semibold text-foreground mb-1">
+            Observaciones Generales <span className="text-xs font-normal text-muted-foreground">(opcional)</span>
+          </h3>
+          <p className="text-xs text-muted-foreground mb-4">
+            Lo que sucedió en el día más allá de una actividad puntual
+          </p>
+          <Textarea
+            id="general-observations"
+            aria-label="Observaciones generales"
+            maxLength={GENERAL_OBSERVATIONS_MAX}
+            value={generalObservations}
+            onChange={(e) => setGeneralObservations(e.target.value)}
+            placeholder="Ej.: visita del cliente, corte de energía, demoras en entregas..."
+            className="bg-input border-border text-foreground text-sm min-h-[100px]"
+          />
+          <p className="text-xs text-muted-foreground mt-1 text-right">
+            {generalObservations.length}/{GENERAL_OBSERVATIONS_MAX}
+          </p>
+        </Card>
 
         {/* Tomorrow Tasks Section */}
         <Card className="p-4 md:p-6 bg-card border-border">

@@ -9,6 +9,7 @@ import {
   validateFileType,
   validateImageFile,
   validateSpreadsheetFile,
+  decodeHtmlEntities,
 } from '@/lib/utils/sanitize';
 
 // ─── sanitizeTextInput ────────────────────────────────────────────────────────
@@ -192,5 +193,27 @@ describe('validateSpreadsheetFile', () => {
   it('rechaza un MIME que no es el de xlsx', () => {
     const file = new File(['x'], 'totales.xlsx', { type: 'application/pdf' });
     expect(validateSpreadsheetFile(file).valid).toBe(false);
+  });
+});
+
+// ─── decodeHtmlEntities ───────────────────────────────────────────────────────
+
+describe('decodeHtmlEntities', () => {
+  it('revierte el escapado del backend', () => {
+    expect(decodeHtmlEntities('Cables &amp; bandejas &lt; 5 m &gt; 2')).toBe('Cables & bandejas < 5 m > 2');
+    expect(decodeHtmlEntities('&quot;a&quot; &#39;b&#x27;')).toBe(`"a" 'b'`);
+  });
+
+  it('decodifica una sola pasada (no convierte "&amp;lt;" en "<")', () => {
+    expect(decodeHtmlEntities('&amp;lt;script&amp;gt;')).toBe('&lt;script&gt;');
+  });
+
+  it('deja intactas las entidades que no conoce', () => {
+    expect(decodeHtmlEntities('&nbsp;&copy;')).toBe('&nbsp;&copy;');
+  });
+
+  it('tolera null y undefined', () => {
+    expect(decodeHtmlEntities(null)).toBe('');
+    expect(decodeHtmlEntities(undefined)).toBe('');
   });
 });

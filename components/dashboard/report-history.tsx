@@ -14,6 +14,7 @@ import { Dialog } from "@/components/ui/dialog"
 import { ACTIVITY_CATEGORIES, REPORT_STATUS_LABELS } from "@/lib/constants/activities"
 import type { DailyReport, ReportFilters } from "@/lib/types"
 import { formatDateLocal } from "@/lib/utils"
+import { decodeHtmlEntities } from "@/lib/utils/sanitize"
 
 // Categorías de actividades para filtros
 const activityCategories = Object.values(ACTIVITY_CATEGORIES)
@@ -211,6 +212,11 @@ export function ReportHistory() {
       message += `\n`
     } else if (report.fullDaySuspended) {
       message += `*ACTIVIDADES REALIZADAS*\nSin actividades: jornada completa suspendida.\n\n`
+    }
+
+    // Observaciones generales
+    if (report.generalObservations) {
+      message += `*OBSERVACIONES GENERALES*\n${decodeHtmlEntities(report.generalObservations)}\n\n`
     }
 
     // Tareas para mañana

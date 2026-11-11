@@ -1,9 +1,10 @@
 "use client"
 
-import { X, Download, Sun, Cloud, CloudRain, CloudLightning, Snowflake, CloudHail, Clock, Users, AlertTriangle, CheckCircle2, ListChecks, Image as ImageIcon, Briefcase } from "lucide-react"
+import { X, Download, Sun, Cloud, CloudRain, CloudLightning, Snowflake, CloudHail, Clock, Users, AlertTriangle, CheckCircle2, ListChecks, Image as ImageIcon, Briefcase, MessageSquareText } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { WEATHER_LABELS, ACTIVITY_CATEGORIES, REPORT_STATUS_LABELS } from "@/lib/constants/activities"
 import { formatDateLocal } from "@/lib/utils"
+import { decodeHtmlEntities } from "@/lib/utils/sanitize"
 import type { DailyReport, WeatherType, ActivityCategory } from "@/lib/types"
 
 const API_BASE = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1").replace("/api/v1", "")
@@ -199,6 +200,16 @@ export function ReportPreviewModal({ report, isOpen, onClose, onDownload }: Repo
                   </div>
                 ))}
               </div>
+            </div>
+          )}
+
+          {/* Observaciones generales */}
+          {report.generalObservations && (
+            <div className="p-4 rounded-lg bg-muted/30 border border-border">
+              <SectionTitle icon={<MessageSquareText className="w-4 h-4" />} title="Observaciones Generales" />
+              <p className="text-sm text-foreground whitespace-pre-line break-words">
+                {decodeHtmlEntities(report.generalObservations)}
+              </p>
             </div>
           )}
 
