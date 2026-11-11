@@ -1167,12 +1167,9 @@ export function DailyReportForm({ onBack, existingReport }: DailyReportFormProps
 
         {/* General Observations Section */}
         <Card className="p-4 md:p-6 bg-card border-border">
-          <h3 className="text-sm md:text-base font-semibold text-foreground mb-1">
+          <h3 className="text-sm md:text-base font-semibold text-foreground mb-4">
             Observaciones Generales <span className="text-xs font-normal text-muted-foreground">(opcional)</span>
           </h3>
-          <p className="text-xs text-muted-foreground mb-4">
-            Lo que sucedió en el día más allá de una actividad puntual
-          </p>
           <Textarea
             id="general-observations"
             aria-label="Observaciones generales"
