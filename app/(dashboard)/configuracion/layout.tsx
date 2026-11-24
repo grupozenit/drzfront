@@ -2,6 +2,7 @@
 
 import { usePathname } from "next/navigation"
 import Link from "next/link"
+import { usePermissions } from "@/lib/hooks"
 
 export default function ConfiguracionLayout({
   children,
@@ -9,11 +10,15 @@ export default function ConfiguracionLayout({
   children: React.ReactNode
 }) {
   const pathname = usePathname()
+  const { can } = usePermissions()
 
+  // Cada pestaña solo para quien puede abrirla (mismo criterio que
+  // checkRouteAccess): Equipo es solo de Tecnología (`usuarios`); Proyectos,
+  // de Tecnología, Gerente de Proyecto y Jefe de Obra (`proyectos`).
   const tabs = [
-    { id: "proyectos", label: "Proyectos", href: "/configuracion/proyectos" },
-    { id: "equipo", label: "Equipo", href: "/configuracion/equipo" },
-  ]
+    { id: "proyectos", label: "Proyectos", href: "/configuracion/proyectos", visible: can("proyectos", "read") },
+    { id: "equipo", label: "Equipo", href: "/configuracion/equipo", visible: can("usuarios", "read") },
+  ].filter((tab) => tab.visible)
 
   return (
     <div className="min-h-screen">

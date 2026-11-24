@@ -237,7 +237,8 @@ export interface CreateTheoreticalCurveDTO {
 // una fila por ítem del catálogo, con su cantidad contractual y si aplica.
 
 export interface ProjectTotalItem {
-  id: string;
+  /** null: ítem del catálogo que el proyecto todavía no tiene (solo con includeAll). */
+  id: string | null;
   category: ActivityCategory;
   categoryLabel: string;
   subActivity: string;
@@ -255,6 +256,15 @@ export interface ProjectTotals {
   hasTotals: boolean;
   updatedAt: string | null;
   items: ProjectTotalItem[];
+}
+
+/** Un ítem de la carga manual de Totales: SÍ/NO y cantidad. */
+export interface ProjectTotalManualItem {
+  category: ActivityCategory;
+  subActivity: string;
+  component: string;
+  applies: boolean;
+  totalQuantity: number;
 }
 
 export interface TotalsImportResult {

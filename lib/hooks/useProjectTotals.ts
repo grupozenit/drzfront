@@ -2,19 +2,17 @@
 
 import { useCallback, useState } from 'react';
 import { projectTotalsService } from '@/lib/api/project-totals';
-import type { ProjectTotals, TotalsImportResult } from '@/lib/types';
+import type { ProjectTotalManualItem, ProjectTotals, TotalsImportResult } from '@/lib/types';
 
 interface UseProjectTotalsReturn {
+  /** El catálogo completo cruzado con lo cargado (ver getFullCatalog). */
   totals: ProjectTotals | null;
   isLoading: boolean;
   isSaving: boolean;
   error: string | null;
   loadTotals: (projectId: string) => Promise<void>;
   importTemplate: (projectId: string, file: File) => Promise<TotalsImportResult>;
-  saveQuantities: (
-    projectId: string,
-    items: Array<{ id: string; totalQuantity: number }>,
-  ) => Promise<void>;
+  saveItems: (projectId: string, items: ProjectTotalManualItem[]) => Promise<void>;
   downloadTemplate: () => Promise<void>;
 }
 
@@ -28,7 +26,7 @@ export function useProjectTotals(): UseProjectTotalsReturn {
     setIsLoading(true);
     setError(null);
     try {
-      setTotals(await projectTotalsService.getByProjectId(projectId));
+      setTotals(await projectTotalsService.getFullCatalog(projectId));
     } catch (err: any) {
       setError(err?.message ?? 'No se pudieron cargar los totales');
       setTotals(null);
@@ -41,20 +39,17 @@ export function useProjectTotals(): UseProjectTotalsReturn {
     setIsSaving(true);
     try {
       const result = await projectTotalsService.importTemplate(projectId, file);
-      setTotals(await projectTotalsService.getByProjectId(projectId));
+      setTotals(await projectTotalsService.getFullCatalog(projectId));
       return result;
     } finally {
       setIsSaving(false);
     }
   }, []);
 
-  const saveQuantities = useCallback(async (
-    projectId: string,
-    items: Array<{ id: string; totalQuantity: number }>,
-  ) => {
+  const saveItems = useCallback(async (projectId: string, items: ProjectTotalManualItem[]) => {
     setIsSaving(true);
     try {
-      setTotals(await projectTotalsService.updateQuantities(projectId, items));
+      setTotals(await projectTotalsService.saveItems(projectId, items));
     } finally {
       setIsSaving(false);
     }
@@ -66,6 +61,6 @@ export function useProjectTotals(): UseProjectTotalsReturn {
 
   return {
     totals, isLoading, isSaving, error,
-    loadTotals, importTemplate, saveQuantities, downloadTemplate,
+    loadTotals, importTemplate, saveItems, downloadTemplate,
   };
 }

@@ -9,7 +9,6 @@ import { OrganizationProvider } from '@/components/providers/organization-provid
 import {
   getServerCompany,
   getServerProjects,
-  getServerTeam,
   getServerMachinery,
   getServerDashboardSummary,
 } from '@/lib/api/server'
@@ -58,10 +57,11 @@ export default async function RootLayout({
 }>) {
   // Cargar datos iniciales del servidor en paralelo
   // Si hay error o no hay autenticación, simplemente devolvemos null y el cliente los cargará
-  const [company, projects, team, machinery, dashboardSummary] = await Promise.all([
+  // El equipo no se precarga: GET /team es solo de Tecnología (Configuración →
+  // Equipo) y team-management.tsx lo pide al montarse si can('usuarios').
+  const [company, projects, machinery, dashboardSummary] = await Promise.all([
     getServerCompany().catch(() => null),
     getServerProjects().catch(() => []),
-    getServerTeam().catch(() => []),
     getServerMachinery().catch(() => []),
     getServerDashboardSummary().catch(() => null),
   ])
@@ -118,7 +118,7 @@ export default async function RootLayout({
                 initialData={{
                   company,
                   projects,
-                  team,
+                  team: [],
                   machinery,
                   dashboardSummary,
                 }}
