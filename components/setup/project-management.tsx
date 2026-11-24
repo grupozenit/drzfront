@@ -48,14 +48,17 @@ export function ProjectManagement() {
     [projects],
   )
   const { can } = usePermissions()
-  const canWrite = can("proyectos", "create")
-  // Totales y Curva S son las dos piezas del onboarding del proyecto: las
-  // carga Tecnología, no quien reporta el avance.
+  // Crear un proyecto es solo de Tecnología. Editarlo (nombre, firma) lo
+  // pueden también Gerente de Proyecto y Jefe de Obra, sobre los proyectos que
+  // ya ven: la lista llega acotada a su alcance desde el backend, que además
+  // rechaza con 404 cualquier escritura sobre un proyecto ajeno.
+  const canCreate = can("proyectos", "create")
+  const canEdit = can("proyectos", "update")
+  // Totales y Curva S: Tecnología, Gerente de Proyecto y Jefe de Obra.
   const canWriteTotals = can("totales", "update")
-  // La importación de la plantilla de trabajadores es de Configuración: el
-  // Jefe de Obra crea trabajadores a mano pero no reemplaza el plantel entero.
-  // Es la misma combinación que exige el backend.
-  const canImportWorkers = can("trabajadores", "create") && can("proyectos", "update")
+  // La importación de la plantilla de trabajadores es de Configuración →
+  // Proyectos. Es la misma combinación que exige el backend.
+  const canImportWorkers = can("trabajadores", "read") && can("proyectos", "update")
 
   useEffect(() => {
     loadProjects()
@@ -196,7 +199,7 @@ export function ProjectManagement() {
             <h2 className="text-lg md:text-xl font-bold text-foreground">Proyectos</h2>
             <p className="text-muted-foreground mt-1 text-sm">{projects.length} proyectos activos</p>
           </div>
-          {canWrite && (
+          {canCreate && (
             <Button
               onClick={() => setShowNewForm(true)}
               className="w-full md:w-auto bg-primary hover:bg-primary/90 text-primary-foreground text-sm"
@@ -207,7 +210,7 @@ export function ProjectManagement() {
         </div>
 
         {/* New Project Form */}
-        {showNewForm && (
+        {showNewForm && canCreate && (
           <Card className="p-6 md:p-8 bg-card border-border mb-8">
             <div className="space-y-6">
               <h3 className="text-base md:text-lg font-semibold text-foreground">Crear Nuevo Proyecto</h3>
@@ -407,7 +410,7 @@ export function ProjectManagement() {
                       )}
                     </div>
                     <div className="flex flex-wrap items-center justify-end gap-2 md:gap-3">
-                      {canWrite && (
+                      {canEdit && (
                         <button
                           onClick={() => setEditingProject(project)}
                           className="text-primary hover:text-primary/80 text-sm font-medium"
@@ -452,9 +455,11 @@ export function ProjectManagement() {
             <div className="text-center">
               <h3 className="text-lg font-semibold text-foreground mb-2">Sin proyectos</h3>
               <p className="text-sm text-muted-foreground mb-4">
-                Crea tu primer proyecto para comenzar a gestionar reportes
+                {canCreate
+                  ? "Crea tu primer proyecto para comenzar a gestionar reportes"
+                  : "Todavía no tenés proyectos asignados"}
               </p>
-              {canWrite && (
+              {canCreate && (
                 <Button onClick={() => setShowNewForm(true)}>
                   Crear Primer Proyecto
                 </Button>

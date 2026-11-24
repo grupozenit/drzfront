@@ -451,12 +451,13 @@ export function AppProvider({ children, initialData }: AppProviderProps) {
       loadPermissions(),
       loadCompany(),
       loadProjects(),
-      loadTeam(),
+      // loadTeam() no va acá: GET /team es solo de Tecnología y lo pide
+      // team-management.tsx cuando el rol puede verlo.
       loadMachinery(),
       loadDashboardSummary(),
     ]);
     setState(prev => ({ ...prev, isLoading: false }));
-  }, [loadPermissions, loadCompany, loadProjects, loadTeam, loadMachinery, loadDashboardSummary]);
+  }, [loadPermissions, loadCompany, loadProjects, loadMachinery, loadDashboardSummary]);
 
   // ============================================
   // CARGAR DATOS INICIALES
