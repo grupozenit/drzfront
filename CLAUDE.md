@@ -192,7 +192,7 @@ Never recompute a weighted percentage in the client: the weights live in `src/co
 
 ## Project Totals (the work scope)
 
-`components/setup/totals-setup.tsx` replaced the manual baseline form. The scope is loaded **by uploading an Excel template only** — download it with `projectTotalsService.downloadTemplate()`, upload the filled copy, then adjust quantities inline. It's mounted from `project-management.tsx`, gated by `can("totales", "update")`.
+`components/setup/totals-setup.tsx` replaced the manual baseline form. It shows the **whole catalog** (`projectTotalsService.getFullCatalog()`, i.e. `?includeAll=true`), including items not in the scope yet, and loads it two ways: uploading the Excel template (replaces everything) or by hand — flip an item to SÍ, type its quantity, save (`saveItems()` → `PUT /project-totals/{id}/items`, only the changed rows). An item at SÍ needs a quantity > 0 (same rule as the backend); unconfirmed ones stay at NO. Rows are keyed by `JSON.stringify([category, subActivity, component])`, never a hyphen-joined string. It's mounted from `project-management.tsx`, gated by `can("totales", "update")`.
 
 - `validateSpreadsheetFile()` in `lib/utils/sanitize.ts` is a **usability filter, not a control** — the backend revalidates extension, MIME, magic bytes and ZIP structure. Never treat a client-side check as the defense.
 - A rejected import returns 422 with `errors[]` (row, column, value, message). Render them: the file is all-or-nothing, so the user needs to know exactly what to fix.

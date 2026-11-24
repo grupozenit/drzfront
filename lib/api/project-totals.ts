@@ -1,6 +1,7 @@
 import { apiClient } from './client';
 import type {
   ProjectTotalItem,
+  ProjectTotalManualItem,
   ProjectTotals,
   TotalsImportResult,
 } from '@/lib/types';
@@ -22,6 +23,22 @@ export const projectTotalsService = {
   /** Totales cargados de un proyecto, en el orden del catálogo. */
   async getByProjectId(projectId: string): Promise<ProjectTotals> {
     return apiClient.get<ProjectTotals>(`${ENDPOINT}/${projectId}`);
+  },
+
+  /**
+   * El catálogo completo cruzado con los totales del proyecto: los ítems que
+   * el proyecto todavía no tiene vienen con `id: null`, sin aplicar y en 0.
+   */
+  async getFullCatalog(projectId: string): Promise<ProjectTotals> {
+    return apiClient.get<ProjectTotals>(`${ENDPOINT}/${projectId}`, { includeAll: 'true' });
+  },
+
+  /**
+   * Carga manual: activa/desactiva ítems y fija su cantidad, sin plantilla.
+   * Los ítems que no se mandan quedan como están. Devuelve el catálogo completo.
+   */
+  async saveItems(projectId: string, items: ProjectTotalManualItem[]): Promise<ProjectTotals> {
+    return apiClient.put<ProjectTotals>(`${ENDPOINT}/${projectId}/items`, { items });
   },
 
   /**

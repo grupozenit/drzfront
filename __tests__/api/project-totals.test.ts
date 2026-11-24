@@ -7,6 +7,7 @@ vi.mock('@/lib/api/client', () => ({
     get: vi.fn(),
     post: vi.fn(),
     patch: vi.fn(),
+    put: vi.fn(),
     downloadFile: vi.fn(),
   },
 }));
@@ -66,6 +67,22 @@ describe('projectTotalsService', () => {
     const items = [{ id: 'item-1', totalQuantity: 500 }];
     await projectTotalsService.updateQuantities('proj-001', items);
     expect(apiClient.patch).toHaveBeenCalledWith('/project-totals/proj-001', { items });
+  });
+
+  it('pide el catálogo completo con includeAll', async () => {
+    (apiClient.get as Mock).mockResolvedValue(mockTotals);
+    await projectTotalsService.getFullCatalog('proj-001');
+    expect(apiClient.get).toHaveBeenCalledWith('/project-totals/proj-001', { includeAll: 'true' });
+  });
+
+  it('guarda la carga manual por identidad de catálogo, sin ids', async () => {
+    (apiClient.put as Mock).mockResolvedValue(mockTotals);
+    const items = [{
+      category: 'trackers' as const, subActivity: 'Montaje', component: '',
+      applies: true, totalQuantity: 250,
+    }];
+    await projectTotalsService.saveItems('proj-001', items);
+    expect(apiClient.put).toHaveBeenCalledWith('/project-totals/proj-001/items', { items });
   });
 
   it('propaga el error de importación con las filas a corregir', async () => {
